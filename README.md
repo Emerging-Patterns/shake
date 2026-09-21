@@ -7,15 +7,20 @@ commands; `help` writes usage. `shake/LAWS.bend` states the parser;
 
 ## Install
 
+Install easily with [ez](https://github.com/Emerging-Patterns/ez):
+
 ```
-curl -fsSL https://bend-lang.com/install.sh | sh
+ez init
+ez add Emerging-Patterns/shake
 ```
+
+You need [Bend](https://github.com/bendlang/bend).
+
+## Usage
 
 ```
 import 0xba6940aab8a335b70bf79944bd9b53c4/main.bend as Shake
 ```
-
-## Usage
 
 Print usage with `tool help` or `tool help <command>`. `--help` is consumed
 by the Bend runtime of a compiled binary and never reaches the program. A
