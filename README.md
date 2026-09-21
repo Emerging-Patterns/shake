@@ -3,8 +3,7 @@
 CLI argument parser for [Bend 2](https://github.com/bendlang/bend). A program
 spec is Bend data: `parse` binds flags, options, positionals, and nested
 commands; `help` writes usage. `shake/LAWS.bend` states the parser;
-`shake/PROOF.bend` proves those laws (`bend shake/PROOF.bend` prints `All
-terms check.`). Bolt lints the tree and prints `clean`.
+`shake/PROOF.bend` proves those laws.
 
 ## Install
 
