@@ -1,0 +1,25 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: shake
+      - uses: actions/checkout@v4
+        with:
+          repository: Emerging-Patterns/ez
+          path: ez
+      - uses: DeterminateSystems/nix-installer-action@v23
+      - name: Build the gate
+        working-directory: shake
+        run: nix develop -c env BEND_LIB=../ez/.ez/lib bend ../ez/ez/main.bend -o ../ez.bin
+      - name: ez test
+        working-directory: shake
+        run: nix develop -c ../ez.bin test
