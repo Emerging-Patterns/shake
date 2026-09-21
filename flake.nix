@@ -3,7 +3,7 @@
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   inputs.bend = {
-    url = "github:bendlang/bend";
+    url = "git+https://github.com/Emerging-Patterns/bend?rev=982ef5905199d57199564b5c9c4991e945c79384";
     inputs.nixpkgs.follows = "nixpkgs";
   };
   inputs.ez = {
