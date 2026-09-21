@@ -324,7 +324,7 @@ def rest.last(pos: List<&2, Arg>) -> Bool:
   match pos:
     case Nil{}:
       True{}
-    case Con{+h, t}:
+    case Con{+h, +t}:
       rest.last.hit(rest.is(h), List.is_empty(&2, Arg, t), rest.last(t))
 
 # whether `v` is among the choices; an empty list accepts any value
@@ -387,10 +387,19 @@ def get(m: Matched, +name: String) -> String:
   get.bind(binds, name)
 
 # this bind's value when the name matches, else the rest
+def get_all.bind.hit(hit: Bool, +v: String, more: List<&2, String>) ->
+  List<&2, String>:
+  match hit:
+    case True{}:
+      v <> more
+    case False{}:
+      more
+
+# this bind's value when the name matches, else the rest
 def get_all.bind.at(b: Bind, more: List<&2, String>, +name: String) ->
   List<&2, String>:
   Bind{+n, v} = b
-  Bool.pick(List<&2, String>, String.eq(n, name), v <> more, more)
+  get_all.bind.hit(String.eq(n, name), v, more)
 
 # every value bound to `name`
 def get_all.bind(bs: List<&2, Bind>, +name: String) -> List<&2, String>:
