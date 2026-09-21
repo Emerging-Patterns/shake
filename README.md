@@ -19,9 +19,11 @@ import 0xebdf72b20ad527103f6efc0d2aa8f1ec/main.bend as Shake
 
 Print usage with `tool help` or `tool help <command>`. `--help` is consumed
 by the Bend runtime of a compiled binary and never reaches the program. A
-`--` ends option parsing: every word after it is a positional. Copy `IO.args`
-so each word can be read more than once; the runtime also strips
-`--threads`, `--gpu`, and `--gpu-build`.
+`--` ends option parsing: every word after it is a positional. A rest
+positional keeps every leftover word under one name; `get_all` reads that
+list, and `get` still reads one value. Copy `IO.args` so each word can be
+read more than once; the runtime also strips `--threads`, `--gpu`, and
+`--gpu-build`.
 
 ```
 git clone https://github.com/Emerging-Patterns/shake

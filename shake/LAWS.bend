@@ -42,6 +42,27 @@ def gold.add() -> String:
   "Options:\n" ++
   "    --color <COLOR>  A color [possible values: red, green, blue]\n\n"
 
+# the rest fixture parse, as one line
+def shown.rest(av: List<&2, String>) -> String:
+  Shake.show(Shake.parse(Sample.rest_spec(), av))
+
+# the rest fixture's files, or empty on error
+def files.of(r: Result<&2, &2, Shake.ParseErr, Shake.Matched>) ->
+  List<&2, String>:
+  match r:
+    case Done{m}:
+      Shake.get_all(m, "files")
+    case Fail{_e}:
+      []
+
+# the rest fixture's help page
+def gold.rest() -> String:
+  "lint\n" ++
+  "Lint files.\n\n" ++
+  "Usage: lint [FILES]...\n\n" ++
+  "Commands:\n" ++
+  "  help  Print this message or the help of the given subcommand(s)\n\n"
+
 # the fixture's unexpected-flag error
 def gold.err_nope() -> String:
   "error: unexpected argument '--nope' found\n\n" ++
@@ -99,6 +120,17 @@ law pos_is_arg:
   for choices: List<&2, String>
   {Shake.pos(name, help, required, default, choices)
     == Shake.Arg{name, None{}, None{}, Shake.Pos{}, help, required, default, choices}
+    : Shake.Arg}
+
+# LAW: a rest positional has no short or long spelling
+law rest_is_arg:
+  for +name: String
+  for +help: String
+  for required: Bool
+  for default: Maybe<&2, String>
+  for choices: List<&2, String>
+  {Shake.rest(name, help, required, default, choices)
+    == Shake.Arg{name, None{}, None{}, Shake.Rest{}, help, required, default, choices}
     : Shake.Arg}
 
 # LAW: a flag token starts with `-` and is not `-` alone
@@ -214,6 +246,33 @@ law pos_of_keeps:
     == [Shake.pos("who", "Who to greet", False{}, None{}, [])]
     : List<&2, Shake.Arg>}
 
+# LAW: `pos_of` keeps a rest positional
+law pos_of_rest:
+  for u: Unit
+  {Shake.pos_of([Shake.rest("files", "Files to lint", False{}, None{}, [])])
+    == [Shake.rest("files", "Files to lint", False{}, None{}, [])]
+    : List<&2, Shake.Arg>}
+
+# LAW: no rest is last
+law rest_last_none:
+  for u: Unit
+  {Shake.rest.last([Shake.pos("who", "Who to greet", False{}, None{}, [])])
+    == True{} : Bool}
+
+# LAW: rest is last when it ends the positionals
+law rest_last_ok:
+  for u: Unit
+  {Shake.rest.last([Shake.pos("who", "Who to greet", False{}, None{}, []),
+      Shake.rest("files", "Files to lint", False{}, None{}, [])])
+    == True{} : Bool}
+
+# LAW: rest is not last when a positional follows it
+law rest_last_mid:
+  for u: Unit
+  {Shake.rest.last([Shake.rest("files", "Files to lint", False{}, None{}, []),
+      Shake.pos("who", "Who to greet", False{}, None{}, [])])
+    == False{} : Bool}
+
 # LAW: empty choices accept any value
 law allowed_any:
   for v: String
@@ -249,6 +308,18 @@ law get_head:
   for u: Unit
   {Shake.get(Shake.Matched{[], [Shake.Bind{"name", "Ada"}]}, "name")
     == "Ada" : String}
+
+# LAW: `get_all` on an empty match is empty
+law get_all_nil:
+  for name: String
+  {Shake.get_all(Shake.Matched{[], []}, name) == [] : List<&2, String>}
+
+# LAW: `get_all` keeps every bound value of that name
+law get_all_two:
+  for u: Unit
+  {Shake.get_all(Shake.Matched{[],
+      [Shake.Bind{"files", "a.bend"}, Shake.Bind{"files", "b.bend"}]}, "files")
+    == ["a.bend", "b.bend"] : List<&2, String>}
 
 # LAW: an empty match has no flag set
 law on_nil:
@@ -396,6 +467,41 @@ law err_unexpected:
   for u: Unit
   {shown.of(["greet", "Ada", "extra"]) == "err unexpected extra" : String}
 
+# LAW: zero leftovers bind rest to an empty list
+law parse_rest_none:
+  for u: Unit
+  {files.of(Shake.parse(Sample.rest_spec(), [])) == [] : List<&2, String>}
+
+# LAW: one leftover is a rest list of one
+law parse_rest_one:
+  for u: Unit
+  {files.of(Shake.parse(Sample.rest_spec(), ["a.bend"]))
+    == ["a.bend"] : List<&2, String>}
+
+# LAW: many leftovers are the rest list
+law parse_rest_many:
+  for u: Unit
+  {files.of(Shake.parse(Sample.rest_spec(), ["a.bend", "b.bend"]))
+    == ["a.bend", "b.bend"] : List<&2, String>}
+
+# LAW: `--` passes the next words through as the rest list
+law parse_rest_dash:
+  for u: Unit
+  {files.of(Shake.parse(Sample.rest_spec(), ["--", "--name", "a.bend"]))
+    == ["--name", "a.bend"] : List<&2, String>}
+
+# LAW: a required rest with no leftovers is `missing`
+law err_rest_missing:
+  for u: Unit
+  {Shake.show(Shake.parse(Sample.rest_req(), [])) == "err missing files"
+    : String}
+
+# LAW: the rest fixture parse shows every leftover
+law show_rest_many:
+  for u: Unit
+  {shown.rest(["a.bend", "b.bend"]) == "ok  | files=a.bend files=b.bend"
+    : String}
+
 # LAW: the fixture's root help page is this exact text
 law help_root:
   for u: Unit
@@ -410,6 +516,17 @@ law help_greet:
 law help_add:
   for u: Unit
   {Shake.help(Sample.spec(), ["add"]) == gold.add() : String}
+
+# LAW: a rest positional shows as `[NAME]...`
+law help_rest:
+  for u: Unit
+  {Shake.help(Sample.rest_spec(), []) == gold.rest() : String}
+
+# LAW: a required rest positional shows as `<NAME>...`
+law help_rest_req:
+  for u: Unit
+  {Shake.help.pos.one(Shake.rest("files", "Files to lint", True{}, None{}, []))
+    == " <FILES>..." : String}
 
 # LAW: an unknown flag's error names the flag and the root usage
 law err_text_unknown:

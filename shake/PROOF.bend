@@ -17,6 +17,9 @@ def Laws.opt_is_arg(_name, _short, _long, _help, _required, _default, _choices):
 def Laws.pos_is_arg(_name, _help, _required, _default, _choices):
   {==}
 
+def Laws.rest_is_arg(_name, _help, _required, _default, _choices):
+  {==}
+
 def Laws.looks_flag_is_dash(_s):
   {==}
 
@@ -74,6 +77,18 @@ def Laws.pos_of_nil(_u):
 def Laws.pos_of_keeps(_u):
   {==}
 
+def Laws.pos_of_rest(_u):
+  {==}
+
+def Laws.rest_last_none(_u):
+  {==}
+
+def Laws.rest_last_ok(_u):
+  {==}
+
+def Laws.rest_last_mid(_u):
+  {==}
+
 def Laws.allowed_any(_v):
   {==}
 
@@ -93,6 +108,12 @@ def Laws.get_nil(_name):
   {==}
 
 def Laws.get_head(_u):
+  {==}
+
+def Laws.get_all_nil(_name):
+  {==}
+
+def Laws.get_all_two(_u):
   {==}
 
 def Laws.on_nil(_name):
@@ -173,6 +194,24 @@ def Laws.err_help_greet(_u):
 def Laws.err_unexpected(_u):
   {==}
 
+def Laws.parse_rest_none(_u):
+  {==}
+
+def Laws.parse_rest_one(_u):
+  {==}
+
+def Laws.parse_rest_many(_u):
+  {==}
+
+def Laws.parse_rest_dash(_u):
+  {==}
+
+def Laws.err_rest_missing(_u):
+  {==}
+
+def Laws.show_rest_many(_u):
+  {==}
+
 def Laws.help_root(_u):
   {==}
 
@@ -180,6 +219,12 @@ def Laws.help_greet(_u):
   {==}
 
 def Laws.help_add(_u):
+  {==}
+
+def Laws.help_rest(_u):
+  {==}
+
+def Laws.help_rest_req(_u):
   {==}
 
 def Laws.err_text_unknown(_u):
