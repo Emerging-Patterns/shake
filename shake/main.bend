@@ -4,11 +4,12 @@
 # is the subcommand that prints usage. A `--` ends option parsing.
 import Base
 
-# a flag, a valued option, or a positional
+# a flag, a valued option, a positional, or a rest positional
 type ArgKind is Data:
   Flag{}
   Opt{}
   Pos{}
+  Rest{}
 
 # one argument: name is the binding key; short/long are the CLI spellings
 type Arg is Data:
@@ -115,6 +116,11 @@ def opt(+name: String, short: Maybe<&2, String>, long: Maybe<&2, String>,
 def pos(+name: String, +help: String, required: Bool,
   default: Maybe<&2, String>, choices: List<&2, String>) -> Arg:
   Arg{name, None{}, None{}, Pos{}, help, required, default, choices}
+
+# a rest positional: every leftover word, as one name
+def rest(+name: String, +help: String, required: Bool,
+  default: Maybe<&2, String>, choices: List<&2, String>) -> Arg:
+  Arg{name, None{}, None{}, Rest{}, help, required, default, choices}
 
 # the larger of two Nats
 def help.max(+a: Nat, +b: Nat) -> Nat:
@@ -260,6 +266,20 @@ def pos.is.kind(k: ArgKind) -> Bool:
   match k:
     case Pos{}:
       True{}
+    case Rest{}:
+      True{}
+    case Flag{}:
+      False{}
+    case Opt{}:
+      False{}
+
+# whether this ArgKind is rest
+def rest.is.kind(k: ArgKind) -> Bool:
+  match k:
+    case Rest{}:
+      True{}
+    case Pos{}:
+      False{}
     case Flag{}:
       False{}
     case Opt{}:
@@ -269,6 +289,11 @@ def pos.is.kind(k: ArgKind) -> Bool:
 def pos.is(a: Arg) -> Bool:
   Arg{_n, _s, _l, kind, _h, _r, _d, _c} = a
   pos.is.kind(kind)
+
+# whether this Arg is a rest positional
+def rest.is(a: Arg) -> Bool:
+  Arg{_n, _s, _l, kind, _h, _r, _d, _c} = a
+  rest.is.kind(kind)
 
 # this Arg kept when it is a positional
 def pos_of.put(keep: Bool, h: Arg, rest: List<&2, Arg>) -> List<&2, Arg>:
@@ -285,6 +310,22 @@ def pos_of(args: List<&2, Arg>) -> List<&2, Arg>:
       Nil{}
     case Con{+h, t}:
       pos_of.put(pos.is(h), h, pos_of(t))
+
+# a rest is last only when nothing follows
+def rest.last.hit(is_rest: Bool, empty: Bool, tail_ok: Bool) -> Bool:
+  match is_rest:
+    case True{}:
+      empty
+    case False{}:
+      tail_ok
+
+# whether rest positionals are last (and at most one)
+def rest.last(pos: List<&2, Arg>) -> Bool:
+  match pos:
+    case Nil{}:
+      True{}
+    case Con{+h, t}:
+      rest.last.hit(rest.is(h), List.is_empty(&2, Arg, t), rest.last(t))
 
 # whether `v` is among the choices; an empty list accepts any value
 def allowed.ok.at(hit: Bool, rest: Bool) -> Bool:
@@ -344,6 +385,25 @@ def get.bind(bs: List<&2, Bind>, +name: String) -> String:
 def get(m: Matched, +name: String) -> String:
   Matched{_p, binds} = m
   get.bind(binds, name)
+
+# this bind's value when the name matches, else the rest
+def get_all.bind.at(b: Bind, more: List<&2, String>, +name: String) ->
+  List<&2, String>:
+  Bind{+n, v} = b
+  Bool.pick(List<&2, String>, String.eq(n, name), v <> more, more)
+
+# every value bound to `name`
+def get_all.bind(bs: List<&2, Bind>, +name: String) -> List<&2, String>:
+  match bs:
+    case Nil{}:
+      []
+    case Con{+h, t}:
+      get_all.bind.at(h, get_all.bind(t, name), name)
+
+# every value bound to `name`
+def get_all(m: Matched, +name: String) -> List<&2, String>:
+  Matched{_p, binds} = m
+  get_all.bind(binds, name)
 
 # whether a flag named `name` was set
 def on(m: Matched, +name: String) -> Bool:
@@ -430,6 +490,8 @@ def parse.take_arg.kind(k: ArgKind, +name: String, val: Maybe<&2, String>,
       parse.take_opt(val, name, args, specs, subs, path, binds, pos, raw, seen)
     case Pos{}:
       parse.dead(UnknownFlag{orig}, args, specs, subs, path, binds, pos, raw, seen)
+    case Rest{}:
+      parse.dead(UnknownFlag{orig}, args, specs, subs, path, binds, pos, raw, seen)
 
 # a found Arg, or an unknown flag
 def parse.take_arg(found: Maybe<&2, Arg>, val: Maybe<&2, String>, +orig: String,
@@ -488,6 +550,14 @@ def parse.take_short(body: String, +orig: String,   +args: List<&2, Arg>,
   parse.take_short.cut(short_of(body), orig, args, specs, subs, path, binds, pos, raw,
     seen)
 
+# a rest positional stays; a plain one is consumed
+def parse.take_pos.keep(keep: Bool, h: Arg, t: List<&2, Arg>) -> List<&2, Arg>:
+  match keep:
+    case True{}:
+      h <> t
+    case False{}:
+      t
+
 # the next remaining positional, or an unexpected word
 def parse.take_pos(+tok: String, +args: List<&2, Arg>, +specs: List<&2, Arg>,
   subs: List<&2, Sub>, +path: List<&2, String>, +binds: List<&2, Bind>,
@@ -498,7 +568,7 @@ def parse.take_pos(+tok: String, +args: List<&2, Arg>, +specs: List<&2, Arg>,
     case Con{+h, t}:
       Arg{+name, _s, _l, _k, _h, _r, _d, +cs} = h
       parse.take_choice(allowed(cs, tok), name, tok, args, specs, subs, path, binds,
-        t, raw, True{})
+        parse.take_pos.keep(rest.is(h), h, t), raw, True{})
 
 # this Sub's spec becomes current; parent bindings stay
 def parse.enter(s: Sub, +specs: List<&2, Arg>, +path: List<&2, String>,
@@ -526,13 +596,21 @@ def parse.first_req.at(here: Maybe<&2, String>, rest: Maybe<&2, String>) ->
     case None{}:
       rest
 
+# a rest stays in the list, so it does not block a subcommand
+def parse.first_req.skip(skip: Bool, a: Arg) -> Maybe<&2, String>:
+  match skip:
+    case True{}:
+      None{}
+    case False{}:
+      parse.req(a)
+
 # the first leftover required positional
 def parse.first_req(pos: List<&2, Arg>) -> Maybe<&2, String>:
   match pos:
     case Nil{}:
       None{}
     case Con{+h, t}:
-      parse.first_req.at(parse.req(h), parse.first_req(t))
+      parse.first_req.at(parse.first_req.skip(rest.is(h), h), parse.first_req(t))
 
 # a leftover required positional blocks entering a subcommand
 def parse.enter_or(miss: Maybe<&2, String>, s: Sub,   +args: List<&2, Arg>,
@@ -812,6 +890,8 @@ def help.label.kind(k: ArgKind, +name: String, +label: String) -> String:
       label ++ " <" ++ String.to_upper(name) ++ ">"
     case Pos{}:
       label
+    case Rest{}:
+      label
 
 # `-s, --long` or one of them
 def help.label.pair(+short: String, +long: String) -> String:
@@ -912,11 +992,18 @@ def help.cmd_lines(subs: List<&2, Sub>, +w: Nat) -> String:
 def help.cmds(+subs: List<&2, Sub>) -> String:
   "Commands:\n" ++ help.cmd_lines(subs, help.cmd_width(subs, 0n)) ++ "\n"
 
+# a rest mark: `...`, or empty
+def help.pos.dots(many: Bool) -> String:
+  Bool.pick(String, many, "...", "")
+
 # a positional in a usage line: `<NAME>` or `[NAME]`
+def help.pos.wrap(req: Bool, +n: String) -> String:
+  Bool.pick(String, req, " <" ++ n ++ ">", " [" ++ n ++ "]")
+
+# a positional in a usage line: `<NAME>` or `[NAME]`, plus `...` when rest
 def help.pos.one(a: Arg) -> String:
-  Arg{+n, _s, _l, _k, _h, +req, _d, _c} = a
-  Bool.pick(String, req, " <" ++ String.to_upper(n) ++ ">",
-    " [" ++ String.to_upper(n) ++ "]")
+  Arg{+n, _s, _l, kind, _h, +req, _d, _c} = a
+  help.pos.wrap(req, String.to_upper(n)) ++ help.pos.dots(rest.is.kind(kind))
 
 # this positional's hint, else the rest
 def help.pos.at(keep: Bool, h: Arg, rest: String) -> String:

@@ -23,3 +23,13 @@ def spec() -> Shake.Cli:
         ],
         [Shake.sub("more", "A nested add", [], [])])
     ])
+
+# a rest positional
+def rest_spec() -> Shake.Cli:
+  Shake.app("lint", "Lint files.", None{},
+    [Shake.rest("files", "Files to lint", False{}, None{}, [])], [])
+
+# a required rest positional
+def rest_req() -> Shake.Cli:
+  Shake.app("lint", "Lint files.", None{},
+    [Shake.rest("files", "Files to lint", True{}, None{}, [])], [])
