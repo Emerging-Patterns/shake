@@ -1,4 +1,4 @@
-# shake/sample: the Cli the tests parse
+# shake/sample: a fixture Cli the laws parse
 import Base
 import ./main.bend as Shake
 

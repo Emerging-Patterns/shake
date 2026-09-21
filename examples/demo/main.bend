@@ -1,6 +1,7 @@
 # examples/demo: a small CLI that parses with shake
 import Base
 import ../../shake/main.bend as Shake
+import ../../shake/args.bend as Args
 
 # the program spec
 def spec() -> Shake.Cli:
@@ -83,5 +84,5 @@ def go(+app: Shake.Cli, r: Result<&2, &2, Shake.ParseErr, Shake.Matched>) ->
 def main() -> IO(Unit):
   do IO<Unit>:
     +app : Shake.Cli <- IO.pure(Shake.Cli, spec())
-    av : List<&2, String> <- Shake.argv()
+    av : List<&2, String> <- Args.argv()
     go(app, Shake.parse(app, av))

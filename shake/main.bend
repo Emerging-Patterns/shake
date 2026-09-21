@@ -65,7 +65,7 @@ type Mode is Data:
   Help{}
   Dead{err: ParseErr}
 
-# the walk: current spec, accumulated specs, selected path, bindings
+# the walker: current spec, accumulated specs, selected path, bindings
 type St is Data:
   St{
     mode: Mode,
@@ -79,26 +79,14 @@ type St is Data:
     seen: Bool
   }
 
-# one step of help: this page, or a named child
-type HelpGo is Data:
-  HN{
+# the page a help walk has reached
+type How is Data:
+  How{
     bin: String,
     about: String,
     version: Maybe<&2, String>,
     args: List<&2, Arg>,
     subs: List<&2, Sub>,
-    path: List<&2, String>,
-    usage: String
-  }
-  HD{
-    found: Maybe<&2, Sub>,
-    bin: String,
-    about: String,
-    version: Maybe<&2, String>,
-    args: List<&2, Arg>,
-    subs: List<&2, Sub>,
-    next: String,
-    rest: List<&2, String>,
     usage: String
   }
 
@@ -128,38 +116,24 @@ def pos(+name: String, +help: String, required: Bool,
   default: Maybe<&2, String>, choices: List<&2, String>) -> Arg:
   Arg{name, None{}, None{}, Pos{}, help, required, default, choices}
 
-# a &1 list copied to &2
-def copy(xs: List<&1, String>) -> List<&2, String>:
-  match xs:
-    case Nil{}:
-      Nil{}
-    case Con{+h, t}:
-      h <> copy(t)
-
-# the process argv, each word reusable
-def argv() -> IO(List<&2, String>):
-  do IO<List<&2, String>>:
-    xs : List<&1, String> <- IO.args()
-    return copy(xs)
-
 # the larger of two Nats
-def nat_max(+a: Nat, +b: Nat) -> Nat:
+def help.max(+a: Nat, +b: Nat) -> Nat:
   Bool.pick(Nat, Nat.is_le(a, b), b, a)
 
 # n spaces
-def spaces(n: Nat) -> String:
+def help.spaces(n: Nat) -> String:
   match n:
     case 0n:
       ""
     case 1n+p:
-      " " ++ spaces(p)
+      " " ++ help.spaces(p)
 
 # s padded on the right to width n
-def pad(+s: String, n: Nat) -> String:
-  s ++ spaces(Nat.sub(n, String.length(s)))
+def help.pad(+s: String, n: Nat) -> String:
+  s ++ help.spaces(Nat.sub(n, String.length(s)))
 
 # a Maybe string's text, or the default
-def text_of(m: Maybe<&2, String>, +d: String) -> String:
+def text.of(m: Maybe<&2, String>, +d: String) -> String:
   Maybe.default(&2, String, m, d)
 
 # whether a string is a flag token (`-` alone is not)
@@ -167,7 +141,7 @@ def looks_flag(+s: String) -> Bool:
   Bool.and(String.starts_with(s, "-"), Bool.not(String.eq(s, "-")))
 
 # chars reversed into a string
-def from_rev(cs: List<&2, Char>) -> String:
+def from.rev(cs: List<&2, Char>) -> String:
   String.from_list(List.reverse(&2, Char, cs))
 
 # `name` and an optional `=value`, once the next char is known
@@ -175,7 +149,7 @@ def cut_eq.pick(eq: Bool, acc: List<&2, Char>, t: List<&2, Char>,
   rest: String & Maybe<&2, String>) -> String & Maybe<&2, String>:
   match eq:
     case True{}:
-      (from_rev(acc), Some{String.from_list(t)})
+      (from.rev(acc), Some{String.from_list(t)})
     case False{}:
       rest
 
@@ -189,7 +163,7 @@ def cut_eq.go(cs: List<&2, Char>, +acc: List<&2, Char>) ->
   String & Maybe<&2, String>:
   match cs:
     case Nil{}:
-      (from_rev(acc), None{})
+      (from.rev(acc), None{})
     case Con{+c, +t}:
       cut_eq.chr(c, t, acc, cut_eq.go(t, c <> acc))
 
@@ -206,9 +180,17 @@ def short_of(+s: String) -> String & Maybe<&2, String>:
   short_of.go(String.take(s, 1n), String.drop(s, 1n))
 
 # whether this Arg's long spelling is `name`
-def long_hit(a: Arg, +name: String) -> Bool:
+def by_long.hit(a: Arg, +name: String) -> Bool:
   Arg{_n, _s, long, _k, _h, _r, _d, _c} = a
-  String.eq(text_of(long, ""), name)
+  String.eq(text.of(long, ""), name)
+
+# this Arg when the long spelling matches, else the rest
+def by_long.at(hit: Bool, h: Arg, rest: Maybe<&2, Arg>) -> Maybe<&2, Arg>:
+  match hit:
+    case True{}:
+      Some{h}
+    case False{}:
+      rest
 
 # the Arg with this long spelling, if any
 def by_long(args: List<&2, Arg>, +name: String) -> Maybe<&2, Arg>:
@@ -216,12 +198,20 @@ def by_long(args: List<&2, Arg>, +name: String) -> Maybe<&2, Arg>:
     case Nil{}:
       None{}
     case Con{+h, t}:
-      Bool.pick(Maybe<&2, Arg>, long_hit(h, name), Some{h}, by_long(t, name))
+      by_long.at(by_long.hit(h, name), h, by_long(t, name))
 
 # whether this Arg's short spelling is `name`
-def short_hit(a: Arg, +name: String) -> Bool:
+def by_short.hit(a: Arg, +name: String) -> Bool:
   Arg{_n, short, _l, _k, _h, _r, _d, _c} = a
-  String.eq(text_of(short, ""), name)
+  String.eq(text.of(short, ""), name)
+
+# this Arg when the short spelling matches, else the rest
+def by_short.at(hit: Bool, h: Arg, rest: Maybe<&2, Arg>) -> Maybe<&2, Arg>:
+  match hit:
+    case True{}:
+      Some{h}
+    case False{}:
+      rest
 
 # the Arg with this short spelling, if any
 def by_short(args: List<&2, Arg>, +name: String) -> Maybe<&2, Arg>:
@@ -229,12 +219,20 @@ def by_short(args: List<&2, Arg>, +name: String) -> Maybe<&2, Arg>:
     case Nil{}:
       None{}
     case Con{+h, t}:
-      Bool.pick(Maybe<&2, Arg>, short_hit(h, name), Some{h}, by_short(t, name))
+      by_short.at(by_short.hit(h, name), h, by_short(t, name))
 
 # whether this Arg's name is `name`
-def name_hit(a: Arg, +name: String) -> Bool:
+def by_name.hit(a: Arg, +name: String) -> Bool:
   Arg{+n, _s, _l, _k, _h, _r, _d, _c} = a
   String.eq(n, name)
+
+# this Arg when the binding name matches, else the rest
+def by_name.at(hit: Bool, h: Arg, rest: Maybe<&2, Arg>) -> Maybe<&2, Arg>:
+  match hit:
+    case True{}:
+      Some{h}
+    case False{}:
+      rest
 
 # the Arg with this binding name, if any
 def by_name(args: List<&2, Arg>, +name: String) -> Maybe<&2, Arg>:
@@ -242,7 +240,7 @@ def by_name(args: List<&2, Arg>, +name: String) -> Maybe<&2, Arg>:
     case Nil{}:
       None{}
     case Con{+h, t}:
-      Bool.pick(Maybe<&2, Arg>, name_hit(h, name), Some{h}, by_name(t, name))
+      by_name.at(by_name.hit(h, name), h, by_name(t, name))
 
 # this Sub when its name matches, else the rest
 def find_sub.at(s: Sub, rest: Maybe<&2, Sub>, +name: String) -> Maybe<&2, Sub>:
@@ -258,7 +256,7 @@ def find_sub(subs: List<&2, Sub>, +name: String) -> Maybe<&2, Sub>:
       find_sub.at(h, find_sub(t, name), name)
 
 # whether this Arg is a positional
-def is_pos.kind(k: ArgKind) -> Bool:
+def pos.is.kind(k: ArgKind) -> Bool:
   match k:
     case Pos{}:
       True{}
@@ -268,9 +266,9 @@ def is_pos.kind(k: ArgKind) -> Bool:
       False{}
 
 # whether this Arg is a positional
-def is_pos(a: Arg) -> Bool:
+def pos.is(a: Arg) -> Bool:
   Arg{_n, _s, _l, kind, _h, _r, _d, _c} = a
-  is_pos.kind(kind)
+  pos.is.kind(kind)
 
 # this Arg kept when it is a positional
 def pos_of.put(keep: Bool, h: Arg, rest: List<&2, Arg>) -> List<&2, Arg>:
@@ -286,10 +284,10 @@ def pos_of(args: List<&2, Arg>) -> List<&2, Arg>:
     case Nil{}:
       Nil{}
     case Con{+h, t}:
-      pos_of.put(is_pos(h), h, pos_of(t))
+      pos_of.put(pos.is(h), h, pos_of(t))
 
 # whether `v` is among the choices; an empty list accepts any value
-def ok_choice.at(hit: Bool, rest: Bool) -> Bool:
+def allowed.ok.at(hit: Bool, rest: Bool) -> Bool:
   match hit:
     case True{}:
       True{}
@@ -297,21 +295,29 @@ def ok_choice.at(hit: Bool, rest: Bool) -> Bool:
       rest
 
 # whether `v` is listed; the empty list answers no
-def ok_choice(cs: List<&2, String>, +v: String) -> Bool:
+def allowed.ok(cs: List<&2, String>, +v: String) -> Bool:
   match cs:
     case Nil{}:
       False{}
     case Con{+h, t}:
-      ok_choice.at(String.eq(h, v), ok_choice(t, v))
+      allowed.ok.at(String.eq(h, v), allowed.ok(t, v))
 
 # empty choices accept any value; otherwise `v` must be listed
 def allowed(+cs: List<&2, String>, +v: String) -> Bool:
-  Bool.or(List.is_empty(&2, String, cs), ok_choice(cs, v))
+  Bool.or(List.is_empty(&2, String, cs), allowed.ok(cs, v))
 
 # whether this bind's name is `name`
-def bind_hit(b: Bind, +name: String) -> Bool:
+def bound.hit(b: Bind, +name: String) -> Bool:
   Bind{+n, _v} = b
   String.eq(n, name)
+
+# True when the head matches, else the rest
+def bound.at(hit: Bool, rest: Bool) -> Bool:
+  match hit:
+    case True{}:
+      True{}
+    case False{}:
+      rest
 
 # whether `name` is already bound
 def bound(bs: List<&2, Bind>, +name: String) -> Bool:
@@ -319,25 +325,25 @@ def bound(bs: List<&2, Bind>, +name: String) -> Bool:
     case Nil{}:
       False{}
     case Con{+h, t}:
-      Bool.or(bind_hit(h, name), bound(t, name))
+      bound.at(bound.hit(h, name), bound(t, name))
 
 # this bind's value when the name matches, else the rest
-def get_bind.at(b: Bind, rest: String, +name: String) -> String:
+def get.bind.at(b: Bind, rest: String, +name: String) -> String:
   Bind{+n, v} = b
   Bool.pick(String, String.eq(n, name), v, rest)
 
 # the value bound to `name`, or ""
-def get_bind(bs: List<&2, Bind>, +name: String) -> String:
+def get.bind(bs: List<&2, Bind>, +name: String) -> String:
   match bs:
     case Nil{}:
       ""
     case Con{+h, t}:
-      get_bind.at(h, get_bind(t, name), name)
+      get.bind.at(h, get.bind(t, name), name)
 
 # the value bound to `name`, or ""
 def get(m: Matched, +name: String) -> String:
   Matched{_p, binds} = m
-  get_bind(binds, name)
+  get.bind(binds, name)
 
 # whether a flag named `name` was set
 def on(m: Matched, +name: String) -> Bool:
@@ -348,25 +354,25 @@ def path_of(m: Matched) -> List<&2, String>:
   Matched{path, _b} = m
   path
 
-# the starting walk for a Cli
-def start(app: Cli) -> St:
+# the starting walker for a Cli
+def parse.start(app: Cli) -> St:
   Cli{_n, _a, _v, +args, subs} = app
   St{Free{}, args, args, subs, [], [], pos_of(args), False{}, False{}}
 
-# a failed walk that keeps the rest of the state
-def dead(e: ParseErr, +args: List<&2, Arg>, +specs: List<&2, Arg>,
+# a failed walker that keeps the rest of the state
+def parse.dead(e: ParseErr, +args: List<&2, Arg>, +specs: List<&2, Arg>,
   +subs: List<&2, Sub>, +path: List<&2, String>, +binds: List<&2, Bind>,
   pos: List<&2, Arg>, +raw: Bool, +seen: Bool) -> St:
   St{Dead{e}, args, specs, subs, path, binds, pos, raw, seen}
 
 # a successful bind of `name` to `val`
-def put_bind(+name: String, +val: String,   +args: List<&2, Arg>,
+def parse.put(+name: String, +val: String,   +args: List<&2, Arg>,
   +specs: List<&2, Arg>, +subs: List<&2, Sub>, +path: List<&2, String>,
   +binds: List<&2, Bind>, +pos: List<&2, Arg>, +raw: Bool, +seen: Bool) -> St:
   St{Free{}, args, specs, subs, path, Bind{name, val} <> binds, pos, raw, seen}
 
 # the choices of a found Arg, or none
-def choices_of(m: Maybe<&2, Arg>) -> List<&2, String>:
+def parse.choices(m: Maybe<&2, Arg>) -> List<&2, String>:
   match m:
     case None{}:
       []
@@ -375,127 +381,127 @@ def choices_of(m: Maybe<&2, Arg>) -> List<&2, String>:
       cs
 
 # bind `name` to `val` when the value is allowed
-def take_choice(ok: Bool, +name: String, +val: String,   +args: List<&2, Arg>,
+def parse.take_choice(ok: Bool, +name: String, +val: String,   +args: List<&2, Arg>,
   +specs: List<&2, Arg>, +subs: List<&2, Sub>, +path: List<&2, String>,
   +binds: List<&2, Bind>, +pos: List<&2, Arg>, +raw: Bool, +seen: Bool) -> St:
   match ok:
     case True{}:
-      put_bind(name, val, args, specs, subs, path, binds, pos, raw, seen)
+      parse.put(name, val, args, specs, subs, path, binds, pos, raw, seen)
     case False{}:
-      dead(BadValue{name, val}, args, specs, subs, path, binds, pos, raw, seen)
+      parse.dead(BadValue{name, val}, args, specs, subs, path, binds, pos, raw, seen)
 
 # bind an option that already has its value
-def take_opt_val(+name: String, +val: String,   +args: List<&2, Arg>,
+def parse.take_opt_val(+name: String, +val: String,   +args: List<&2, Arg>,
   +specs: List<&2, Arg>, +subs: List<&2, Sub>, +path: List<&2, String>,
   +binds: List<&2, Bind>, +pos: List<&2, Arg>, +raw: Bool, +seen: Bool) -> St:
-  take_choice(allowed(choices_of(by_name(specs, name)), val), name, val,
+  parse.take_choice(allowed(parse.choices(by_name(specs, name)), val), name, val,
     args, specs, subs, path, binds, pos, raw, seen)
 
 # a flag with no glued value is set; a glued value is unexpected
-def take_flag(val: Maybe<&2, String>, +name: String, +orig: String,
+def parse.take_flag(val: Maybe<&2, String>, +name: String, +orig: String,
   +args: List<&2, Arg>, +specs: List<&2, Arg>, +subs: List<&2, Sub>,
   +path: List<&2, String>, +binds: List<&2, Bind>, pos: List<&2, Arg>,
   +raw: Bool, +seen: Bool) -> St:
   match val:
     case None{}:
-      put_bind(name, "true", args, specs, subs, path, binds, pos, raw, seen)
+      parse.put(name, "true", args, specs, subs, path, binds, pos, raw, seen)
     case Some{_v}:
-      dead(Unexpected{orig}, args, specs, subs, path, binds, pos, raw, seen)
+      parse.dead(Unexpected{orig}, args, specs, subs, path, binds, pos, raw, seen)
 
 # an option: glued value now, or the next token
-def take_opt(val: Maybe<&2, String>, +name: String,   +args: List<&2, Arg>,
+def parse.take_opt(val: Maybe<&2, String>, +name: String,   +args: List<&2, Arg>,
   +specs: List<&2, Arg>, +subs: List<&2, Sub>, +path: List<&2, String>,
   +binds: List<&2, Bind>, +pos: List<&2, Arg>, +raw: Bool, +seen: Bool) -> St:
   match val:
     case None{}:
       St{Need{name}, args, specs, subs, path, binds, pos, raw, seen}
     case Some{v}:
-      take_opt_val(name, v, args, specs, subs, path, binds, pos, raw, seen)
+      parse.take_opt_val(name, v, args, specs, subs, path, binds, pos, raw, seen)
 
 # dispatch on the found Arg's kind
-def take_arg.kind(k: ArgKind, +name: String, val: Maybe<&2, String>,
+def parse.take_arg.kind(k: ArgKind, +name: String, val: Maybe<&2, String>,
   +orig: String, +args: List<&2, Arg>, +specs: List<&2, Arg>,
   +subs: List<&2, Sub>, +path: List<&2, String>, +binds: List<&2, Bind>,
   +pos: List<&2, Arg>, +raw: Bool, +seen: Bool) -> St:
   match k:
     case Flag{}:
-      take_flag(val, name, orig, args, specs, subs, path, binds, pos, raw, seen)
+      parse.take_flag(val, name, orig, args, specs, subs, path, binds, pos, raw, seen)
     case Opt{}:
-      take_opt(val, name, args, specs, subs, path, binds, pos, raw, seen)
+      parse.take_opt(val, name, args, specs, subs, path, binds, pos, raw, seen)
     case Pos{}:
-      dead(UnknownFlag{orig}, args, specs, subs, path, binds, pos, raw, seen)
+      parse.dead(UnknownFlag{orig}, args, specs, subs, path, binds, pos, raw, seen)
 
 # a found Arg, or an unknown flag
-def take_arg(found: Maybe<&2, Arg>, val: Maybe<&2, String>, +orig: String,
+def parse.take_arg(found: Maybe<&2, Arg>, val: Maybe<&2, String>, +orig: String,
   +args: List<&2, Arg>, +specs: List<&2, Arg>, +subs: List<&2, Sub>,
   +path: List<&2, String>, +binds: List<&2, Bind>, pos: List<&2, Arg>,
   +raw: Bool, +seen: Bool) -> St:
   match found:
     case None{}:
-      dead(UnknownFlag{orig}, args, specs, subs, path, binds, pos, raw, seen)
+      parse.dead(UnknownFlag{orig}, args, specs, subs, path, binds, pos, raw, seen)
     case Some{a}:
       Arg{+name, _s, _l, kind, _h, _r, _d, _c} = a
-      take_arg.kind(kind, name, val, orig, args, specs, subs, path, binds, pos,
+      parse.take_arg.kind(kind, name, val, orig, args, specs, subs, path, binds, pos,
         raw, seen)
 
 # a long option with a name, or `--=...`
-def take_long.named(empty: Bool, +name: String, val: Maybe<&2, String>,
+def parse.take_long.named(empty: Bool, +name: String, val: Maybe<&2, String>,
   +orig: String, +args: List<&2, Arg>, +specs: List<&2, Arg>,
   +subs: List<&2, Sub>, +path: List<&2, String>, +binds: List<&2, Bind>,
   +pos: List<&2, Arg>, +raw: Bool, +seen: Bool) -> St:
   match empty:
     case True{}:
-      dead(UnknownFlag{orig}, args, specs, subs, path, binds, pos, raw, seen)
+      parse.dead(UnknownFlag{orig}, args, specs, subs, path, binds, pos, raw, seen)
     case False{}:
-      take_arg(by_long(args, name), val, orig, args, specs, subs, path, binds,
+      parse.take_arg(by_long(args, name), val, orig, args, specs, subs, path, binds,
         pos, raw, seen)
 
 # a long option after the `=` cut
-def take_long.cut(nv: String & Maybe<&2, String>, +orig: String,
+def parse.take_long.cut(nv: String & Maybe<&2, String>, +orig: String,
   +args: List<&2, Arg>, +specs: List<&2, Arg>, +subs: List<&2, Sub>,
   +path: List<&2, String>, +binds: List<&2, Bind>, pos: List<&2, Arg>,
   +raw: Bool, +seen: Bool) -> St:
   (+name, val) = nv
-  take_long.named(String.is_empty(name), name, val, orig, args, specs, subs,
+  parse.take_long.named(String.is_empty(name), name, val, orig, args, specs, subs,
     path, binds, pos, raw, seen)
 
 # a long option body after `--`
-def take_long(body: String, +orig: String,   +args: List<&2, Arg>,
+def parse.take_long(body: String, +orig: String,   +args: List<&2, Arg>,
   +specs: List<&2, Arg>, +subs: List<&2, Sub>, +path: List<&2, String>,
   +binds: List<&2, Bind>, +pos: List<&2, Arg>, +raw: Bool, +seen: Bool) -> St:
-  take_long.cut(cut_eq(body), orig, args, specs, subs, path, binds, pos, raw,
+  parse.take_long.cut(cut_eq(body), orig, args, specs, subs, path, binds, pos, raw,
     seen)
 
 # a short option after the glued-value cut
-def take_short.cut(nv: String & Maybe<&2, String>, +orig: String,
+def parse.take_short.cut(nv: String & Maybe<&2, String>, +orig: String,
   +args: List<&2, Arg>, +specs: List<&2, Arg>, +subs: List<&2, Sub>,
   +path: List<&2, String>, +binds: List<&2, Bind>, pos: List<&2, Arg>,
   +raw: Bool, +seen: Bool) -> St:
   (name, val) = nv
-  take_arg(by_short(args, name), val, orig, args, specs, subs, path, binds, pos,
+  parse.take_arg(by_short(args, name), val, orig, args, specs, subs, path, binds, pos,
     raw, seen)
 
 # a short option body after `-`
-def take_short(body: String, +orig: String,   +args: List<&2, Arg>,
+def parse.take_short(body: String, +orig: String,   +args: List<&2, Arg>,
   +specs: List<&2, Arg>, +subs: List<&2, Sub>, +path: List<&2, String>,
   +binds: List<&2, Bind>, +pos: List<&2, Arg>, +raw: Bool, +seen: Bool) -> St:
-  take_short.cut(short_of(body), orig, args, specs, subs, path, binds, pos, raw,
+  parse.take_short.cut(short_of(body), orig, args, specs, subs, path, binds, pos, raw,
     seen)
 
 # the next remaining positional, or an unexpected word
-def take_pos(+tok: String, +args: List<&2, Arg>, +specs: List<&2, Arg>,
+def parse.take_pos(+tok: String, +args: List<&2, Arg>, +specs: List<&2, Arg>,
   subs: List<&2, Sub>, +path: List<&2, String>, +binds: List<&2, Bind>,
   pos: List<&2, Arg>, raw: Bool) -> St:
   match pos:
     case Nil{}:
-      dead(Unexpected{tok}, args, specs, subs, path, binds, pos, raw, True{})
+      parse.dead(Unexpected{tok}, args, specs, subs, path, binds, pos, raw, True{})
     case Con{+h, t}:
       Arg{+name, _s, _l, _k, _h, _r, _d, +cs} = h
-      take_choice(allowed(cs, tok), name, tok, args, specs, subs, path, binds,
+      parse.take_choice(allowed(cs, tok), name, tok, args, specs, subs, path, binds,
         t, raw, True{})
 
 # this Sub's spec becomes current; parent bindings stay
-def enter_sub(s: Sub, +specs: List<&2, Arg>, +path: List<&2, String>,
+def parse.enter(s: Sub, +specs: List<&2, Arg>, +path: List<&2, String>,
   binds: List<&2, Bind>) -> St:
   Sub{+name, _a, +next, next_subs} = s
   St{Free{}, next, List.append(&2, Arg, specs, next), next_subs,
@@ -503,16 +509,16 @@ def enter_sub(s: Sub, +specs: List<&2, Arg>, +path: List<&2, String>,
     False{}}
 
 # required and no default → Some{name}
-def req_name.go(req: Bool, bare: Bool, +n: String) -> Maybe<&2, String>:
+def parse.req.go(req: Bool, bare: Bool, +n: String) -> Maybe<&2, String>:
   Bool.pick(Maybe<&2, String>, Bool.and(req, bare), Some{n}, None{})
 
 # a required Arg without a default, as a missing name
-def req_name(a: Arg) -> Maybe<&2, String>:
+def parse.req(a: Arg) -> Maybe<&2, String>:
   Arg{+n, _s, _l, _k, _h, +req, default, _c} = a
-  req_name.go(req, Maybe.is_none(&2, String, default), n)
+  parse.req.go(req, Maybe.is_none(&2, String, default), n)
 
 # this missing name, else the rest
-def first_req.at(here: Maybe<&2, String>, rest: Maybe<&2, String>) ->
+def parse.first_req.at(here: Maybe<&2, String>, rest: Maybe<&2, String>) ->
   Maybe<&2, String>:
   match here:
     case Some{n}:
@@ -521,151 +527,151 @@ def first_req.at(here: Maybe<&2, String>, rest: Maybe<&2, String>) ->
       rest
 
 # the first leftover required positional
-def first_req(pos: List<&2, Arg>) -> Maybe<&2, String>:
+def parse.first_req(pos: List<&2, Arg>) -> Maybe<&2, String>:
   match pos:
     case Nil{}:
       None{}
     case Con{+h, t}:
-      first_req.at(req_name(h), first_req(t))
+      parse.first_req.at(parse.req(h), parse.first_req(t))
 
 # a leftover required positional blocks entering a subcommand
-def enter_or_miss(miss: Maybe<&2, String>, s: Sub,   +args: List<&2, Arg>,
+def parse.enter_or(miss: Maybe<&2, String>, s: Sub,   +args: List<&2, Arg>,
   +specs: List<&2, Arg>, +subs: List<&2, Sub>, +path: List<&2, String>,
   +binds: List<&2, Bind>, +pos: List<&2, Arg>, +raw: Bool, +seen: Bool) -> St:
   match miss:
     case None{}:
-      enter_sub(s, specs, path, binds)
+      parse.enter(s, specs, path, binds)
     case Some{n}:
-      dead(Missing{n}, args, specs, subs, path, binds, pos, raw, seen)
+      parse.dead(Missing{n}, args, specs, subs, path, binds, pos, raw, seen)
 
 # a found subcommand, or a positional
-def take_word.go(found: Maybe<&2, Sub>, +tok: String,   +args: List<&2, Arg>,
+def parse.word.go(found: Maybe<&2, Sub>, +tok: String,   +args: List<&2, Arg>,
   +specs: List<&2, Arg>, +subs: List<&2, Sub>, +path: List<&2, String>,
   +binds: List<&2, Bind>, +pos: List<&2, Arg>, +raw: Bool, +seen: Bool) -> St:
   match found:
     case None{}:
-      take_pos(tok, args, specs, subs, path, binds, pos, raw)
+      parse.take_pos(tok, args, specs, subs, path, binds, pos, raw)
     case Some{s}:
-      enter_or_miss(first_req(pos), s, args, specs, subs, path, binds, pos, raw,
+      parse.enter_or(parse.first_req(pos), s, args, specs, subs, path, binds, pos, raw,
         seen)
 
 # a word: a subcommand, or a positional
-def take_word(+tok: String, +args: List<&2, Arg>, +specs: List<&2, Arg>,
+def parse.word(+tok: String, +args: List<&2, Arg>, +specs: List<&2, Arg>,
   +subs: List<&2, Sub>, +path: List<&2, String>, +binds: List<&2, Bind>,
   +pos: List<&2, Arg>, +raw: Bool, +seen: Bool) -> St:
-  take_word.go(find_sub(subs, tok), tok, args, specs, subs, path, binds, pos,
+  parse.word.go(find_sub(subs, tok), tok, args, specs, subs, path, binds, pos,
     raw, seen)
 
 # `-` as a word, or a short option
-def step.short.go(alone: Bool, +tok: String, +args: List<&2, Arg>,
+def parse.step.short.go(alone: Bool, +tok: String, +args: List<&2, Arg>,
   +specs: List<&2, Arg>, +subs: List<&2, Sub>, +path: List<&2, String>,
   +binds: List<&2, Bind>, +pos: List<&2, Arg>, +seen: Bool) -> St:
   match alone:
     case True{}:
-      take_word(tok, args, specs, subs, path, binds, pos, False{}, seen)
+      parse.word(tok, args, specs, subs, path, binds, pos, False{}, seen)
     case False{}:
-      take_short(String.drop(tok, 1n), tok, args, specs, subs, path, binds, pos,
+      parse.take_short(String.drop(tok, 1n), tok, args, specs, subs, path, binds, pos,
         False{}, seen)
 
 # `-` alone is a positional; otherwise a short option
-def step.short(dash: Bool, +tok: String, +args: List<&2, Arg>,
+def parse.step.short(dash: Bool, +tok: String, +args: List<&2, Arg>,
   +specs: List<&2, Arg>, +subs: List<&2, Sub>, +path: List<&2, String>,
   +binds: List<&2, Bind>, +pos: List<&2, Arg>, +seen: Bool) -> St:
   match dash:
     case True{}:
-      step.short.go(String.eq(tok, "-"), tok, args, specs, subs, path, binds,
+      parse.step.short.go(String.eq(tok, "-"), tok, args, specs, subs, path, binds,
         pos, seen)
     case False{}:
-      take_word(tok, args, specs, subs, path, binds, pos, False{}, seen)
+      parse.word(tok, args, specs, subs, path, binds, pos, False{}, seen)
 
 # `--long` first, then `-s`, then a word
-def step.kind.go(long: Bool, dash: Bool, +tok: String, +args: List<&2, Arg>,
+def parse.step.kind.go(long: Bool, dash: Bool, +tok: String, +args: List<&2, Arg>,
   +specs: List<&2, Arg>, +subs: List<&2, Sub>, +path: List<&2, String>,
   +binds: List<&2, Bind>, +pos: List<&2, Arg>, +seen: Bool) -> St:
   match long:
     case True{}:
-      take_long(String.drop(tok, 2n), tok, args, specs, subs, path, binds, pos,
+      parse.take_long(String.drop(tok, 2n), tok, args, specs, subs, path, binds, pos,
         False{}, seen)
     case False{}:
-      step.short(dash, tok, args, specs, subs, path, binds, pos, seen)
+      parse.step.short(dash, tok, args, specs, subs, path, binds, pos, seen)
 
 # a long option, a short option, or a word
-def step.kind(+tok: String, +args: List<&2, Arg>, +specs: List<&2, Arg>,
+def parse.step.kind(+tok: String, +args: List<&2, Arg>, +specs: List<&2, Arg>,
   subs: List<&2, Sub>, +path: List<&2, String>, +binds: List<&2, Bind>,
   +pos: List<&2, Arg>, +seen: Bool) -> St:
-  step.kind.go(String.starts_with(tok, "--"), String.starts_with(tok, "-"), tok,
+  parse.step.kind.go(String.starts_with(tok, "--"), String.starts_with(tok, "-"), tok,
     args, specs, subs, path, binds, pos, seen)
 
 # `help` in command position collects the rest of argv as a path
-def step.help(hit: Bool, +tok: String, +args: List<&2, Arg>,
+def parse.step.help(hit: Bool, +tok: String, +args: List<&2, Arg>,
   +specs: List<&2, Arg>, +subs: List<&2, Sub>, +path: List<&2, String>,
   +binds: List<&2, Bind>, +pos: List<&2, Arg>, +seen: Bool) -> St:
   match hit:
     case True{}:
       St{Help{}, args, specs, subs, path, binds, pos, False{}, seen}
     case False{}:
-      step.kind(tok, args, specs, subs, path, binds, pos, seen)
+      parse.step.kind(tok, args, specs, subs, path, binds, pos, seen)
 
 # `--` ends option parsing
-def step.end(end: Bool, +tok: String, +args: List<&2, Arg>,
+def parse.step.end(end: Bool, +tok: String, +args: List<&2, Arg>,
   +specs: List<&2, Arg>, +subs: List<&2, Sub>, +path: List<&2, String>,
   +binds: List<&2, Bind>, +pos: List<&2, Arg>, +seen: Bool) -> St:
   match end:
     case True{}:
       St{Free{}, args, specs, subs, path, binds, pos, True{}, seen}
     case False{}:
-      step.help(Bool.and(String.eq(tok, "help"), Bool.not(seen)), tok, args,
+      parse.step.help(Bool.and(String.eq(tok, "help"), Bool.not(seen)), tok, args,
         specs, subs, path, binds, pos, seen)
 
 # after `--`, every token is a positional
-def step.raw(raw: Bool, +tok: String, +args: List<&2, Arg>,
+def parse.step.raw(raw: Bool, +tok: String, +args: List<&2, Arg>,
   +specs: List<&2, Arg>, +subs: List<&2, Sub>, +path: List<&2, String>,
   +binds: List<&2, Bind>, +pos: List<&2, Arg>, +seen: Bool) -> St:
   match raw:
     case True{}:
-      take_pos(tok, args, specs, subs, path, binds, pos, True{})
+      parse.take_pos(tok, args, specs, subs, path, binds, pos, True{})
     case False{}:
-      step.end(String.eq(tok, "--"), tok, args, specs, subs, path, binds, pos,
+      parse.step.end(String.eq(tok, "--"), tok, args, specs, subs, path, binds, pos,
         seen)
 
 # a pending option value: a flag-shaped token is a missing value
-def step.need(flag: Bool, +name: String, +tok: String,   +args: List<&2, Arg>,
+def parse.step.need(flag: Bool, +name: String, +tok: String,   +args: List<&2, Arg>,
   +specs: List<&2, Arg>, +subs: List<&2, Sub>, +path: List<&2, String>,
   +binds: List<&2, Bind>, +pos: List<&2, Arg>, +raw: Bool, +seen: Bool) -> St:
   match flag:
     case True{}:
-      dead(Missing{name}, args, specs, subs, path, binds, pos, raw, seen)
+      parse.dead(Missing{name}, args, specs, subs, path, binds, pos, raw, seen)
     case False{}:
-      take_opt_val(name, tok, args, specs, subs, path, binds, pos, raw, seen)
+      parse.take_opt_val(name, tok, args, specs, subs, path, binds, pos, raw, seen)
 
-# one token against the walk
-def step.mode(mode: Mode, +tok: String,   +args: List<&2, Arg>,
+# one token against the walker
+def parse.step.mode(mode: Mode, +tok: String,   +args: List<&2, Arg>,
   +specs: List<&2, Arg>, +subs: List<&2, Sub>, +path: List<&2, String>,
   +binds: List<&2, Bind>, +pos: List<&2, Arg>, +raw: Bool, +seen: Bool) -> St:
   match mode:
     case Dead{e}:
       St{Dead{e}, args, specs, subs, path, binds, pos, raw, seen}
     case Need{name}:
-      step.need(looks_flag(tok), name, tok, args, specs, subs, path, binds, pos,
+      parse.step.need(looks_flag(tok), name, tok, args, specs, subs, path, binds, pos,
         raw, seen)
     case Help{}:
       St{Help{}, args, specs, subs, List.append(&2, String, path, [tok]), binds,
         pos, raw, seen}
     case Free{}:
-      step.raw(raw, tok, args, specs, subs, path, binds, pos, seen)
+      parse.step.raw(raw, tok, args, specs, subs, path, binds, pos, seen)
 
 # one token
-def step(+tok: String, st: St) -> St:
-  St{mode, args, specs, subs, path, binds, pos, raw, seen} = st
-  step.mode(mode, tok, args, specs, subs, path, binds, pos, raw, seen)
+def parse.step(+tok: String, st: St) -> St:
+  St{mode, args, specs, subs, path, binds, pending, raw, seen} = st
+  parse.step.mode(mode, tok, args, specs, subs, path, binds, pending, raw, seen)
 
 # every token, in order
-def walk(argv: List<&2, String>, st: St) -> St:
+def parse.walk(argv: List<&2, String>, st: St) -> St:
   match argv:
     case Nil{}:
       st
     case Con{+h, t}:
-      walk(t, step(h, st))
+      parse.walk(t, parse.step(h, st))
 
 # a default value kept when the name is not already bound
 def fill.one(skip: Bool, +name: String, +val: String, rest: List<&2, Bind>) ->
@@ -722,7 +728,7 @@ def miss.args(args: List<&2, Arg>, +binds: List<&2, Bind>) -> Maybe<&2, String>:
       miss.arg(h, binds, miss.args(t, binds))
 
 # a missing required name, or the matched result
-def finish.miss(m: Maybe<&2, String>, path: List<&2, String>,
+def parse.finish.miss(m: Maybe<&2, String>, path: List<&2, String>,
   binds: List<&2, Bind>) -> Result<&2, &2, ParseErr, Matched>:
   match m:
     case Some{n}:
@@ -731,12 +737,12 @@ def finish.miss(m: Maybe<&2, String>, path: List<&2, String>,
       Done{Matched{path, List.reverse(&2, Bind, binds)}}
 
 # required names after defaults
-def finish.ok(specs: List<&2, Arg>, path: List<&2, String>,
+def parse.finish.ok(specs: List<&2, Arg>, path: List<&2, String>,
   +binds: List<&2, Bind>) -> Result<&2, &2, ParseErr, Matched>:
-  finish.miss(miss.args(specs, binds), path, binds)
+  parse.finish.miss(miss.args(specs, binds), path, binds)
 
-# a finished walk: help, a pending value, an error, or defaults + required
-def finish.mode(mode: Mode, +specs: List<&2, Arg>, path: List<&2, String>,
+# a finished walker: help, a pending value, an error, or defaults + required
+def parse.finish.mode(mode: Mode, +specs: List<&2, Arg>, path: List<&2, String>,
   +binds: List<&2, Bind>) -> Result<&2, &2, ParseErr, Matched>:
   match mode:
     case Dead{e}:
@@ -746,22 +752,22 @@ def finish.mode(mode: Mode, +specs: List<&2, Arg>, path: List<&2, String>,
     case Help{}:
       Fail{NeedHelp{path}}
     case Free{}:
-      finish.ok(specs, path, fill.args(specs, binds))
+      parse.finish.ok(specs, path, fill.args(specs, binds))
 
-# the walk, finished
-def finish(st: St) -> Result<&2, &2, ParseErr, Matched>:
+# the walker, finished
+def parse.finish(st: St) -> Result<&2, &2, ParseErr, Matched>:
   St{mode, _a, specs, _s, path, binds, _p, _r, _n} = st
-  finish.mode(mode, specs, path, binds)
+  parse.finish.mode(mode, specs, path, binds)
 
 # argv against a Cli
 def parse(app: Cli, argv: List<&2, String>) -> Result<&2, &2, ParseErr, Matched>:
-  finish(walk(argv, start(app)))
+  parse.finish(parse.walk(argv, parse.start(app)))
 
-# a ParseErr as a short tag, for tests
-def show_err(e: ParseErr) -> String:
+# a ParseErr as a short tag
+def show.err(e: ParseErr) -> String:
   match e:
-    case UnknownFlag{flag}:
-      "unknown " ++ flag
+    case UnknownFlag{word}:
+      "unknown " ++ word
     case Missing{name}:
       "missing " ++ name
     case BadValue{name, value}:
@@ -772,33 +778,33 @@ def show_err(e: ParseErr) -> String:
       "unexpected " ++ arg
 
 # one bind as `name=value`
-def show_bind(b: Bind, +rest: String) -> String:
+def show.bind(b: Bind, +rest: String) -> String:
   Bind{n, v} = b
   n ++ "=" ++ v ++ Bool.pick(String, String.is_empty(rest), "", " " ++ rest)
 
 # the bindings as `name=value` words
-def show_binds(bs: List<&2, Bind>) -> String:
+def show.binds(bs: List<&2, Bind>) -> String:
   match bs:
     case Nil{}:
       ""
     case Con{+h, t}:
-      show_bind(h, show_binds(t))
+      show.bind(h, show.binds(t))
 
 # a Matched as `path | binds`
-def show_matched(m: Matched) -> String:
+def show.matched(m: Matched) -> String:
   Matched{path, binds} = m
-  String.join(path, "/") ++ " | " ++ show_binds(binds)
+  String.join(path, "/") ++ " | " ++ show.binds(binds)
 
 # a parse result as a single line
 def show(r: Result<&2, &2, ParseErr, Matched>) -> String:
   match r:
     case Fail{e}:
-      "err " ++ show_err(e)
+      "err " ++ show.err(e)
     case Done{m}:
-      "ok " ++ show_matched(m)
+      "ok " ++ show.matched(m)
 
 # the short/long label of an option, plus a metavar for Opt
-def opt_label.kind(k: ArgKind, +name: String, +label: String) -> String:
+def help.label.kind(k: ArgKind, +name: String, +label: String) -> String:
   match k:
     case Flag{}:
       label
@@ -808,19 +814,19 @@ def opt_label.kind(k: ArgKind, +name: String, +label: String) -> String:
       label
 
 # `-s, --long` or one of them
-def opt_label.pair(+short: String, +long: String) -> String:
+def help.label.pair(+short: String, +long: String) -> String:
   Bool.pick(String, String.is_empty(short),
     Bool.pick(String, String.is_empty(long), "", "    --" ++ long),
     Bool.pick(String, String.is_empty(long), "  -" ++ short,
       "  -" ++ short ++ ", --" ++ long))
 
 # the usage label of an option
-def opt_label(a: Arg) -> String:
+def help.label(a: Arg) -> String:
   Arg{+name, short, long, kind, _h, _r, _d, _c} = a
-  opt_label.kind(kind, name, opt_label.pair(text_of(short, ""), text_of(long, "")))
+  help.label.kind(kind, name, help.label.pair(text.of(short, ""), text.of(long, "")))
 
 # extras after the help string: default and choices
-def opt_extra.go(+d: String, +cs: List<&2, String>) -> String:
+def help.extra.go(+d: String, +cs: List<&2, String>) -> String:
   Bool.pick(String, String.is_empty(d),
     Bool.pick(String, List.is_empty(&2, String, cs), "",
       " [possible values: " ++ String.join(cs, ", ") ++ "]"),
@@ -830,128 +836,136 @@ def opt_extra.go(+d: String, +cs: List<&2, String>) -> String:
         "]"))
 
 # extras after the help string
-def opt_extra(a: Arg) -> String:
+def help.extra(a: Arg) -> String:
   Arg{_n, _s, _l, _k, _h, _r, default, cs} = a
-  opt_extra.go(text_of(default, ""), cs)
+  help.extra.go(text.of(default, ""), cs)
 
 # one option line, given the label width
-def opt_line(+a: Arg, w: Nat) -> String:
+def help.opt_line(+a: Arg, w: Nat) -> String:
   Arg{_n, _s, _l, _k, +h, _r, _d, _c} = a
-  pad(opt_label(a), w) ++ "  " ++ h ++ opt_extra(a)
+  help.pad(help.label(a), w) ++ "  " ++ h ++ help.extra(a)
 
 # the max option-label width
-def opt_width(args: List<&2, Arg>, n: Nat) -> Nat:
+def help.opt_width(args: List<&2, Arg>, n: Nat) -> Nat:
   match args:
     case Nil{}:
       n
     case Con{+h, t}:
-      opt_width(t, nat_max(n, String.length(opt_label(h))))
+      help.opt_width(t, help.max(n, String.length(help.label(h))))
 
 # a non-positional option line
-def opt_lines.at(skip: Bool, h: Arg, rest: String, w: Nat) -> String:
+def help.opt_lines.at(skip: Bool, h: Arg, rest: String, w: Nat) -> String:
   match skip:
     case True{}:
       rest
     case False{}:
-      opt_line(h, w) ++ "\n" ++ rest
+      help.opt_line(h, w) ++ "\n" ++ rest
 
 # option lines, skipping positionals
-def opt_lines(args: List<&2, Arg>, +w: Nat) -> String:
+def help.opt_lines(args: List<&2, Arg>, +w: Nat) -> String:
   match args:
     case Nil{}:
       ""
     case Con{+h, t}:
-      opt_lines.at(is_pos(h), h, opt_lines(t, w), w)
+      help.opt_lines.at(pos.is(h), h, help.opt_lines(t, w), w)
 
 # wrap option lines in a heading
-def opt_block.go(+body: String) -> String:
+def help.opts.go(+body: String) -> String:
   Bool.pick(String, String.is_empty(body), "", "Options:\n" ++ body ++ "\n")
 
 # the Options block, or empty when there are none
-def opt_block(+args: List<&2, Arg>) -> String:
-  opt_block.go(opt_lines(args, opt_width(args, 0n)))
+def help.opts(+args: List<&2, Arg>) -> String:
+  help.opts.go(help.opt_lines(args, help.opt_width(args, 0n)))
 
 # a command's name
-def sub_name(s: Sub) -> String:
+def help.sub_name(s: Sub) -> String:
   Sub{n, _a, _g, _c} = s
   n
 
 # a command's about
-def sub_about(s: Sub) -> String:
+def help.sub_about(s: Sub) -> String:
   Sub{_n, a, _g, _c} = s
   a
 
 # max command-name width, including `help`
-def cmd_width(subs: List<&2, Sub>, n: Nat) -> Nat:
+def help.cmd_width(subs: List<&2, Sub>, n: Nat) -> Nat:
   match subs:
     case Nil{}:
-      nat_max(n, String.length("help"))
+      help.max(n, String.length("help"))
     case Con{+h, t}:
-      cmd_width(t, nat_max(n, String.length(sub_name(h))))
+      help.cmd_width(t, help.max(n, String.length(help.sub_name(h))))
 
 # one command line
-def cmd_line(+name: String, +about: String, w: Nat) -> String:
-  "  " ++ pad(name, w) ++ "  " ++ about ++ "\n"
+def help.cmd_line(+name: String, +about: String, w: Nat) -> String:
+  "  " ++ help.pad(name, w) ++ "  " ++ about ++ "\n"
 
 # command lines, then `help`
-def cmd_lines(subs: List<&2, Sub>, +w: Nat) -> String:
+def help.cmd_lines(subs: List<&2, Sub>, +w: Nat) -> String:
   match subs:
     case Nil{}:
-      cmd_line("help",
+      help.cmd_line("help",
         "Print this message or the help of the given subcommand(s)", w)
     case Con{+h, t}:
-      cmd_line(sub_name(h), sub_about(h), w) ++ cmd_lines(t, w)
+      help.cmd_line(help.sub_name(h), help.sub_about(h), w) ++ help.cmd_lines(t, w)
 
 # the Commands block
-def cmd_block(+subs: List<&2, Sub>) -> String:
-  "Commands:\n" ++ cmd_lines(subs, cmd_width(subs, 0n)) ++ "\n"
+def help.cmds(+subs: List<&2, Sub>) -> String:
+  "Commands:\n" ++ help.cmd_lines(subs, help.cmd_width(subs, 0n)) ++ "\n"
 
 # a positional in a usage line: `<NAME>` or `[NAME]`
-def pos_hint.one(a: Arg) -> String:
+def help.pos.one(a: Arg) -> String:
   Arg{+n, _s, _l, _k, _h, +req, _d, _c} = a
   Bool.pick(String, req, " <" ++ String.to_upper(n) ++ ">",
     " [" ++ String.to_upper(n) ++ "]")
 
 # this positional's hint, else the rest
-def pos_hint.at(keep: Bool, h: Arg, rest: String) -> String:
+def help.pos.at(keep: Bool, h: Arg, rest: String) -> String:
   match keep:
     case True{}:
-      pos_hint.one(h) ++ rest
+      help.pos.one(h) ++ rest
     case False{}:
       rest
 
 # every positional in a usage line
-def pos_hint(args: List<&2, Arg>) -> String:
+def help.pos(args: List<&2, Arg>) -> String:
   match args:
     case Nil{}:
       ""
     case Con{+h, t}:
-      pos_hint.at(is_pos(h), h, pos_hint(t))
+      help.pos.at(pos.is(h), h, help.pos(t))
 
-# `[OPTIONS]` when the spec has a flag or option
-def opts_hint.go(has: Bool) -> String:
-  Bool.pick(String, has, " [OPTIONS]", "")
+# the bracketed options word when the spec has a flag or option
+def help.opts_hint.go(has: Bool) -> String:
+  Bool.pick(String, has, " [" ++ String.to_upper("options") ++ "]", "")
+
+# True when this Arg is a flag or option, else the rest
+def help.has_opt.at(is_pos: Bool, rest: Bool) -> Bool:
+  match is_pos:
+    case True{}:
+      rest
+    case False{}:
+      True{}
 
 # whether any Arg is not a positional
-def has_opt(args: List<&2, Arg>) -> Bool:
+def help.has_opt(args: List<&2, Arg>) -> Bool:
   match args:
     case Nil{}:
       False{}
     case Con{+h, t}:
-      Bool.or(Bool.not(is_pos(h)), has_opt(t))
+      help.has_opt.at(pos.is(h), help.has_opt(t))
 
-# `[OPTIONS]` when needed
-def opts_hint(args: List<&2, Arg>) -> String:
-  opts_hint.go(has_opt(args))
+# the options hint when needed
+def help.opts_hint(args: List<&2, Arg>) -> String:
+  help.opts_hint.go(help.has_opt(args))
 
 # `[COMMAND]` when there are subcommands
-def cmd_hint(+subs: List<&2, Sub>) -> String:
+def help.cmd_hint(+subs: List<&2, Sub>) -> String:
   Bool.pick(String, List.is_empty(&2, Sub, subs), "", " [COMMAND]")
 
 # `Usage: name ...`
-def usage_line(+name: String, +args: List<&2, Arg>, +subs: List<&2, Sub>) ->
+def help.usage(+name: String, +args: List<&2, Arg>, +subs: List<&2, Sub>) ->
   String:
-  "Usage: " ++ name ++ opts_hint(args) ++ pos_hint(args) ++ cmd_hint(subs)
+  "Usage: " ++ name ++ help.opts_hint(args) ++ help.pos(args) ++ help.cmd_hint(subs)
 
 # `name` or `name version`
 def title.go(+name: String, v: Maybe<&2, String>) -> String:
@@ -964,52 +978,58 @@ def title.go(+name: String, v: Maybe<&2, String>) -> String:
 # one help page
 def help.page(+title: String, +about: String, +usage: String,
   +args: List<&2, Arg>, +subs: List<&2, Sub>) -> String:
-  title ++ "\n" ++ about ++ "\n\n" ++ usage ++ "\n\n" ++ cmd_block(subs) ++
-    opt_block(args)
+  title ++ "\n" ++ about ++ "\n\n" ++ usage ++ "\n\n" ++ help.cmds(subs) ++
+    help.opts(args)
 
-# walk a command path; one def so the two steps are not a cycle
-@unsafe def help.go(st: HelpGo) -> String:
-  match st:
-    case HN{+bin, +about, version, +args, +subs, path, +usage}:
-      match path:
-        case Nil{}:
-          help.page(title.go(bin, version), about, usage_line(usage, args, subs),
-            args, subs)
-        case Con{+h, t}:
-          help.go(HD{find_sub(subs, h), bin, about, version, args, subs, h, t,
-            usage})
-    case HD{found, +bin, +about, version, +args, +subs, +next, rest, +usage}:
-      match found:
-        case None{}:
-          help.page(title.go(bin, version), about, usage_line(usage, args, subs),
-            args, subs)
-        case Some{s}:
-          Sub{+name, +about2, args2, subs2} = s
-          help.go(HN{name, about2, None{}, args2, subs2, rest,
-            usage ++ " " ++ next})
+# a found child becomes the page; an unknown name stays
+def help.step.go(found: Maybe<&2, Sub>, +bin: String, +about: String,
+  version: Maybe<&2, String>, args: List<&2, Arg>, subs: List<&2, Sub>,
+  +next: String, +usage: String) -> How:
+  match found:
+    case None{}:
+      How{bin, about, version, args, subs, usage}
+    case Some{s}:
+      Sub{+name, +about2, args2, subs2} = s
+      How{name, about2, None{}, args2, subs2, usage ++ " " ++ next}
+
+# one path segment against the current page
+def help.step(how: How, +name: String) -> How:
+  How{+bin, +about, version, args, +subs, +usage} = how
+  help.step.go(find_sub(subs, name), bin, about, version, args, subs, name,
+    usage)
+
+# the page at the end of a shrinking path
+def help.go(path: List<&2, String>, how: How) -> String:
+  match path:
+    case Nil{}:
+      How{+bin, +about, version, +args, +subs, +usage} = how
+      help.page(title.go(bin, version), about, help.usage(usage, args, subs),
+        args, subs)
+    case Con{+h, t}:
+      help.go(t, help.step(how, h))
 
 # usage for `path` under `app`; an unknown segment shows the last found page
 def help(+app: Cli, path: List<&2, String>) -> String:
   Cli{+name, +about, version, args, subs} = app
-  help.go(HN{name, about, version, args, subs, path, name})
+  help.go(path, How{name, about, version, args, subs, name})
 
 # a short error with the root usage line
-def err_wrap(app: Cli, +msg: String) -> String:
+def err.wrap(app: Cli, +msg: String) -> String:
   Cli{+name, _a, _v, args, subs} = app
-  msg ++ "\n\n" ++ usage_line(name, args, subs) ++
+  msg ++ "\n\n" ++ help.usage(name, args, subs) ++
     "\n\nFor more information, try 'help'.\n"
 
 # error text; NeedHelp is empty (the caller prints `help`)
 def err_text(+app: Cli, e: ParseErr) -> String:
   match e:
-    case UnknownFlag{flag}:
-      err_wrap(app, "error: unexpected argument '" ++ flag ++ "' found")
+    case UnknownFlag{word}:
+      err.wrap(app, "error: unexpected argument '" ++ word ++ "' found")
     case Missing{name}:
-      err_wrap(app, "error: the following required argument was not provided:\n  " ++
+      err.wrap(app, "error: the following required argument was not provided:\n  " ++
         name)
     case BadValue{name, value}:
-      err_wrap(app, "error: invalid value '" ++ value ++ "' for '" ++ name ++ "'")
+      err.wrap(app, "error: invalid value '" ++ value ++ "' for '" ++ name ++ "'")
     case NeedHelp{_path}:
       ""
     case Unexpected{arg}:
-      err_wrap(app, "error: unexpected argument '" ++ arg ++ "' found")
+      err.wrap(app, "error: unexpected argument '" ++ arg ++ "' found")
