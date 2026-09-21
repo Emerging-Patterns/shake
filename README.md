@@ -39,3 +39,7 @@ bin/demo.bin add 2 3 --times 2
 ```
 
 `nix build` builds the same fixture to `result/bin/demo`.
+
+## License
+
+MIT. See [`LICENSE`](LICENSE).
