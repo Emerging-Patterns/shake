@@ -18,8 +18,6 @@ import ./shake/main.bend as Shake
 import ./shake/args.bend as Args
 ```
 
-Or with nix, `nix develop` puts `bend`, `ez`, and `bolt` on PATH.
-
 ## Usage
 
 Print usage with `tool help` or `tool help <command>`. `--help` is consumed
