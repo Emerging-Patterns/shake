@@ -19,7 +19,8 @@ import ./shake/main.bend as Shake
 import ./shake/args.bend as Args
 ```
 
-Or with nix, `nix develop` puts `bend` on PATH.
+Or with nix, `nix develop` puts `bend`, `ez`, and `bolt` on PATH.
+
 
 ## Usage
 
