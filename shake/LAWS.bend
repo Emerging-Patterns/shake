@@ -46,10 +46,6 @@ def gold.add() -> String:
 def shown.rest(av: List<&2, String>) -> String:
   Shake.show(Shake.parse(Sample.rest_spec(), av))
 
-# the required-rest fixture parse, as one line
-def shown.rest_req(av: List<&2, String>) -> String:
-  Shake.show(Shake.parse(Sample.rest_req(), av))
-
 # the rest fixture's files, or empty on error
 def files.of(r: Result<&2, &2, Shake.ParseErr, Shake.Matched>) ->
   List<&2, String>:
@@ -497,7 +493,8 @@ law parse_rest_dash:
 # LAW: a required rest with no leftovers is `missing`
 law err_rest_missing:
   for u: Unit
-  {shown.rest_req([]) == "err missing files" : String}
+  {Shake.show(Shake.parse(Sample.rest_req(), [])) == "err missing files"
+    : String}
 
 # LAW: the rest fixture parse shows every leftover
 law show_rest_many:
