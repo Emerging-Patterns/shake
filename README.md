@@ -7,14 +7,12 @@ commands; `help` writes usage. `shake/LAWS.bend` states the parser;
 
 ## Install
 
-Install easily with [ez](https://github.com/Emerging-Patterns/ez):
+Use with [Bend](https://github.com/bendlang/bend) or install easily with [ez](https://github.com/Emerging-Patterns/ez):
 
 ```
 ez init
 ez add Emerging-Patterns/shake
 ```
-
-You need [Bend](https://github.com/bendlang/bend).
 
 ## Usage
 
