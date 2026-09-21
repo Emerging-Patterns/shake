@@ -21,7 +21,6 @@ import ./shake/args.bend as Args
 
 Or with nix, `nix develop` puts `bend`, `ez`, and `bolt` on PATH.
 
-
 ## Usage
 
 Print usage with `tool help` or `tool help <command>`. `--help` is consumed
@@ -40,7 +39,3 @@ bin/demo.bin add 2 3 --times 2
 ```
 
 `nix build` builds the same fixture to `result/bin/demo`.
-
-## License
-
-MIT. See [`LICENSE`](LICENSE).
