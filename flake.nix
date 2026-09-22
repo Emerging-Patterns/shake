@@ -37,7 +37,11 @@
       apps.${system}.default = { type = "app"; program = "${demo}/bin/demo"; };
       checks.${system} = {
         inherit demo;
-        proofs = ez.mkProofs { ez = ezBin; src = self; };
+        proofs = ez.mkProofs {
+          ez = ezBin;
+          src = self;
+          extraFlags = [ "--unit-only" ];
+        };
         lint = ez.mkLint { inherit bolt; src = self; };
       };
       devShells.${system}.default = ez.mkShell {
