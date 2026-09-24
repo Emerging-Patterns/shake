@@ -1,6 +1,6 @@
 # shake/sample: a fixture Cli the laws parse
 import Base
-import ./main.bend as Shake
+import ./cli.bend as Shake
 
 # flags, options, positionals, one nested command
 def spec() -> Shake.Cli:

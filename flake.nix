@@ -11,11 +11,6 @@
     inputs.nixpkgs.follows = "nixpkgs";
     inputs.bend.follows = "bend";
   };
-  inputs.bolt = {
-    url = "github:Emerging-Patterns/bolt";
-    inputs.nixpkgs.follows = "nixpkgs";
-    inputs.bend.follows = "bend";
-  };
 
   outputs = { self, nixpkgs, ... }@inputs:
     let
@@ -23,7 +18,6 @@
       ez = inputs.ez.lib.${system};
       ezBin = inputs.ez.packages.${system}.default;
       bend = inputs.bend.packages.${system}.default;
-      bolt = inputs.bolt.packages.${system}.default;
       bend-cc = ez.bend-cc;
       demo = ez.mkPackage {
         inherit bend;
@@ -33,19 +27,20 @@
         entry = "examples/demo/main.bend";
       };
     in {
-      packages.${system} = { inherit bend demo bend-cc; ez = ezBin; inherit bolt; default = demo; };
+      packages.${system} = { inherit bend demo bend-cc; ez = ezBin; default = demo; };
       apps.${system}.default = { type = "app"; program = "${demo}/bin/demo"; };
+      # `proofs` is `ez prove`: every PROOF.bend must print exactly
+      # `All terms check.` first. `lint` is bolt at the lock's `[tools.bolt]`
+      # pin, graded by ./bolt.bend.
       checks.${system} = {
         inherit demo;
-        proofs = ez.mkProofs {
-          ez = ezBin;
-          src = self;
-          extraFlags = [ "--unit-only" ];
-        };
-        lint = ez.mkLint { inherit bolt; src = self; };
+        proofs = ez.mkProofs { ez = ezBin; src = self; name = "shake-proofs"; };
+        lint = ez.mkLint { src = self; };
       };
+      # bolt, from the lock, is on PATH through `src`
       devShells.${system}.default = ez.mkShell {
-        packages = [ bend bend-cc ezBin bolt ];
+        src = self;
+        packages = [ bend bend-cc ezBin ];
       };
     };
 }

@@ -1,7 +1,6 @@
 # examples/demo: a small CLI that parses with shake
 import Base
-import ../../shake/main.bend as Shake
-import ../../shake/args.bend as Args
+import ../../main.bend as Shake
 
 # the program spec
 def spec() -> Shake.Cli:
@@ -27,62 +26,68 @@ def spec() -> Shake.Cli:
     ])
 
 # the verbose line, when asked
-def greet.v(v: Bool) -> IO(Unit):
-  match v:
+def greet.v(vv: Bool) -> IO(Unit):
+  match vv:
     case True{}:
       IO.print("verbose")
     case False{}:
       IO.pure(Unit, Unit{})
 
 # a successful greet
-def greet(+m: Shake.Matched) -> IO(Unit):
+def greet(+mm: Shake.Matched) -> IO(Unit):  # noqa: L001 IO
   do IO<Unit>:
     +who : String <- IO.pure(String,
-      Bool.pick(String, String.is_empty(Shake.get(m, "who")),
-        Shake.get(m, "name"), Shake.get(m, "who")))
+      Bool.pick(String, String.is_empty(Shake.get(mm, "who")),
+        Shake.get(mm, "name"), Shake.get(mm, "who")))
     IO.print("hello " ++ who)
-    greet.v(Shake.on(m, "verbose"))
+    greet.v(Shake.on(mm, "verbose"))
 
 # a successful add
-def add(+m: Shake.Matched) -> IO(Unit):
-  IO.print(Shake.get(m, "a") ++ " + " ++ Shake.get(m, "b") ++ " x" ++
-    Shake.get(m, "times") ++ " base " ++ Shake.get(m, "base"))
+def add(+mm: Shake.Matched) -> IO(Unit):  # noqa: L001 IO
+  IO.print(Shake.get(mm, "a") ++ " + " ++ Shake.get(mm, "b") ++ " x" ++
+    Shake.get(mm, "times") ++ " base " ++ Shake.get(mm, "base"))
 
 # dispatch on the selected path
-def run.path(+path: String, +m: Shake.Matched) -> IO(Unit):
-  Bool.pick(IO(Unit), String.eq(path, "greet"), greet(m),
-    Bool.pick(IO(Unit), String.eq(path, "add"), add(m),
+def run.path(+path: String, +mm: Shake.Matched) -> IO(Unit):
+  Bool.pick(IO(Unit), String.eq(path, "greet"), greet(mm),
+    Bool.pick(IO(Unit), String.eq(path, "add"), add(mm),
       IO.write(Shake.help(spec(), []))))
 
 # the selected command
-def run(+m: Shake.Matched) -> IO(Unit):
-  run.path(String.join(Shake.path_of(m), "/"), m)
+def run(+mm: Shake.Matched) -> IO(Unit):  # noqa: L001 IO
+  run.path(String.join(Shake.path_of(mm), "/"), mm)
 
 # a hard error
-def fail.err(+app: Shake.Cli, e: Shake.ParseErr) -> IO(Unit):
+def fail.err(+app: Shake.Cli, ee: Shake.ParseErr) -> IO(Unit):
   do IO<Unit>:
-    IO.print_err(Shake.err_text(app, e))
+    IO.print_err(Shake.err_text(app, ee))
     IO.die(Unit, 1, "")
 
-# a failed parse: help text, or an error
-def fail(+app: Shake.Cli, e: Shake.ParseErr) -> IO(Unit):
-  match e:
-    case Shake.NeedHelp{path}:
+# help text for a request for help, else the error
+def fail.at(+app: Shake.Cli, ask: Maybe<&2, List<&2, String>>, ee: Shake.ParseErr) -> IO(Unit):
+  match ask:
+    case Some{path}:
       IO.write(Shake.help(app, path))
-    case other:
-      fail.err(app, other)
+    case None{}:
+      fail.err(app, ee)
+
+# a failed parse: help text, or an error
+def fail(+app: Shake.Cli, +ee: Shake.ParseErr) -> IO(Unit):  # noqa: L001 IO
+  fail.at(app, Shake.help_path(ee), ee)
 
 # the parse result
-def go(+app: Shake.Cli, r: Result<&2, &2, Shake.ParseErr, Shake.Matched>) ->
-  IO(Unit):
-  match r:
+def go(  # noqa: L001 IO
+  +app: Shake.Cli,
+  rr: Result<&2, &2, Shake.ParseErr, Shake.Matched>
+) -> IO(Unit):
+  match rr:
     case Fail{e}:
       fail(app, e)
     case Done{m}:
       run(m)
 
-def main() -> IO(Unit):
+def main() -> IO(Unit):  # noqa: L001 IO
   do IO<Unit>:
     +app : Shake.Cli <- IO.pure(Shake.Cli, spec())
-    av : List<&2, String> <- Args.argv()
+    av : List<&2, String> <- Shake.argv()
     go(app, Shake.parse(app, av))

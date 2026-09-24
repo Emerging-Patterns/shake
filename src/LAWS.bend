@@ -1,6 +1,6 @@
 # shake: the laws. The human states them; PROOF.bend must prove them.
 import Base
-import ./main.bend as Shake
+import ./cli.bend as Shake
 import ./sample.bend as Sample
 import ./args.bend as Args
 
@@ -47,9 +47,10 @@ def shown.rest(av: List<&2, String>) -> String:
   Shake.show(Shake.parse(Sample.rest_spec(), av))
 
 # the rest fixture's files, or empty on error
-def files.of(r: Result<&2, &2, Shake.ParseErr, Shake.Matched>) ->
-  List<&2, String>:
-  match r:
+def files.of(
+  rr: Result<&2, &2, Shake.ParseErr, Shake.Matched>
+) -> List<&2, String>:
+  match rr:
     case Done{m}:
       Shake.get_all(m, "files")
     case Fail{_e}:
