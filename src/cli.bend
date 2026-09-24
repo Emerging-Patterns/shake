@@ -118,7 +118,7 @@ def app(
   Cli{name, about, version, args, subs}
 
 # a nested command
-def sub(
+def sub(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothing to state
   +name: String,
   +about: String,
   args: List<&2, Arg>,
@@ -127,7 +127,7 @@ def sub(
   Sub{name, about, args, subs}
 
 # a boolean flag
-def flag(
+def flag(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothing to state
   +name: String,
   short: Maybe<&2, String>,
   long: Maybe<&2, String>,
@@ -136,7 +136,7 @@ def flag(
   Arg{name, short, long, Flag{}, help, False{}, None{}, []}
 
 # a valued option
-def opt(
+def opt(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothing to state
   +name: String,
   short: Maybe<&2, String>,
   long: Maybe<&2, String>,
@@ -148,7 +148,7 @@ def opt(
   Arg{name, short, long, Opt{}, help, required, default, choices}
 
 # an option that may be given more than once; `get_all` reads every value
-def many(
+def many(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothing to state
   +name: String,
   short: Maybe<&2, String>,
   long: Maybe<&2, String>,
@@ -160,7 +160,7 @@ def many(
   Arg{name, short, long, Many{}, help, required, default, choices}
 
 # a positional
-def pos(
+def pos(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothing to state
   +name: String,
   +help: String,
   required: Bool,
@@ -170,7 +170,7 @@ def pos(
   Arg{name, None{}, None{}, Pos{}, help, required, default, choices}
 
 # a rest positional: every leftover word, as one name
-def rest(
+def rest(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothing to state
   +name: String,
   +help: String,
   required: Bool,
@@ -1392,57 +1392,6 @@ def parse.finish(st: St) -> Result<&2, &2, ParseErr, Matched>:
 # argv against a Cli
 def parse(app: Cli, argv: List<&2, String>) -> Result<&2, &2, ParseErr, Matched>:
   parse.finish(parse.walk(argv, parse.start(app)))
-
-# a ParseErr as a short tag
-def show.err(ee: ParseErr) -> String:
-  match ee:
-    case UnknownFlag{_at, word}:
-      "unknown " ++ word
-    case Missing{_at, name}:
-      "missing " ++ name
-    case NoValue{_at, name}:
-      "novalue " ++ name
-    case BadValue{_at, name, value}:
-      "bad " ++ name ++ " " ++ value
-    case NeedHelp{path}:
-      "help " ++ String.join(path, " ")
-    case Unexpected{_at, arg}:
-      "unexpected " ++ arg
-    case Repeated{_at, name}:
-      "repeated " ++ name
-
-# one bind as `name=value`
-def show.bind(bb: Bind, +rest: String) -> String:
-  Bind{n, v} = bb
-  n ++ "=" ++ v ++ Bool.pick(String, String.is_empty(rest), "", " " ++ rest)
-
-# the bindings as `name=value` words
-def show.binds(bs: List<&2, Bind>) -> String:
-  match bs:
-    case Nil{}:
-      ""
-    case Con{+h, t}:
-      show.bind(h, show.binds(t))
-
-# each command's bindings, root first, `; ` between commands
-def show.levels(mm: Matched) -> String:
-  match mm:
-    case Leaf{bs}:
-      show.binds(bs)
-    case Node{bs, _n, next}:
-      show.binds(bs) ++ "; " ++ show.levels(next)
-
-# a Matched as `path | binds`
-def show.matched(+mm: Matched) -> String:
-  String.join(path_of(mm), "/") ++ " | " ++ show.levels(mm)
-
-# a parse result as a single line
-def show(rr: Result<&2, &2, ParseErr, Matched>) -> String:
-  match rr:
-    case Fail{e}:
-      "err " ++ show.err(e)
-    case Done{m}:
-      "ok " ++ show.matched(m)
 
 # the short/long label of an option, plus a metavar for Opt
 def help.label.kind(kk: ArgKind, +name: String, +label: String) -> String:

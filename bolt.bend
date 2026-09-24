@@ -1,5 +1,5 @@
-# bolt.bend: how bolt lints this repo. Every rule is an error except
-# `coverage`, which warns until the laws exist: the gate must see no errors.
+# bolt.bend: how bolt lints this repo. Every rule is an error: the gate must
+# see no errors.
 # See bolt/config.bend for the groups and levels.
 import Base
 
@@ -15,11 +15,11 @@ def suspicious() -> String:
 def style() -> String:
   "error"
 
-# a pure def named by no quantified law: advice while the laws of
-# docs/rfc/shake-spec.md are pending. That rule is `coverage` (L001). IO,
-# which no law can reach, says so with `# noqa: L001` on its def line.
+# a pure def named by no quantified law. That rule is `coverage` (L001). A
+# def no law applies to (IO, a builder, a type alias, proof machinery, the
+# example program) says so with `# noqa: L001 <why>` on its def line.
 def laws() -> String:
-  "warn"
+  "error"
 
 # a law with no binder
 def closed() -> String:

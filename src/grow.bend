@@ -11,7 +11,7 @@ import ./cli.bend as Shake
 import ./eq.bend as Eq
 
 # the bindings a walker holds for its current command
-def binds_of(st: Shake.St) -> List<&2, Shake.Bind>:
+def binds_of(st: Shake.St) -> List<&2, Shake.Bind>:  # noqa: L001 proof machinery
   Shake.St{_m, _a, _g, _s, _p, bb, _o, _r, _n} = st
   bb
 # `big` is `small` with some bindings put in front
@@ -566,7 +566,7 @@ def gw.Stuck(big: Shake.St) -> Type:
   {gw.live(big) == False{} : Bool}
 
 # the three things a word does to a walker
-type Moved<-A: Type, -B: Type, -C: Type> is Type:
+type Moved<-A: Type, -B: Type, -C: Type> is Type:  # noqa: L001 proof machinery: what a step did, for the walker proofs
   Stays{proof: A}
   Enters{proof: B}
   Stops{proof: C}
@@ -1159,7 +1159,7 @@ def gw.stuck_walk(more, st, hh):
       gw.stuck_walk(tt, Shake.parse.step(ww, st), gw.stuck_step(ww, st, hh))
 
 # a walk either grows the walker or leaves it stuck
-type Went<-A: Type, -B: Type> is Type:
+type Went<-A: Type, -B: Type> is Type:  # noqa: L001 proof machinery: what a walk did, for the walker proofs
   Grew{proof: A}
   Stopped{proof: B}
 

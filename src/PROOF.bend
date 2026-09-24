@@ -9652,3 +9652,22 @@ def Laws.word_used(tok, st, h_live, h_same):
           nu.need_w(S.looks_flag(tok), nn, tok, args, up, subs, path, binds, pos, raw, seen, S.Need{nn}, {==}, h_same)
         case S.Free{}:
           nu.rawf(raw, tok, args, up, subs, path, binds, pos, seen, S.Free{}, {==}, {==}, {==}, h_same)
+
+def Laws.spec_err_where(err):
+  match err:
+    case K.RestNotLast{+path, +name}:
+      ("rest positional '" ++ name ++ "' is not the last positional", {==})
+    case K.SameName{+path, +name}:
+      ("two arguments are named '" ++ name ++ "'", {==})
+    case K.SameShort{+path, +short}:
+      ("two arguments are spelled '-" ++ short ++ "'", {==})
+    case K.SameLong{+path, +long}:
+      ("two arguments are spelled '--" ++ long ++ "'", {==})
+    case K.SameSub{+path, +name}:
+      ("two subcommands are named '" ++ name ++ "'", {==})
+    case K.HelpSub{+path}:
+      ("a subcommand is named 'help', which `parse` keeps for help", {==})
+    case K.DefaultNotChoice{+path, +name, +value}:
+      ("the default '" ++ value ++ "' of '" ++ name ++ "' is not one of its choices", {==})
+    case K.RequiredAfterOptional{+path, +name}:
+      ("required positional '" ++ name ++ "' follows an optional one", {==})
