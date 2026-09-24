@@ -5,6 +5,7 @@ import ../src/cli.bend as S
 import ../src/eq.bend as Eq
 import ../src/args.bend as Args
 import ../src/walk.bend as Walk
+import ../src/grow.bend as Grow
 import ./LAWS.bend as Laws
 
 def Laws.looks_flag_long(_ss):
@@ -940,3 +941,754 @@ def Laws.repeated_long_opt(
       S.Repeated{path, nn}, h_at,
     repeated_long_opt.step(body, name, val, args, specs, subs, path, bs, pos, seen, nn, sh, lo, hp, req, dflt, cs,
       h_dd, h_cut, h_name, h_found, h_again))
+
+# the walk through `tok` is one step from where the words before it stood
+def kept.stepped(
+  +spec: Shake.Cli,
+  +pre: List<&2, String>,
+  +tok: String,
+  +st: S.St,
+  h_at: {S.parse.walk(pre, S.parse.start(spec)) == st : S.St}
+) -> {S.parse.walk(List.append(&2, String, pre, [tok]), S.parse.start(spec)) == S.parse.step(tok, st) : S.St}:
+  Equal.trans(S.St, S.parse.walk(List.append(&2, String, pre, [tok]), S.parse.start(spec)),
+    S.parse.walk([tok], S.parse.walk(pre, S.parse.start(spec))), S.parse.step(tok, st),
+    Laws.walk_append(pre, [tok], S.parse.start(spec)),
+    Equal.cong(S.St, S.St, xx => S.parse.walk([tok], xx), S.parse.walk(pre, S.parse.start(spec)), st, h_at))
+
+# a binding's own name reads its value first
+def kept.hit(
+  +name: String,
+  +vv: String,
+  +rest: List<&2, String>
+) -> {S.get_all.bind.hit(String.eq(name, name), vv, rest) == vv <> rest : List<&2, String>}:
+  ee = Equal.sym(Bool, String.eq(name, name), True{}, Eq.string_eq_self(name))
+  %ee : {S.get_all.bind.hit(_, vv, rest) == vv <> rest : List<&2, String>}
+  {==}
+
+# what `kept_all` claims
+def kept_all.ty(+found: Shake.Matched, +name: String, +xs: List<&2, S.Bind>, +bs: List<&2, S.Bind>) -> Type:
+  &after: List<&2, String> -> {Shake.get_all(found, name)
+    == List.append(&2, String, S.get_all.bind(List.reverse(&2, S.Bind, bs), name),
+      List.append(&2, String, S.get_all.bind(List.reverse(&2, S.Bind, xs), name), after)) : List<&2, String>}
+
+# the finished walk's bindings are those after `mid` with some in front, and
+# the result reads them with defaults in front, reversed
+def kept_all.fin(
+  +st1: S.St,
+  +fs: S.St,
+  +name: String,
+  +xs: List<&2, S.Bind>,
+  +bs: List<&2, S.Bind>,
+  +found: Shake.Matched,
+  h_mid: {Grow.binds_of(st1) == List.append(&2, S.Bind, xs, bs) : List<&2, S.Bind>},
+  wg: Grow.gw.Ext(Grow.binds_of(fs), Grow.binds_of(st1)),
+  wf: Grow.gw.finished.ty(found, name, Grow.binds_of(fs))
+) -> kept_all.ty(found, name, xs, bs):
+  (nx, eg) = wg
+  (dx, ef) = wf
+  +new = {nx : List<&2, S.Bind>}
+  +defs = {dx : List<&2, S.Bind>}
+  +r1 = List.reverse.go(&2, S.Bind, new, List.reverse(&2, S.Bind, defs))
+  +gb = S.get_all.bind(List.reverse(&2, S.Bind, bs), name)
+  +gx = S.get_all.bind(List.reverse(&2, S.Bind, xs), name)
+  +gr = S.get_all.bind(r1, name)
+  +x0 = S.get_all.bind(List.reverse(&2, S.Bind, List.append(&2, S.Bind, defs, Grow.binds_of(fs))), name)
+  +x1 = S.get_all.bind(List.reverse(&2, S.Bind, List.append(&2, S.Bind, defs,
+    List.append(&2, S.Bind, new, Grow.binds_of(st1)))), name)
+  +x2 = S.get_all.bind(List.reverse(&2, S.Bind, List.append(&2, S.Bind, defs,
+    List.append(&2, S.Bind, new, List.append(&2, S.Bind, xs, bs)))), name)
+  +x3 = S.get_all.bind(List.append(&2, S.Bind, List.reverse(&2, S.Bind, bs),
+    List.append(&2, S.Bind, List.reverse(&2, S.Bind, xs), r1)), name)
+  +x4 = List.append(&2, String, gb, S.get_all.bind(List.append(&2, S.Bind, List.reverse(&2, S.Bind, xs), r1), name))
+  +x5 = List.append(&2, String, gb, List.append(&2, String, gx, gr))
+  e1 = Equal.cong(List<&2, S.Bind>, List<&2, String>,
+    ys => S.get_all.bind(List.reverse(&2, S.Bind, List.append(&2, S.Bind, defs, ys)), name),
+    Grow.binds_of(fs), List.append(&2, S.Bind, new, Grow.binds_of(st1)), eg)
+  e2 = Equal.cong(List<&2, S.Bind>, List<&2, String>,
+    ys => S.get_all.bind(List.reverse(&2, S.Bind, List.append(&2, S.Bind, defs, List.append(&2, S.Bind, new, ys))),
+      name),
+    Grow.binds_of(st1), List.append(&2, S.Bind, xs, bs), h_mid)
+  e3 = Equal.cong(List<&2, S.Bind>, List<&2, String>, ys => S.get_all.bind(ys, name),
+    List.reverse(&2, S.Bind, List.append(&2, S.Bind, defs, List.append(&2, S.Bind, new, List.append(&2, S.Bind, xs,
+      bs)))),
+    List.append(&2, S.Bind, List.reverse(&2, S.Bind, bs), List.append(&2, S.Bind, List.reverse(&2, S.Bind, xs), r1)),
+    Grow.gw.rev_split(defs, new, xs, bs))
+  e4 = Laws.bind_values_append(List.reverse(&2, S.Bind, bs), List.append(&2, S.Bind, List.reverse(&2, S.Bind, xs), r1),
+    name)
+  e5 = Equal.cong(List<&2, String>, List<&2, String>, ys => List.append(&2, String, gb, ys),
+    S.get_all.bind(List.append(&2, S.Bind, List.reverse(&2, S.Bind, xs), r1), name),
+    List.append(&2, String, gx, gr), Laws.bind_values_append(List.reverse(&2, S.Bind, xs), r1, name))
+  (gr,
+    Equal.trans(List<&2, String>, Shake.get_all(found, name), x0, x5, ef,
+      Equal.trans(List<&2, String>, x0, x1, x5, e1,
+        Equal.trans(List<&2, String>, x1, x2, x5, e2,
+          Equal.trans(List<&2, String>, x2, x3, x5, e3,
+            Equal.trans(List<&2, String>, x3, x4, x5, e4, e5))))))
+
+def Laws.kept_all(spec, pre, mid, more, st, xs, bs, name, found, h_at, h_mid, h_done):
+  +st1 = S.parse.walk(mid, st)
+  +ww = List.append(&2, String, pre, mid)
+  e1 = Equal.cong(S.St, Result<&2, &2, S.ParseErr, S.Matched>, xx => S.parse.finish(xx),
+    S.parse.walk(List.append(&2, String, ww, more), S.parse.start(spec)),
+    S.parse.walk(more, S.parse.walk(ww, S.parse.start(spec))), Laws.walk_append(ww, more, S.parse.start(spec)))
+  e2 = Equal.cong(S.St, Result<&2, &2, S.ParseErr, S.Matched>, xx => S.parse.finish(S.parse.walk(more, xx)),
+    S.parse.walk(ww, S.parse.start(spec)), st1,
+    Equal.trans(S.St, S.parse.walk(ww, S.parse.start(spec)), S.parse.walk(mid, S.parse.walk(pre, S.parse.start(spec))),
+      st1, Laws.walk_append(pre, mid, S.parse.start(spec)),
+      Equal.cong(S.St, S.St, xx => S.parse.walk(mid, xx), S.parse.walk(pre, S.parse.start(spec)), st, h_at)))
+  hd = Equal.trans(Result<&2, &2, S.ParseErr, S.Matched>, S.parse.finish(S.parse.walk(more, st1)),
+    Shake.parse(spec, List.append(&2, String, ww, more)), Done{found},
+    Equal.sym(Result<&2, &2, S.ParseErr, S.Matched>, Shake.parse(spec, List.append(&2, String, ww, more)),
+      S.parse.finish(S.parse.walk(more, st1)),
+      Equal.trans(Result<&2, &2, S.ParseErr, S.Matched>, Shake.parse(spec, List.append(&2, String, ww, more)),
+        S.parse.finish(S.parse.walk(more, S.parse.walk(ww, S.parse.start(spec)))),
+        S.parse.finish(S.parse.walk(more, st1)), e1, e2)),
+    h_done)
+  kept_all.fin(st1, S.parse.walk(more, st1), name, xs, bs, found, h_mid, Grow.binds_grow(more, st1),
+    Grow.gw.finished(S.parse.walk(more, st1), found, name, hd))
+
+# what `kept` claims
+def kept.ty(+found: Shake.Matched, +name: String, +vv: String, +bs: List<&2, S.Bind>) -> Type:
+  &after: List<&2, String> -> {Shake.get_all(found, name)
+    == List.append(&2, String, S.get_all.bind(List.reverse(&2, S.Bind, bs), name), vv <> after) : List<&2, String>}
+
+# one binding of the name, read back as its value
+def kept.one(
+  +found: Shake.Matched,
+  +name: String,
+  +vv: String,
+  +bs: List<&2, S.Bind>,
+  ww: kept_all.ty(found, name, [S.Bind{name, vv}], bs)
+) -> kept.ty(found, name, vv, bs):
+  (ax, ee) = ww
+  +after = {ax : List<&2, String>}
+  +gb = S.get_all.bind(List.reverse(&2, S.Bind, bs), name)
+  (after, Equal.trans(List<&2, String>, Shake.get_all(found, name),
+    List.append(&2, String, gb, List.append(&2, String, S.get_all.bind.hit(String.eq(name, name), vv, []), after)),
+    List.append(&2, String, gb, vv <> after), ee,
+    Equal.cong(List<&2, String>, List<&2, String>,
+      ys => List.append(&2, String, gb, List.append(&2, String, ys, after)),
+      S.get_all.bind.hit(String.eq(name, name), vv, []), [vv], kept.hit(name, vv, []))))
+
+def Laws.kept(spec, pre, more, tok, st, name, vv, bs, found, h_at, h_step, h_done):
+  kept.one(found, name, vv, bs,
+    Laws.kept_all(spec, pre, [tok], more, st, [S.Bind{name, vv}], bs, name, found, h_at, h_step, h_done))
+
+# an option's value that is not flag-shaped and is allowed binds
+def value.step(
+  +tok: String,
+  +name: String,
+  +args: List<&2, S.Arg>,
+  +specs: List<&2, S.Arg>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +bs: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  h_flag: {S.looks_flag(tok) == False{} : Bool},
+  h_ok: {S.allowed(S.parse.choices(S.by_name(args, name)), tok) == True{} : Bool}
+) -> {S.parse.step(tok, S.St{S.Need{name}, args, specs, subs, path, bs, pos, raw, seen})
+    == S.St{S.Free{}, args, specs, subs, path, S.Bind{name, tok} <> bs, pos, raw, seen} : S.St}:
+  e1 = Equal.sym(Bool, S.looks_flag(tok), False{}, h_flag)
+  %e1 : {S.parse.step.need(_, name, tok, args, specs, subs, path, bs, pos, raw, seen)
+    == S.St{S.Free{}, args, specs, subs, path, S.Bind{name, tok} <> bs, pos, raw, seen} : S.St}
+  e2 = Equal.sym(Bool, S.allowed(S.parse.choices(S.by_name(args, name)), tok), True{}, h_ok)
+  %e2 : {S.parse.take_choice(_, name, tok, args, specs, subs, path, bs, pos, raw, seen)
+    == S.St{S.Free{}, args, specs, subs, path, S.Bind{name, tok} <> bs, pos, raw, seen} : S.St}
+  {==}
+
+def Laws.value_binds(
+  spec,
+  pre,
+  more,
+  tok,
+  name,
+  args,
+  specs,
+  subs,
+  path,
+  bs,
+  pos,
+  raw,
+  seen,
+  found,
+  h_at,
+  h_flag,
+  h_ok,
+  h_done
+):
+  Laws.kept(spec, pre, more, tok, S.St{S.Need{name}, args, specs, subs, path, bs, pos, raw, seen}, name, tok, bs,
+    found, h_at,
+    Equal.cong(S.St, List<&2, S.Bind>, xx => Grow.binds_of(xx),
+      S.parse.step(tok, S.St{S.Need{name}, args, specs, subs, path, bs, pos, raw, seen}),
+      S.St{S.Free{}, args, specs, subs, path, S.Bind{name, tok} <> bs, pos, raw, seen},
+      value.step(tok, name, args, specs, subs, path, bs, pos, raw, seen, h_flag, h_ok)),
+    h_done)
+
+# an allowed value taken by the next positional, through `take_choice`
+def pos.take(
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +specs: List<&2, S.Arg>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +bs: List<&2, S.Bind>,
+  +raw: Bool,
+  +name: String,
+  +sh: Maybe<&2, String>,
+  +lo: Maybe<&2, String>,
+  +kind: S.ArgKind,
+  +hp: String,
+  +req: Bool,
+  +dflt: Maybe<&2, String>,
+  +cs: List<&2, String>,
+  +rest: List<&2, S.Arg>,
+  h_ok: {S.allowed(cs, tok) == True{} : Bool}
+) -> {S.parse.take_pos(tok, args, specs, subs, path, bs, S.Arg{name, sh, lo, kind, hp, req, dflt, cs} <> rest, raw)
+    == S.St{S.Free{}, args, specs, subs, path, S.Bind{name, tok} <> bs,
+      S.parse.take_pos.keep(S.rest.is(S.Arg{name, sh, lo, kind, hp, req, dflt, cs}),
+        S.Arg{name, sh, lo, kind, hp, req, dflt, cs}, rest), raw, True{}} : S.St}:
+  e2 = Equal.sym(Bool, S.allowed(cs, tok), True{}, h_ok)
+  %e2 : {S.parse.take_choice(_, name, tok, args, specs, subs, path, bs,
+      S.parse.take_pos.keep(S.rest.is(S.Arg{name, sh, lo, kind, hp, req, dflt, cs}),
+        S.Arg{name, sh, lo, kind, hp, req, dflt, cs}, rest), raw, True{})
+    == S.St{S.Free{}, args, specs, subs, path, S.Bind{name, tok} <> bs,
+      S.parse.take_pos.keep(S.rest.is(S.Arg{name, sh, lo, kind, hp, req, dflt, cs}),
+        S.Arg{name, sh, lo, kind, hp, req, dflt, cs}, rest), raw, True{}} : S.St}
+  {==}
+
+# a plain word taken by the next positional
+def pos.step(
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +specs: List<&2, S.Arg>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +bs: List<&2, S.Bind>,
+  +seen: Bool,
+  +name: String,
+  +sh: Maybe<&2, String>,
+  +lo: Maybe<&2, String>,
+  +kind: S.ArgKind,
+  +hp: String,
+  +req: Bool,
+  +dflt: Maybe<&2, String>,
+  +cs: List<&2, String>,
+  +rest: List<&2, S.Arg>,
+  h_dd: {String.eq(tok, "--") == False{} : Bool},
+  h_help: {String.eq(tok, "help") == False{} : Bool},
+  +h_dash: {String.starts_with(tok, "-") == False{} : Bool},
+  h_sub: {S.find_sub(subs, tok) == None{} : Maybe<&2, S.Sub>},
+  h_ok: {S.allowed(cs, tok) == True{} : Bool}
+) -> {S.parse.step(tok, S.St{S.Free{}, args, specs, subs, path, bs,
+      S.Arg{name, sh, lo, kind, hp, req, dflt, cs} <> rest, False{}, seen})
+    == S.St{S.Free{}, args, specs, subs, path, S.Bind{name, tok} <> bs,
+      S.parse.take_pos.keep(S.rest.is(S.Arg{name, sh, lo, kind, hp, req, dflt, cs}),
+        S.Arg{name, sh, lo, kind, hp, req, dflt, cs}, rest), False{}, True{}} : S.St}:
+  Equal.trans(S.St,
+    S.parse.step(tok, S.St{S.Free{}, args, specs, subs, path, bs, S.Arg{name, sh, lo, kind, hp, req, dflt, cs} <> rest,
+      False{}, seen}),
+    S.parse.take_pos(tok, args, specs, subs, path, bs, S.Arg{name, sh, lo, kind, hp, req, dflt, cs} <> rest, False{}),
+    S.St{S.Free{}, args, specs, subs, path, S.Bind{name, tok} <> bs,
+      S.parse.take_pos.keep(S.rest.is(S.Arg{name, sh, lo, kind, hp, req, dflt, cs}),
+        S.Arg{name, sh, lo, kind, hp, req, dflt, cs}, rest), False{}, True{}},
+    Walk.wk.word_step(tok, args, specs, subs, path, bs, S.Arg{name, sh, lo, kind, hp, req, dflt, cs} <> rest, seen,
+      h_dd, h_help, h_dash, h_sub),
+    pos.take(tok, args, specs, subs, path, bs, False{}, name, sh, lo, kind, hp, req, dflt, cs, rest, h_ok))
+
+def Laws.pos_next(
+  spec,
+  pre,
+  tok,
+  args,
+  specs,
+  subs,
+  path,
+  bs,
+  seen,
+  name,
+  sh,
+  lo,
+  kind,
+  hp,
+  req,
+  dflt,
+  cs,
+  rest,
+  h_at,
+  h_dd,
+  h_help,
+  h_dash,
+  h_sub,
+  h_ok
+):
+  +st = {S.St{S.Free{}, args, specs, subs, path, bs, S.Arg{name, sh, lo, kind, hp, req, dflt, cs} <> rest, False{},
+    seen} : S.St}
+  Equal.trans(S.St, S.parse.walk(List.append(&2, String, pre, [tok]), S.parse.start(spec)), S.parse.step(tok, st),
+    S.St{S.Free{}, args, specs, subs, path, S.Bind{name, tok} <> bs,
+      S.parse.take_pos.keep(S.rest.is(S.Arg{name, sh, lo, kind, hp, req, dflt, cs}),
+        S.Arg{name, sh, lo, kind, hp, req, dflt, cs}, rest), False{}, True{}},
+    kept.stepped(spec, pre, tok, st, h_at),
+    pos.step(tok, args, specs, subs, path, bs, seen, name, sh, lo, kind, hp, req, dflt, cs, rest, h_dd, h_help, h_dash,
+      h_sub, h_ok))
+
+def Laws.pos_binds(
+  spec,
+  pre,
+  more,
+  tok,
+  args,
+  specs,
+  subs,
+  path,
+  bs,
+  seen,
+  name,
+  sh,
+  lo,
+  kind,
+  hp,
+  req,
+  dflt,
+  cs,
+  rest,
+  found,
+  h_at,
+  h_dd,
+  h_help,
+  h_dash,
+  h_sub,
+  h_ok,
+  h_done
+):
+  +st = {S.St{S.Free{}, args, specs, subs, path, bs, S.Arg{name, sh, lo, kind, hp, req, dflt, cs} <> rest, False{},
+    seen} : S.St}
+  Laws.kept(spec, pre, more, tok, st, name, tok, bs, found, h_at,
+    Equal.cong(S.St, List<&2, S.Bind>, xx => Grow.binds_of(xx), S.parse.step(tok, st),
+      S.St{S.Free{}, args, specs, subs, path, S.Bind{name, tok} <> bs,
+        S.parse.take_pos.keep(S.rest.is(S.Arg{name, sh, lo, kind, hp, req, dflt, cs}),
+          S.Arg{name, sh, lo, kind, hp, req, dflt, cs}, rest), False{}, True{}},
+      pos.step(tok, args, specs, subs, path, bs, seen, name, sh, lo, kind, hp, req, dflt, cs, rest, h_dd, h_help,
+        h_dash, h_sub, h_ok)),
+    h_done)
+
+def Laws.dd_step(spec, pre, args, specs, subs, path, bs, pos, seen, h_at):
+  kept.stepped(spec, pre, "--", S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen}, h_at)
+
+def Laws.raw_next(
+  spec,
+  pre,
+  tok,
+  args,
+  specs,
+  subs,
+  path,
+  bs,
+  seen,
+  name,
+  sh,
+  lo,
+  kind,
+  hp,
+  req,
+  dflt,
+  cs,
+  rest,
+  h_at,
+  h_ok
+):
+  +st = {S.St{S.Free{}, args, specs, subs, path, bs, S.Arg{name, sh, lo, kind, hp, req, dflt, cs} <> rest, True{},
+    seen} : S.St}
+  Equal.trans(S.St, S.parse.walk(List.append(&2, String, pre, [tok]), S.parse.start(spec)), S.parse.step(tok, st),
+    S.St{S.Free{}, args, specs, subs, path, S.Bind{name, tok} <> bs,
+      S.parse.take_pos.keep(S.rest.is(S.Arg{name, sh, lo, kind, hp, req, dflt, cs}),
+        S.Arg{name, sh, lo, kind, hp, req, dflt, cs}, rest), True{}, True{}},
+    kept.stepped(spec, pre, tok, st, h_at),
+    pos.take(tok, args, specs, subs, path, bs, True{}, name, sh, lo, kind, hp, req, dflt, cs, rest, h_ok))
+
+def Laws.raw_binds(
+  spec,
+  pre,
+  more,
+  tok,
+  args,
+  specs,
+  subs,
+  path,
+  bs,
+  seen,
+  name,
+  sh,
+  lo,
+  kind,
+  hp,
+  req,
+  dflt,
+  cs,
+  rest,
+  found,
+  h_at,
+  h_ok,
+  h_done
+):
+  +st = {S.St{S.Free{}, args, specs, subs, path, bs, S.Arg{name, sh, lo, kind, hp, req, dflt, cs} <> rest, True{},
+    seen} : S.St}
+  Laws.kept(spec, pre, more, tok, st, name, tok, bs, found, h_at,
+    Equal.cong(S.St, List<&2, S.Bind>, xx => Grow.binds_of(xx), S.parse.step(tok, st),
+      S.St{S.Free{}, args, specs, subs, path, S.Bind{name, tok} <> bs,
+        S.parse.take_pos.keep(S.rest.is(S.Arg{name, sh, lo, kind, hp, req, dflt, cs}),
+          S.Arg{name, sh, lo, kind, hp, req, dflt, cs}, rest), True{}, True{}},
+      pos.take(tok, args, specs, subs, path, bs, True{}, name, sh, lo, kind, hp, req, dflt, cs, rest, h_ok)),
+    h_done)
+
+def Laws.raw_no_pos(spec, pre, more, tok, args, specs, subs, path, bs, seen, h_at):
+  Laws.refused(spec, pre, more, tok, S.St{S.Free{}, args, specs, subs, path, bs, [], True{}, seen},
+    S.Unexpected{path, tok}, h_at, {==})
+
+# after `--`, a word the next positional's choices refuse fails the step
+def raw_refused.step(
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +specs: List<&2, S.Arg>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +bs: List<&2, S.Bind>,
+  +seen: Bool,
+  +name: String,
+  +sh: Maybe<&2, String>,
+  +lo: Maybe<&2, String>,
+  +kind: S.ArgKind,
+  +hp: String,
+  +req: Bool,
+  +dflt: Maybe<&2, String>,
+  +cs: List<&2, String>,
+  +rest: List<&2, S.Arg>,
+  h_bad: {S.allowed(cs, tok) == False{} : Bool}
+) -> {Laws.dead_of(S.parse.step(tok, S.St{S.Free{}, args, specs, subs, path, bs, S.Arg{name, sh, lo, kind, hp,
+    req, dflt, cs} <> rest, True{}, seen})) == Some{S.BadValue{path, name, tok}} : Maybe<&2, S.ParseErr>}:
+  e2 = Equal.sym(Bool, S.allowed(cs, tok), False{}, h_bad)
+  %e2 : {Laws.dead_of(S.parse.take_choice(_, name, tok, args, specs, subs, path, bs,
+      S.parse.take_pos.keep(S.rest.is(S.Arg{name, sh, lo, kind, hp, req, dflt, cs}),
+        S.Arg{name, sh, lo, kind, hp, req, dflt, cs}, rest), True{}, True{}))
+    == Some{S.BadValue{path, name, tok}} : Maybe<&2, S.ParseErr>}
+  {==}
+
+def Laws.raw_refused(
+  spec,
+  pre,
+  more,
+  tok,
+  args,
+  specs,
+  subs,
+  path,
+  bs,
+  seen,
+  name,
+  sh,
+  lo,
+  kind,
+  hp,
+  req,
+  dflt,
+  cs,
+  rest,
+  h_at,
+  h_bad
+):
+  Laws.refused(spec, pre, more, tok, S.St{S.Free{}, args, specs, subs, path, bs, S.Arg{name, sh, lo, kind, hp, req,
+      dflt, cs} <> rest, True{}, seen}, S.BadValue{path, name, tok}, h_at,
+    raw_refused.step(tok, args, specs, subs, path, bs, seen, name, sh, lo, kind, hp, req, dflt, cs, rest, h_bad))
+
+# what `long.kind` claims of an argument kind
+def long.kind.ty(
+  kk: S.ArgKind,
+  +nn: String,
+  +vv: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +specs: List<&2, S.Arg>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +bs: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool
+) -> Type:
+  {S.parse.take_arg.kind(kk, nn, Some{vv}, orig, args, specs, subs, path, bs, pos, False{}, seen)
+    == S.St{S.Free{}, args, specs, subs, path, S.Bind{nn, vv} <> bs, pos, False{}, seen} : S.St}
+
+# an option that takes a value now binds an allowed one
+def long.kind(
+  kk: S.ArgKind,
+  +nn: String,
+  +vv: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +specs: List<&2, S.Arg>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +bs: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool,
+  h_kind: {Laws.takes(kk, S.bound(bs, nn)) == True{} : Bool},
+  h_ok: {S.allowed(S.parse.choices(S.by_name(args, nn)), vv) == True{} : Bool}
+) -> long.kind.ty(kk, nn, vv, orig, args, specs, subs, path, bs, pos, seen):
+  match kk:
+    case S.Opt{}:
+      e1 = Equal.sym(Bool, S.bound(bs, nn), False{}, Walk.wk.not_true(S.bound(bs, nn), h_kind))
+      %e1 : {S.parse.once(_, S.parse.take_opt(Some{vv}, nn, args, specs, subs, path, bs, pos, False{}, seen), nn, path)
+        == S.St{S.Free{}, args, specs, subs, path, S.Bind{nn, vv} <> bs, pos, False{}, seen} : S.St}
+      e2 = Equal.sym(Bool, S.allowed(S.parse.choices(S.by_name(args, nn)), vv), True{}, h_ok)
+      %e2 : {S.parse.take_choice(_, nn, vv, args, specs, subs, path, bs, pos, False{}, seen)
+        == S.St{S.Free{}, args, specs, subs, path, S.Bind{nn, vv} <> bs, pos, False{}, seen} : S.St}
+      {==}
+    case S.Many{}:
+      e2 = Equal.sym(Bool, S.allowed(S.parse.choices(S.by_name(args, nn)), vv), True{}, h_ok)
+      %e2 : {S.parse.take_choice(_, nn, vv, args, specs, subs, path, bs, pos, False{}, seen)
+        == S.St{S.Free{}, args, specs, subs, path, S.Bind{nn, vv} <> bs, pos, False{}, seen} : S.St}
+      {==}
+    case S.Flag{}:
+      Empty.absurd(long.kind.ty(S.Flag{}, nn, vv, orig, args, specs, subs, path, bs, pos, seen),
+        Walk.wk.false_true(h_kind))
+    case S.Pos{}:
+      Empty.absurd(long.kind.ty(S.Pos{}, nn, vv, orig, args, specs, subs, path, bs, pos, seen),
+        Walk.wk.false_true(h_kind))
+    case S.Rest{}:
+      Empty.absurd(long.kind.ty(S.Rest{}, nn, vv, orig, args, specs, subs, path, bs, pos, seen),
+        Walk.wk.false_true(h_kind))
+
+# a long option `--name=vv` that takes a value binds an allowed one
+def long.step(
+  +body: String,
+  +name: String,
+  +vv: String,
+  +args: List<&2, S.Arg>,
+  +specs: List<&2, S.Arg>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +bs: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool,
+  +nn: String,
+  +sh: Maybe<&2, String>,
+  +lo: Maybe<&2, String>,
+  +kind: S.ArgKind,
+  +hp: String,
+  +req: Bool,
+  +dflt: Maybe<&2, String>,
+  +cs: List<&2, String>,
+  h_dd: {String.eq("--" ++ body, "--") == False{} : Bool},
+  h_cut: {S.cut_eq(body) == (name, Some{vv}) : String & Maybe<&2, String>},
+  h_name: {String.is_empty(name) == False{} : Bool},
+  h_found: {S.by_long(args, name) == Some{S.Arg{nn, sh, lo, kind, hp, req, dflt, cs}} : Maybe<&2, S.Arg>},
+  h_kind: {Laws.takes(kind, S.bound(bs, nn)) == True{} : Bool},
+  h_ok: {S.allowed(S.parse.choices(S.by_name(args, nn)), vv) == True{} : Bool}
+) -> {S.parse.step("--" ++ body, S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen})
+    == S.St{S.Free{}, args, specs, subs, path, S.Bind{nn, vv} <> bs, pos, False{}, seen} : S.St}:
+  e1 = Equal.sym(S.St, S.parse.step("--" ++ body, S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen}),
+    S.parse.take_arg(S.by_long(args, name), Some{vv}, "--" ++ body, args, specs, subs, path, bs, pos, False{}, seen),
+    Laws.long_arg_step(body, name, Some{vv}, args, specs, subs, path, bs, pos, seen, h_dd, h_cut, h_name))
+  %e1 : {_ == S.St{S.Free{}, args, specs, subs, path, S.Bind{nn, vv} <> bs, pos, False{}, seen} : S.St}
+  e2 = Equal.sym(Maybe<&2, S.Arg>, S.by_long(args, name), Some{S.Arg{nn, sh, lo, kind, hp, req, dflt, cs}}, h_found)
+  %e2 : {S.parse.take_arg(_, Some{vv}, "--" ++ body, args, specs, subs, path, bs, pos, False{}, seen)
+    == S.St{S.Free{}, args, specs, subs, path, S.Bind{nn, vv} <> bs, pos, False{}, seen} : S.St}
+  long.kind(kind, nn, vv, "--" ++ body, args, specs, subs, path, bs, pos, seen, h_kind, h_ok)
+
+def Laws.long_binds(
+  spec,
+  pre,
+  more,
+  body,
+  name,
+  vv,
+  args,
+  specs,
+  subs,
+  path,
+  bs,
+  pos,
+  seen,
+  nn,
+  sh,
+  lo,
+  kind,
+  hp,
+  req,
+  dflt,
+  cs,
+  found,
+  h_at,
+  h_dd,
+  h_cut,
+  h_name,
+  h_found,
+  h_kind,
+  h_ok,
+  h_done
+):
+  +st = {S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+  Laws.kept(spec, pre, more, "--" ++ body, st, nn, vv, bs, found, h_at,
+    Equal.cong(S.St, List<&2, S.Bind>, xx => Grow.binds_of(xx), S.parse.step("--" ++ body, st),
+      S.St{S.Free{}, args, specs, subs, path, S.Bind{nn, vv} <> bs, pos, False{}, seen},
+      long.step(body, name, vv, args, specs, subs, path, bs, pos, seen, nn, sh, lo, kind, hp, req, dflt, cs, h_dd,
+        h_cut, h_name, h_found, h_kind, h_ok)),
+    h_done)
+
+# an option's value that is not flag-shaped and is not allowed fails the step
+def value_refused.step(
+  +tok: String,
+  +name: String,
+  +args: List<&2, S.Arg>,
+  +specs: List<&2, S.Arg>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +bs: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  h_flag: {S.looks_flag(tok) == False{} : Bool},
+  h_bad: {S.allowed(S.parse.choices(S.by_name(args, name)), tok) == False{} : Bool}
+) -> {Laws.dead_of(S.parse.step(tok, S.St{S.Need{name}, args, specs, subs, path, bs, pos, raw, seen}))
+    == Some{S.BadValue{path, name, tok}} : Maybe<&2, S.ParseErr>}:
+  e1 = Equal.sym(Bool, S.looks_flag(tok), False{}, h_flag)
+  %e1 : {Laws.dead_of(S.parse.step.need(_, name, tok, args, specs, subs, path, bs, pos, raw, seen))
+    == Some{S.BadValue{path, name, tok}} : Maybe<&2, S.ParseErr>}
+  e2 = Equal.sym(Bool, S.allowed(S.parse.choices(S.by_name(args, name)), tok), False{}, h_bad)
+  %e2 : {Laws.dead_of(S.parse.take_choice(_, name, tok, args, specs, subs, path, bs, pos, raw, seen))
+    == Some{S.BadValue{path, name, tok}} : Maybe<&2, S.ParseErr>}
+  {==}
+
+def Laws.value_refused(spec, pre, more, tok, name, args, specs, subs, path, bs, pos, raw, seen, h_at, h_flag, h_bad):
+  Laws.refused(spec, pre, more, tok, S.St{S.Need{name}, args, specs, subs, path, bs, pos, raw, seen},
+    S.BadValue{path, name, tok}, h_at,
+    value_refused.step(tok, name, args, specs, subs, path, bs, pos, raw, seen, h_flag, h_bad))
+
+# what `long_refused.kind` claims of an argument kind
+def long_refused.kind.ty(
+  kk: S.ArgKind,
+  +nn: String,
+  +vv: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +specs: List<&2, S.Arg>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +bs: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool
+) -> Type:
+  {Laws.dead_of(S.parse.take_arg.kind(kk, nn, Some{vv}, orig, args, specs, subs, path, bs, pos, False{}, seen))
+    == Some{S.BadValue{path, nn, vv}} : Maybe<&2, S.ParseErr>}
+
+# an option that takes a value now refuses one outside its choices
+def long_refused.kind(
+  kk: S.ArgKind,
+  +nn: String,
+  +vv: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +specs: List<&2, S.Arg>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +bs: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool,
+  h_kind: {Laws.takes(kk, S.bound(bs, nn)) == True{} : Bool},
+  h_bad: {S.allowed(S.parse.choices(S.by_name(args, nn)), vv) == False{} : Bool}
+) -> long_refused.kind.ty(kk, nn, vv, orig, args, specs, subs, path, bs, pos, seen):
+  match kk:
+    case S.Opt{}:
+      e1 = Equal.sym(Bool, S.bound(bs, nn), False{}, Walk.wk.not_true(S.bound(bs, nn), h_kind))
+      %e1 : {Laws.dead_of(S.parse.once(_, S.parse.take_opt(Some{vv}, nn, args, specs, subs, path, bs, pos, False{},
+          seen), nn, path)) == Some{S.BadValue{path, nn, vv}} : Maybe<&2, S.ParseErr>}
+      e2 = Equal.sym(Bool, S.allowed(S.parse.choices(S.by_name(args, nn)), vv), False{}, h_bad)
+      %e2 : {Laws.dead_of(S.parse.take_choice(_, nn, vv, args, specs, subs, path, bs, pos, False{}, seen))
+        == Some{S.BadValue{path, nn, vv}} : Maybe<&2, S.ParseErr>}
+      {==}
+    case S.Many{}:
+      e2 = Equal.sym(Bool, S.allowed(S.parse.choices(S.by_name(args, nn)), vv), False{}, h_bad)
+      %e2 : {Laws.dead_of(S.parse.take_choice(_, nn, vv, args, specs, subs, path, bs, pos, False{}, seen))
+        == Some{S.BadValue{path, nn, vv}} : Maybe<&2, S.ParseErr>}
+      {==}
+    case S.Flag{}:
+      Empty.absurd(long_refused.kind.ty(S.Flag{}, nn, vv, orig, args, specs, subs, path, bs, pos, seen),
+        Walk.wk.false_true(h_kind))
+    case S.Pos{}:
+      Empty.absurd(long_refused.kind.ty(S.Pos{}, nn, vv, orig, args, specs, subs, path, bs, pos, seen),
+        Walk.wk.false_true(h_kind))
+    case S.Rest{}:
+      Empty.absurd(long_refused.kind.ty(S.Rest{}, nn, vv, orig, args, specs, subs, path, bs, pos, seen),
+        Walk.wk.false_true(h_kind))
+
+# a long option `--name=vv` that takes a value refuses one outside its choices
+def long_refused.step(
+  +body: String,
+  +name: String,
+  +vv: String,
+  +args: List<&2, S.Arg>,
+  +specs: List<&2, S.Arg>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +bs: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool,
+  +nn: String,
+  +sh: Maybe<&2, String>,
+  +lo: Maybe<&2, String>,
+  +kind: S.ArgKind,
+  +hp: String,
+  +req: Bool,
+  +dflt: Maybe<&2, String>,
+  +cs: List<&2, String>,
+  h_dd: {String.eq("--" ++ body, "--") == False{} : Bool},
+  h_cut: {S.cut_eq(body) == (name, Some{vv}) : String & Maybe<&2, String>},
+  h_name: {String.is_empty(name) == False{} : Bool},
+  h_found: {S.by_long(args, name) == Some{S.Arg{nn, sh, lo, kind, hp, req, dflt, cs}} : Maybe<&2, S.Arg>},
+  h_kind: {Laws.takes(kind, S.bound(bs, nn)) == True{} : Bool},
+  h_bad: {S.allowed(S.parse.choices(S.by_name(args, nn)), vv) == False{} : Bool}
+) -> {Laws.dead_of(S.parse.step("--" ++ body, S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen}))
+    == Some{S.BadValue{path, nn, vv}} : Maybe<&2, S.ParseErr>}:
+  e1 = Equal.sym(S.St, S.parse.step("--" ++ body, S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen}),
+    S.parse.take_arg(S.by_long(args, name), Some{vv}, "--" ++ body, args, specs, subs, path, bs, pos, False{}, seen),
+    Laws.long_arg_step(body, name, Some{vv}, args, specs, subs, path, bs, pos, seen, h_dd, h_cut, h_name))
+  %e1 : {Laws.dead_of(_) == Some{S.BadValue{path, nn, vv}} : Maybe<&2, S.ParseErr>}
+  e2 = Equal.sym(Maybe<&2, S.Arg>, S.by_long(args, name), Some{S.Arg{nn, sh, lo, kind, hp, req, dflt, cs}}, h_found)
+  %e2 : {Laws.dead_of(S.parse.take_arg(_, Some{vv}, "--" ++ body, args, specs, subs, path, bs, pos, False{}, seen))
+    == Some{S.BadValue{path, nn, vv}} : Maybe<&2, S.ParseErr>}
+  long_refused.kind(kind, nn, vv, "--" ++ body, args, specs, subs, path, bs, pos, seen, h_kind, h_bad)
+
+def Laws.long_refused(
+  spec,
+  pre,
+  more,
+  body,
+  name,
+  vv,
+  args,
+  specs,
+  subs,
+  path,
+  bs,
+  pos,
+  seen,
+  nn,
+  sh,
+  lo,
+  kind,
+  hp,
+  req,
+  dflt,
+  cs,
+  h_at,
+  h_dd,
+  h_cut,
+  h_name,
+  h_found,
+  h_kind,
+  h_bad
+):
+  Laws.refused(spec, pre, more, "--" ++ body, S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen},
+    S.BadValue{path, nn, vv}, h_at,
+    long_refused.step(body, name, vv, args, specs, subs, path, bs, pos, seen, nn, sh, lo, kind, hp, req, dflt, cs,
+      h_dd, h_cut, h_name, h_found, h_kind, h_bad))
