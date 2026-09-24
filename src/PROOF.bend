@@ -27,6 +27,8 @@ def Laws.err_text_iff(spec, err):
       {==}
     case S.Cli{_n, _a, _v, _g, _s} S.Missing{_name}:
       {==}
+    case S.Cli{_n, _a, _v, _g, _s} S.NoValue{_name}:
+      {==}
     case S.Cli{_n, _a, _v, _g, _s} S.BadValue{_name, _value}:
       {==}
     case S.Cli{_n, _a, _v, _g, _s} S.NeedHelp{_path}:

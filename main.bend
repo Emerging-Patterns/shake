@@ -146,6 +146,8 @@ def help_path(err: S.ParseErr) -> Maybe<&2, List<&2, String>>:
       None{}
     case S.Missing{_name}:
       None{}
+    case S.NoValue{_name}:
+      None{}
     case S.BadValue{_name, _value}:
       None{}
     case S.Unexpected{_arg}:

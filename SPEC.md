@@ -35,7 +35,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | SHAKE-TOK-3 | A plain word is never read as an option. | Proved | pending |  |
 | SHAKE-TOK-4 | When a word exactly `--` reaches `parse` where an option could stand, it binds nothing and every later word is read as a plain word bound to a positional, whatever its shape. | Proved | pending |  |
 | SHAKE-TOK-5 | A flag given a value (`--verbose=x`, `-vx`) is refused as `Unexpected{word}`. | Proved | pending |  |
-| SHAKE-TOK-6 | An option given no value in its own word takes the next word as its value, unless that word starts with `-` and is not `-`, or there is none; then the parse fails with `Missing{name}`. | Proved | pending |  |
+| SHAKE-TOK-6 | An option given no value in its own word takes the next word as its value, unless that word starts with `-` and is not `-`, or there is none; then the parse fails with `NoValue{name}`. | Proved | pending |  |
 | SHAKE-TOK-7 | A long or short spelling that no argument of the current command has is refused as `UnknownFlag{word}`. Arguments of a parent command are not matched after a subcommand is selected. | Proved | pending | src/LAWS.bend unknown_long; src/LAWS.bend unknown_short |
 
 ### What a parse binds (SHAKE-PARSE)
