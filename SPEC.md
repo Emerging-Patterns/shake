@@ -76,7 +76,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
-| SHAKE-ERR-1 | `err_text(spec, err)` is empty exactly when `help_path(err)` is `Some`, that is, when the parse failed with a request for help. | Proved | pending | src/LAWS.bend err_text_help |
+| SHAKE-ERR-1 | `err_text(spec, err)` is empty exactly when `help_path(err)` is `Some`, that is, when the parse failed with a request for help. | Proved | proved | src/LAWS.bend err_text_help; src/LAWS.bend err_text_iff |
 
 ### The argument list (SHAKE-ARGS)
 
@@ -86,11 +86,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 
 ## Left to prove
 
-Every pending row is unproved in full, except the one below; the RFC's Rollout says in which phase each row's laws land.
-
-| ID | Proved so far | Missing |
-| :---- | :---- | :---- |
-| SHAKE-ERR-1 | `err_text_help`: a request for help has empty error text, for every spec and path. | The other direction: every other error's text is nonempty. |
+Every pending row is unproved in full; the RFC's Rollout says in which phase each row's laws land. No pending row has partial laws.
 
 ## Trust boundary
 
