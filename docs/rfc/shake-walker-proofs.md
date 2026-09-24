@@ -6,10 +6,10 @@ This is the design for phase three of [shake-spec.md](shake-spec.md): the rows w
 
 ## Draft Status
 
-**State:** Draft
+**State:** Accepted
 
-- [ ] <!-- REVIEW-W1: Laws for the walker rows state their premise about the walker's state, not only about `parse`'s inputs. SHAKE-PARSE-9's `fail_stays` already does: "when walking `ws` leaves the walker failed with `err`". The alternative, a premise over the spec and words alone ("the words before `w` are all plain and name no subcommand"), is much longer to state and to prove, and says less. The rows stay worded over `main.bend`; the laws reach the walker through `src/cli.bend`, as ezjson's laws reach `value.bend`. Recommend: premises over the walker's state. -->
-- [ ] <!-- REVIEW-W2: The walker lemmas bolt proved for its own CLI move into shake (`src/walk.bend`). bolt then deletes its copies and cites SHAKE rows when it bumps shake (WP8). Recommend: yes. -->
+- [x] <!-- REVIEW-W1 (resolved): Laws for the walker rows state their premise about the walker's state, not only about `parse`'s inputs. SHAKE-PARSE-9's `fail_stays` already does: "when walking `ws` leaves the walker failed with `err`". The alternative, a premise over the spec and words alone ("the words before `w` are all plain and name no subcommand"), is much longer to state and to prove, and says less. The rows stay worded over `main.bend`; the laws reach the walker through `src/cli.bend`, as ezjson's laws reach `value.bend`. Recommend: premises over the walker's state. Decision: approved; the WP1 and WP2 laws already take this form. -->
+- [x] <!-- REVIEW-W2 (resolved): The walker lemmas bolt proved for its own CLI move into shake (`src/walk.bend`). bolt then deletes its copies and cites SHAKE rows when it bumps shake (WP8). Recommend: yes. Decision: approved. -->
 
 ## What exists
 
