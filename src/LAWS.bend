@@ -5,6 +5,7 @@ import Base
 import ../main.bend as Shake
 import ../src/cli.bend as S
 import ../src/args.bend as Args
+import ../src/grow.bend as Grow
 
 # a `&2` word list read back as the `&1` list IO.args answers
 def down(ys: List<&2, String>) -> List<&1, String>:
@@ -660,3 +661,420 @@ law repeated_long_opt:
   for h_again: {S.bound(bs, nn) == True{} : Bool}
   {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, ["--" ++ body]), more))
     == Fail{S.Repeated{path, nn}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+
+# LAW: when the words `mid`, read where the words before them leave the
+# walker, put bindings `xs` in front of the bindings `bs` it held, and the
+# parse succeeds, `get_all` of a name reads its values in `bs`, then its values
+# in `xs`, both in the order given, then any bound after, whatever follows (a
+# lemma)
+law kept_all:
+  for +spec: Shake.Cli
+  for +pre: List<&2, String>
+  for +mid: List<&2, String>
+  for +more: List<&2, String>
+  for +st: S.St
+  for +xs: List<&2, S.Bind>
+  for +bs: List<&2, S.Bind>
+  for +name: String
+  for +found: Shake.Matched
+  for h_at: {S.parse.walk(pre, S.parse.start(spec)) == st : S.St}
+  for h_mid: {Grow.binds_of(S.parse.walk(mid, st)) == List.append(&2, S.Bind, xs, bs) : List<&2, S.Bind>}
+  for h_done: {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, mid), more)) == Done{found}
+    : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+  exs after: List<&2, String>
+  {Shake.get_all(found, name)
+    == List.append(&2, String, S.get_all.bind(List.reverse(&2, S.Bind, bs), name),
+      List.append(&2, String, S.get_all.bind(List.reverse(&2, S.Bind, xs), name), after)) : List<&2, String>}
+
+# LAW: when the words before `tok` reach a state where `tok` puts `Bind{name,
+# vv}` in front of the bindings `bs`, and the parse succeeds, `get_all` of the
+# name reads the values bound to it before `tok`, then `vv`, then any bound
+# after, whatever follows (a lemma: every binding row is its step fact through
+# this, as every refusal row is through `refused`)
+law kept:
+  for +spec: Shake.Cli
+  for +pre: List<&2, String>
+  for +more: List<&2, String>
+  for +tok: String
+  for +st: S.St
+  for +name: String
+  for +vv: String
+  for +bs: List<&2, S.Bind>
+  for +found: Shake.Matched
+  for h_at: {S.parse.walk(pre, S.parse.start(spec)) == st : S.St}
+  for h_step: {Grow.binds_of(S.parse.step(tok, st)) == S.Bind{name, vv} <> bs : List<&2, S.Bind>}
+  for h_done: {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, [tok]), more)) == Done{found}
+    : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+  exs after: List<&2, String>
+  {Shake.get_all(found, name)
+    == List.append(&2, String, S.get_all.bind(List.reverse(&2, S.Bind, bs), name), vv <> after) : List<&2, String>}
+
+# LAW: wherever the words before it leave an option waiting for its value, a
+# word that is not flag-shaped and that the option's choices allow is its
+# value: when the parse succeeds, `get_all` of the option reads the values
+# given it before, then the word, whatever follows
+# SHAKE-TOK-6
+# SHAKE-PARSE-5
+law value_binds:
+  for +spec: Shake.Cli
+  for +pre: List<&2, String>
+  for +more: List<&2, String>
+  for +tok: String
+  for +name: String
+  for +args: List<&2, S.Arg>
+  for +specs: List<&2, S.Arg>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +pos: List<&2, S.Arg>
+  for +raw: Bool
+  for +seen: Bool
+  for +found: Shake.Matched
+  for h_at: {S.parse.walk(pre, S.parse.start(spec))
+    == S.St{S.Need{name}, args, specs, subs, path, bs, pos, raw, seen} : S.St}
+  for h_flag: {S.looks_flag(tok) == False{} : Bool}
+  for h_ok: {S.allowed(S.parse.choices(S.by_name(args, name)), tok) == True{} : Bool}
+  for h_done: {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, [tok]), more)) == Done{found}
+    : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+  exs after: List<&2, String>
+  {Shake.get_all(found, name)
+    == List.append(&2, String, S.get_all.bind(List.reverse(&2, S.Bind, bs), name), tok <> after) : List<&2, String>}
+
+# LAW: wherever the words before it leave the walker free with a positional
+# next, a plain word that names no subcommand and that the positional's
+# choices allow binds to it, and the walker goes on free with the positionals
+# after it pending (a rest positional stays pending)
+# SHAKE-PARSE-2
+# SHAKE-PARSE-5
+law pos_next:
+  for +spec: Shake.Cli
+  for +pre: List<&2, String>
+  for +tok: String
+  for +args: List<&2, S.Arg>
+  for +specs: List<&2, S.Arg>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +seen: Bool
+  for +name: String
+  for +sh: Maybe<&2, String>
+  for +lo: Maybe<&2, String>
+  for +kind: S.ArgKind
+  for +hp: String
+  for +req: Bool
+  for +dflt: Maybe<&2, String>
+  for +cs: List<&2, String>
+  for +rest: List<&2, S.Arg>
+  for h_at: {S.parse.walk(pre, S.parse.start(spec))
+    == S.St{S.Free{}, args, specs, subs, path, bs, S.Arg{name, sh, lo, kind, hp, req, dflt, cs} <> rest,
+      False{}, seen} : S.St}
+  for h_dd: {String.eq(tok, "--") == False{} : Bool}
+  for h_help: {String.eq(tok, "help") == False{} : Bool}
+  for +h_dash: {String.starts_with(tok, "-") == False{} : Bool}
+  for h_sub: {S.find_sub(subs, tok) == None{} : Maybe<&2, S.Sub>}
+  for h_ok: {S.allowed(cs, tok) == True{} : Bool}
+  {S.parse.walk(List.append(&2, String, pre, [tok]), S.parse.start(spec))
+    == S.St{S.Free{}, args, specs, subs, path, S.Bind{name, tok} <> bs,
+      S.parse.take_pos.keep(S.rest.is(S.Arg{name, sh, lo, kind, hp, req, dflt, cs}),
+        S.Arg{name, sh, lo, kind, hp, req, dflt, cs}, rest), False{}, True{}} : S.St}
+
+# LAW: wherever the words before it leave the walker free with a positional
+# next, a plain word that names no subcommand and that the positional's
+# choices allow is its value: when the parse succeeds, `get_all` of the
+# positional reads the values bound to it before, then the word, whatever
+# follows
+# SHAKE-PARSE-2
+# SHAKE-PARSE-5
+law pos_binds:
+  for +spec: Shake.Cli
+  for +pre: List<&2, String>
+  for +more: List<&2, String>
+  for +tok: String
+  for +args: List<&2, S.Arg>
+  for +specs: List<&2, S.Arg>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +seen: Bool
+  for +name: String
+  for +sh: Maybe<&2, String>
+  for +lo: Maybe<&2, String>
+  for +kind: S.ArgKind
+  for +hp: String
+  for +req: Bool
+  for +dflt: Maybe<&2, String>
+  for +cs: List<&2, String>
+  for +rest: List<&2, S.Arg>
+  for +found: Shake.Matched
+  for h_at: {S.parse.walk(pre, S.parse.start(spec))
+    == S.St{S.Free{}, args, specs, subs, path, bs, S.Arg{name, sh, lo, kind, hp, req, dflt, cs} <> rest,
+      False{}, seen} : S.St}
+  for h_dd: {String.eq(tok, "--") == False{} : Bool}
+  for h_help: {String.eq(tok, "help") == False{} : Bool}
+  for +h_dash: {String.starts_with(tok, "-") == False{} : Bool}
+  for h_sub: {S.find_sub(subs, tok) == None{} : Maybe<&2, S.Sub>}
+  for h_ok: {S.allowed(cs, tok) == True{} : Bool}
+  for h_done: {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, [tok]), more)) == Done{found}
+    : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+  exs after: List<&2, String>
+  {Shake.get_all(found, name)
+    == List.append(&2, String, S.get_all.bind(List.reverse(&2, S.Bind, bs), name), tok <> after) : List<&2, String>}
+
+# LAW: wherever the words before it leave the walker free and before `--`, a
+# word `--` binds nothing and leaves it free after `--`
+# SHAKE-TOK-4
+law dd_step:
+  for +spec: Shake.Cli
+  for +pre: List<&2, String>
+  for +args: List<&2, S.Arg>
+  for +specs: List<&2, S.Arg>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +pos: List<&2, S.Arg>
+  for +seen: Bool
+  for h_at: {S.parse.walk(pre, S.parse.start(spec))
+    == S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+  {S.parse.walk(List.append(&2, String, pre, ["--"]), S.parse.start(spec))
+    == S.St{S.Free{}, args, specs, subs, path, bs, pos, True{}, seen} : S.St}
+
+# LAW: wherever the words before it leave the walker free after `--`, any
+# word, whatever its shape, is read as a plain word bound to the next
+# positional: one its choices allow binds, and the walker goes on free after
+# `--` with the positionals after it pending
+# SHAKE-TOK-4
+law raw_next:
+  for +spec: Shake.Cli
+  for +pre: List<&2, String>
+  for +tok: String
+  for +args: List<&2, S.Arg>
+  for +specs: List<&2, S.Arg>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +seen: Bool
+  for +name: String
+  for +sh: Maybe<&2, String>
+  for +lo: Maybe<&2, String>
+  for +kind: S.ArgKind
+  for +hp: String
+  for +req: Bool
+  for +dflt: Maybe<&2, String>
+  for +cs: List<&2, String>
+  for +rest: List<&2, S.Arg>
+  for h_at: {S.parse.walk(pre, S.parse.start(spec))
+    == S.St{S.Free{}, args, specs, subs, path, bs, S.Arg{name, sh, lo, kind, hp, req, dflt, cs} <> rest,
+      True{}, seen} : S.St}
+  for h_ok: {S.allowed(cs, tok) == True{} : Bool}
+  {S.parse.walk(List.append(&2, String, pre, [tok]), S.parse.start(spec))
+    == S.St{S.Free{}, args, specs, subs, path, S.Bind{name, tok} <> bs,
+      S.parse.take_pos.keep(S.rest.is(S.Arg{name, sh, lo, kind, hp, req, dflt, cs}),
+        S.Arg{name, sh, lo, kind, hp, req, dflt, cs}, rest), True{}, True{}} : S.St}
+
+# LAW: wherever the words before it leave the walker free after `--` with a
+# positional next, any word its choices allow, whatever its shape, is its
+# value: when the parse succeeds, `get_all` of the positional reads the values
+# bound to it before, then the word, whatever follows
+# SHAKE-TOK-4
+# SHAKE-PARSE-5
+law raw_binds:
+  for +spec: Shake.Cli
+  for +pre: List<&2, String>
+  for +more: List<&2, String>
+  for +tok: String
+  for +args: List<&2, S.Arg>
+  for +specs: List<&2, S.Arg>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +seen: Bool
+  for +name: String
+  for +sh: Maybe<&2, String>
+  for +lo: Maybe<&2, String>
+  for +kind: S.ArgKind
+  for +hp: String
+  for +req: Bool
+  for +dflt: Maybe<&2, String>
+  for +cs: List<&2, String>
+  for +rest: List<&2, S.Arg>
+  for +found: Shake.Matched
+  for h_at: {S.parse.walk(pre, S.parse.start(spec))
+    == S.St{S.Free{}, args, specs, subs, path, bs, S.Arg{name, sh, lo, kind, hp, req, dflt, cs} <> rest,
+      True{}, seen} : S.St}
+  for h_ok: {S.allowed(cs, tok) == True{} : Bool}
+  for h_done: {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, [tok]), more)) == Done{found}
+    : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+  exs after: List<&2, String>
+  {Shake.get_all(found, name)
+    == List.append(&2, String, S.get_all.bind(List.reverse(&2, S.Bind, bs), name), tok <> after) : List<&2, String>}
+
+# LAW: wherever the words before it leave the walker free after `--` with no
+# positional left, any word fails the parse with Unexpected of the word,
+# whatever follows
+# SHAKE-TOK-4
+law raw_no_pos:
+  for +spec: Shake.Cli
+  for +pre: List<&2, String>
+  for +more: List<&2, String>
+  for +tok: String
+  for +args: List<&2, S.Arg>
+  for +specs: List<&2, S.Arg>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +seen: Bool
+  for h_at: {S.parse.walk(pre, S.parse.start(spec))
+    == S.St{S.Free{}, args, specs, subs, path, bs, [], True{}, seen} : S.St}
+  {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, [tok]), more))
+    == Fail{S.Unexpected{path, tok}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+
+# LAW: wherever the words before it leave the walker free after `--` with a
+# positional next whose choices do not allow it, any word fails the parse
+# with BadValue, whatever follows
+# SHAKE-TOK-4
+# SHAKE-PARSE-5
+law raw_refused:
+  for +spec: Shake.Cli
+  for +pre: List<&2, String>
+  for +more: List<&2, String>
+  for +tok: String
+  for +args: List<&2, S.Arg>
+  for +specs: List<&2, S.Arg>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +seen: Bool
+  for +name: String
+  for +sh: Maybe<&2, String>
+  for +lo: Maybe<&2, String>
+  for +kind: S.ArgKind
+  for +hp: String
+  for +req: Bool
+  for +dflt: Maybe<&2, String>
+  for +cs: List<&2, String>
+  for +rest: List<&2, S.Arg>
+  for h_at: {S.parse.walk(pre, S.parse.start(spec))
+    == S.St{S.Free{}, args, specs, subs, path, bs, S.Arg{name, sh, lo, kind, hp, req, dflt, cs} <> rest,
+      True{}, seen} : S.St}
+  for h_bad: {S.allowed(cs, tok) == False{} : Bool}
+  {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, [tok]), more))
+    == Fail{S.BadValue{path, name, tok}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+
+# whether an option of this kind binds a value given it now: one built with
+# `opt` when it was not given before, one built with `many` always
+def takes(kk: S.ArgKind, given: Bool) -> Bool:
+  match kk:
+    case S.Opt{}:
+      Bool.not(given)
+    case S.Many{}:
+      True{}
+    case _other:
+      False{}
+
+# LAW: wherever the words before it leave the walker free, a long option
+# `--name=vv` that spells an option built with `opt` not yet given, or one
+# built with `many`, and whose choices allow `vv`, binds `vv`: when the parse
+# succeeds, `get_all` of the option reads the values given it before, then
+# `vv`, whatever follows
+# SHAKE-TOK-1
+# SHAKE-PARSE-5
+# SHAKE-PARSE-10
+law long_binds:
+  for +spec: Shake.Cli
+  for +pre: List<&2, String>
+  for +more: List<&2, String>
+  for +body: String
+  for +name: String
+  for +vv: String
+  for +args: List<&2, S.Arg>
+  for +specs: List<&2, S.Arg>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +pos: List<&2, S.Arg>
+  for +seen: Bool
+  for +nn: String
+  for +sh: Maybe<&2, String>
+  for +lo: Maybe<&2, String>
+  for +kind: S.ArgKind
+  for +hp: String
+  for +req: Bool
+  for +dflt: Maybe<&2, String>
+  for +cs: List<&2, String>
+  for +found: Shake.Matched
+  for h_at: {S.parse.walk(pre, S.parse.start(spec))
+    == S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+  for h_dd: {String.eq("--" ++ body, "--") == False{} : Bool}
+  for h_cut: {S.cut_eq(body) == (name, Some{vv}) : String & Maybe<&2, String>}
+  for h_name: {String.is_empty(name) == False{} : Bool}
+  for h_found: {S.by_long(args, name) == Some{S.Arg{nn, sh, lo, kind, hp, req, dflt, cs}} : Maybe<&2, S.Arg>}
+  for h_kind: {takes(kind, S.bound(bs, nn)) == True{} : Bool}
+  for h_ok: {S.allowed(S.parse.choices(S.by_name(args, nn)), vv) == True{} : Bool}
+  for h_done: {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, ["--" ++ body]), more))
+    == Done{found} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+  exs after: List<&2, String>
+  {Shake.get_all(found, nn)
+    == List.append(&2, String, S.get_all.bind(List.reverse(&2, S.Bind, bs), nn), vv <> after) : List<&2, String>}
+
+# LAW: wherever the words before it leave an option waiting for its value, a
+# word that is not flag-shaped and that the option's choices do not allow
+# fails the parse with BadValue of the option and the word, whatever follows
+# SHAKE-PARSE-5
+law value_refused:
+  for +spec: Shake.Cli
+  for +pre: List<&2, String>
+  for +more: List<&2, String>
+  for +tok: String
+  for +name: String
+  for +args: List<&2, S.Arg>
+  for +specs: List<&2, S.Arg>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +pos: List<&2, S.Arg>
+  for +raw: Bool
+  for +seen: Bool
+  for h_at: {S.parse.walk(pre, S.parse.start(spec))
+    == S.St{S.Need{name}, args, specs, subs, path, bs, pos, raw, seen} : S.St}
+  for h_flag: {S.looks_flag(tok) == False{} : Bool}
+  for h_bad: {S.allowed(S.parse.choices(S.by_name(args, name)), tok) == False{} : Bool}
+  {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, [tok]), more))
+    == Fail{S.BadValue{path, name, tok}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+
+# LAW: wherever the words before it leave the walker free, a long option
+# `--name=vv` that spells an option built with `opt` not yet given, or one
+# built with `many`, and whose choices do not allow `vv`, fails the parse with
+# BadValue of the option and `vv`, whatever follows
+# SHAKE-PARSE-5
+law long_refused:
+  for +spec: Shake.Cli
+  for +pre: List<&2, String>
+  for +more: List<&2, String>
+  for +body: String
+  for +name: String
+  for +vv: String
+  for +args: List<&2, S.Arg>
+  for +specs: List<&2, S.Arg>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +pos: List<&2, S.Arg>
+  for +seen: Bool
+  for +nn: String
+  for +sh: Maybe<&2, String>
+  for +lo: Maybe<&2, String>
+  for +kind: S.ArgKind
+  for +hp: String
+  for +req: Bool
+  for +dflt: Maybe<&2, String>
+  for +cs: List<&2, String>
+  for h_at: {S.parse.walk(pre, S.parse.start(spec))
+    == S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+  for h_dd: {String.eq("--" ++ body, "--") == False{} : Bool}
+  for h_cut: {S.cut_eq(body) == (name, Some{vv}) : String & Maybe<&2, String>}
+  for h_name: {String.is_empty(name) == False{} : Bool}
+  for h_found: {S.by_long(args, name) == Some{S.Arg{nn, sh, lo, kind, hp, req, dflt, cs}} : Maybe<&2, S.Arg>}
+  for h_kind: {takes(kind, S.bound(bs, nn)) == True{} : Bool}
+  for h_bad: {S.allowed(S.parse.choices(S.by_name(args, nn)), vv) == False{} : Bool}
+  {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, ["--" ++ body]), more))
+    == Fail{S.BadValue{path, nn, vv}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
