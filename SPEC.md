@@ -31,7 +31,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
 | SHAKE-TOK-1 | A word that starts with `--`, is not exactly `--`, and has at least one char before its first `=` is a long option: the chars between `--` and the first `=` (or the end) are its spelling, and when there is an `=` everything after it, verbatim and possibly empty, is its value. A word `--=...` is refused as `UnknownFlag{word}`. | Proved | pending |  |
-| SHAKE-TOK-2 | A word that starts with `-`, is not `-` and does not start with `--` is a short option: its second char is the spelling, and the rest of the word, verbatim and including any `=`, is its value when it is not empty. | Proved | pending |  |
+| SHAKE-TOK-2 | A word that starts with `-`, is not `-` and does not start with `--` is a short option: its second char is the spelling. When the rest of the word starts with `=`, everything after that one `=`, verbatim and possibly empty, is its value; otherwise the rest, verbatim, is its value when it is not empty. | Proved | pending |  |
 | SHAKE-TOK-3 | A plain word is never read as an option. | Proved | pending |  |
 | SHAKE-TOK-4 | When a word exactly `--` reaches `parse` where an option could stand, it binds nothing and every later word is read as a plain word bound to a positional, whatever its shape. | Proved | pending |  |
 | SHAKE-TOK-5 | A flag given a value (`--verbose=x`, `-vx`) is refused as `Unexpected{word}`. | Proved | pending |  |
