@@ -36,12 +36,12 @@ law allowed_any:
 # LAW: `get` on a Matched with no bindings is None
 law get_nil:
   for name: String
-  {S.get(S.Matched{[], []}, name) == None{} : Maybe<&2, String>}
+  {S.get(S.Leaf{[]}, name) == None{} : Maybe<&2, String>}
 
 # LAW: no flag is on in a Matched with no bindings
 law on_nil:
   for name: String
-  {S.on(S.Matched{[], []}, name) == False{} : Bool}
+  {S.on(S.Leaf{[]}, name) == False{} : Bool}
 
 # LAW: a request for help has no error text, for every spec and path
 # SHAKE-ERR-1
@@ -88,52 +88,47 @@ law last_snoc:
 # second's
 # SHAKE-GET-1
 law get_all_append:
-  for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
   for +cs: List<&2, S.Bind>
   for +name: String
-  {Shake.get_all(S.Matched{path, List.append(&2, S.Bind, bs, cs)}, name)
-    == List.append(&2, String, Shake.get_all(S.Matched{path, bs}, name),
-      Shake.get_all(S.Matched{path, cs}, name)) : List<&2, String>}
+  {Shake.get_all(S.Leaf{List.append(&2, S.Bind, bs, cs)}, name)
+    == List.append(&2, String, Shake.get_all(S.Leaf{bs}, name),
+      Shake.get_all(S.Leaf{cs}, name)) : List<&2, String>}
 
 # LAW: one binding of a name gives `get_all` its value
 # SHAKE-GET-1
 law get_all_hit:
-  for +path: List<&2, String>
   for +name: String
   for +vv: String
-  {Shake.get_all(S.Matched{path, [S.Bind{name, vv}]}, name) == [vv] : List<&2, String>}
+  {Shake.get_all(S.Leaf{[S.Bind{name, vv}]}, name) == [vv] : List<&2, String>}
 
 # LAW: one binding of another name gives `get_all` nothing
 # SHAKE-GET-1
 law get_all_miss:
-  for +path: List<&2, String>
   for +other: String
   for +name: String
   for +vv: String
   for differ: {String.eq(other, name) == False{} : Bool}
-  {Shake.get_all(S.Matched{path, [S.Bind{other, vv}]}, name) == [] : List<&2, String>}
+  {Shake.get_all(S.Leaf{[S.Bind{other, vv}]}, name) == [] : List<&2, String>}
 
 # LAW: `get` is the value of the last binding of the name
 # SHAKE-GET-1
 law get_last:
-  for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
   for +cs: List<&2, S.Bind>
   for +name: String
   for +vv: String
-  for after: {Shake.get_all(S.Matched{path, cs}, name) == [] : List<&2, String>}
-  {Shake.get(S.Matched{path, List.append(&2, S.Bind, bs, S.Bind{name, vv} <> cs)}, name)
+  for after: {Shake.get_all(S.Leaf{cs}, name) == [] : List<&2, String>}
+  {Shake.get(S.Leaf{List.append(&2, S.Bind, bs, S.Bind{name, vv} <> cs)}, name)
     == Some{vv} : Maybe<&2, String>}
 
 # LAW: `get` is None when nothing binds the name
 # SHAKE-GET-1
 law get_none:
-  for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
   for +name: String
-  for none: {Shake.get_all(S.Matched{path, bs}, name) == [] : List<&2, String>}
-  {Shake.get(S.Matched{path, bs}, name) == None{} : Maybe<&2, String>}
+  for none: {Shake.get_all(S.Leaf{bs}, name) == [] : List<&2, String>}
+  {Shake.get(S.Leaf{bs}, name) == None{} : Maybe<&2, String>}
 
 # LAW: a flag is on exactly when `get` reads Some "true"
 # SHAKE-GET-1
@@ -152,12 +147,100 @@ law on_none:
   for h_get: {Shake.get(found, name) == None{} : Maybe<&2, String>}
   {Shake.on(found, name) == False{} : Bool}
 
-# LAW: `path_of` is the selected path
+# LAW: a command's `get_all` reads only its own bindings: the subcommand
+# selected under it changes nothing
 # SHAKE-GET-1
-law path_of_path:
-  for +path: List<&2, String>
+law get_all_node:
   for +bs: List<&2, S.Bind>
-  {Shake.path_of(S.Matched{path, bs}) == path : List<&2, String>}
+  for +nn: String
+  for +below: Shake.Matched
+  for +name: String
+  {Shake.get_all(S.Node{bs, nn, below}, name) == Shake.get_all(S.Leaf{bs}, name) : List<&2, String>}
+
+# LAW: a command's `get` reads only its own bindings
+# SHAKE-GET-1
+law get_node:
+  for +bs: List<&2, S.Bind>
+  for +nn: String
+  for +below: Shake.Matched
+  for +name: String
+  {Shake.get(S.Node{bs, nn, below}, name) == Shake.get(S.Leaf{bs}, name) : Maybe<&2, String>}
+
+# LAW: no subcommand was selected under a command with no Matched below it
+# SHAKE-GET-2
+law sub_name_leaf:
+  for +bs: List<&2, S.Bind>
+  {Shake.sub_name(S.Leaf{bs}) == None{} : Maybe<&2, String>}
+
+# LAW: `sub_name` is the name of the subcommand selected
+# SHAKE-GET-2
+law sub_name_node:
+  for +bs: List<&2, S.Bind>
+  for +nn: String
+  for +below: Shake.Matched
+  {Shake.sub_name(S.Node{bs, nn, below}) == Some{nn} : Maybe<&2, String>}
+
+# LAW: `sub_of` the subcommand selected is its Matched
+# SHAKE-GET-2
+law sub_of_hit:
+  for +bs: List<&2, S.Bind>
+  for +nn: String
+  for +below: Shake.Matched
+  {Shake.sub_of(S.Node{bs, nn, below}, nn) == Some{below} : Maybe<&2, Shake.Matched>}
+
+# LAW: `sub_of` any other name is None
+# SHAKE-GET-2
+law sub_of_miss:
+  for +bs: List<&2, S.Bind>
+  for +nn: String
+  for +below: Shake.Matched
+  for +name: String
+  for differ: {String.eq(nn, name) == False{} : Bool}
+  {Shake.sub_of(S.Node{bs, nn, below}, name) == None{} : Maybe<&2, Shake.Matched>}
+
+# LAW: `sub_of` is None when no subcommand was selected
+# SHAKE-GET-2
+law sub_of_leaf:
+  for +bs: List<&2, S.Bind>
+  for +name: String
+  {Shake.sub_of(S.Leaf{bs}, name) == None{} : Maybe<&2, Shake.Matched>}
+
+# LAW: no names are selected below a command with no subcommand selected
+# SHAKE-GET-2
+law path_of_leaf:
+  for +bs: List<&2, S.Bind>
+  {Shake.path_of(S.Leaf{bs}) == [] : List<&2, String>}
+
+# LAW: the names selected below a command are its subcommand's name, then the
+# names selected below that
+# SHAKE-GET-2
+law path_of_node:
+  for +bs: List<&2, S.Bind>
+  for +nn: String
+  for +below: Shake.Matched
+  {Shake.path_of(S.Node{bs, nn, below}) == nn <> Shake.path_of(below) : List<&2, String>}
+
+# `at` of what `sub_of` found, or None when it found nothing
+def at.via(mm: Maybe<&2, Shake.Matched>, rest: List<&2, String>) -> Maybe<&2, Shake.Matched>:
+  match mm:
+    case None{}:
+      None{}
+    case Some{below}:
+      Shake.at(below, rest)
+
+# LAW: `at` an empty path is the Matched itself
+# SHAKE-GET-2
+law at_nil:
+  for +found: Shake.Matched
+  {Shake.at(found, []) == Some{found} : Maybe<&2, Shake.Matched>}
+
+# LAW: `at` a path follows its first name with `sub_of`, then the rest
+# SHAKE-GET-2
+law at_cons:
+  for +found: Shake.Matched
+  for +name: String
+  for +rest: List<&2, String>
+  {Shake.at(found, name <> rest) == at.via(Shake.sub_of(found, name), rest) : Maybe<&2, Shake.Matched>}
 
 # LAW: `copy` keeps every word IO.args gives, all of them, in order and
 # unchanged: read back, the copy is the list it was made from
@@ -179,15 +262,15 @@ law dead_walk:
   for ys: List<&2, String>
   for +err: S.ParseErr
   for +args: List<&2, S.Arg>
-  for +specs: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
   for +subs: List<&2, S.Sub>
   for +path: List<&2, String>
   for +binds: List<&2, S.Bind>
   for +pos: List<&2, S.Arg>
   for +raw: Bool
   for +seen: Bool
-  {S.parse.walk(ys, S.St{S.Dead{err}, args, specs, subs, path, binds, pos, raw, seen})
-    == S.St{S.Dead{err}, args, specs, subs, path, binds, pos, raw, seen} : S.St}
+  {S.parse.walk(ys, S.St{S.Dead{err}, args, up, subs, path, binds, pos, raw, seen})
+    == S.St{S.Dead{err}, args, up, subs, path, binds, pos, raw, seen} : S.St}
 
 # LAW: a walker that has failed finishes as that failure, whatever words
 # follow (a lemma)
@@ -229,7 +312,7 @@ law unknown_long_step:
   for +name: String
   for val: Maybe<&2, String>
   for +args: List<&2, S.Arg>
-  for +specs: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
   for +subs: List<&2, S.Sub>
   for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
@@ -239,8 +322,8 @@ law unknown_long_step:
   for h_cut: {S.cut_eq(body) == (name, val) : String & Maybe<&2, String>}
   for h_name: {String.is_empty(name) == False{} : Bool}
   for h_none: {S.by_long(args, name) == None{} : Maybe<&2, S.Arg>}
-  {S.parse.step("--" ++ body, S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen})
-    == S.St{S.Dead{S.UnknownFlag{path, "--" ++ body}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+  {S.parse.step("--" ++ body, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen})
+    == S.St{S.Dead{S.UnknownFlag{path, "--" ++ body}}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
 
 # LAW: a walk that reaches an unknown long option dies there (a lemma)
 law unknown_long_dies:
@@ -250,14 +333,14 @@ law unknown_long_dies:
   for +name: String
   for val: Maybe<&2, String>
   for +args: List<&2, S.Arg>
-  for +specs: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
   for +subs: List<&2, S.Sub>
   for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
   for +pos: List<&2, S.Arg>
   for +seen: Bool
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
-    == S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+    == S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   for h_dd: {String.eq("--" ++ body, "--") == False{} : Bool}
   for h_cut: {S.cut_eq(body) == (name, val) : String & Maybe<&2, String>}
   for h_name: {String.is_empty(name) == False{} : Bool}
@@ -277,14 +360,14 @@ law unknown_long:
   for +name: String
   for val: Maybe<&2, String>
   for +args: List<&2, S.Arg>
-  for +specs: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
   for +subs: List<&2, S.Sub>
   for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
   for +pos: List<&2, S.Arg>
   for +seen: Bool
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
-    == S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+    == S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   for h_dd: {String.eq("--" ++ body, "--") == False{} : Bool}
   for h_cut: {S.cut_eq(body) == (name, val) : String & Maybe<&2, String>}
   for h_name: {String.is_empty(name) == False{} : Bool}
@@ -335,7 +418,7 @@ law unknown_short_step:
   for +cc: Char
   for +rest: String
   for +args: List<&2, S.Arg>
-  for +specs: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
   for +subs: List<&2, S.Sub>
   for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
@@ -344,8 +427,8 @@ law unknown_short_step:
   for h_dd: {String.eq("-" ++ SCon{cc, rest}, "--") == False{} : Bool}
   for h_dash: {Char.is_eq(cc, '-') == False{} : Bool}
   for h_none: {S.by_short(args, SCon{cc, SNil{}}) == None{} : Maybe<&2, S.Arg>}
-  {S.parse.step("-" ++ SCon{cc, rest}, S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen})
-    == S.St{S.Dead{S.UnknownFlag{path, "-" ++ SCon{cc, rest}}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+  {S.parse.step("-" ++ SCon{cc, rest}, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen})
+    == S.St{S.Dead{S.UnknownFlag{path, "-" ++ SCon{cc, rest}}}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
 
 # LAW: wherever the words before it leave the walker free, a short option
 # word whose first letter no argument of that command has fails the parse
@@ -358,14 +441,14 @@ law unknown_short:
   for +cc: Char
   for +rest: String
   for +args: List<&2, S.Arg>
-  for +specs: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
   for +subs: List<&2, S.Sub>
   for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
   for +pos: List<&2, S.Arg>
   for +seen: Bool
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
-    == S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+    == S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   for h_dd: {String.eq("-" ++ SCon{cc, rest}, "--") == False{} : Bool}
   for h_dash: {Char.is_eq(cc, '-') == False{} : Bool}
   for h_none: {S.by_short(args, SCon{cc, SNil{}}) == None{} : Maybe<&2, S.Arg>}
@@ -383,13 +466,13 @@ law no_pos_left:
   for +more: List<&2, String>
   for +tok: String
   for +args: List<&2, S.Arg>
-  for +specs: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
   for +subs: List<&2, S.Sub>
   for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
   for +seen: Bool
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
-    == S.St{S.Free{}, args, specs, subs, path, bs, [], False{}, seen} : S.St}
+    == S.St{S.Free{}, args, up, subs, path, bs, [], False{}, seen} : S.St}
   for h_dd: {String.eq(tok, "--") == False{} : Bool}
   for h_help: {String.eq(tok, "help") == False{} : Bool}
   for +h_dash: {String.starts_with(tok, "-") == False{} : Bool}
@@ -408,7 +491,7 @@ law choice_refused:
   for +more: List<&2, String>
   for +tok: String
   for +args: List<&2, S.Arg>
-  for +specs: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
   for +subs: List<&2, S.Sub>
   for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
@@ -423,7 +506,7 @@ law choice_refused:
   for +cs: List<&2, String>
   for +rest: List<&2, S.Arg>
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
-    == S.St{S.Free{}, args, specs, subs, path, bs, S.Arg{name, sh, lo, kind, hp, req, dflt, cs} <> rest,
+    == S.St{S.Free{}, args, up, subs, path, bs, S.Arg{name, sh, lo, kind, hp, req, dflt, cs} <> rest,
       False{}, seen} : S.St}
   for h_dd: {String.eq(tok, "--") == False{} : Bool}
   for h_help: {String.eq(tok, "help") == False{} : Bool}
@@ -440,7 +523,7 @@ law long_arg_step:
   for +name: String
   for +val: Maybe<&2, String>
   for +args: List<&2, S.Arg>
-  for +specs: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
   for +subs: List<&2, S.Sub>
   for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
@@ -449,8 +532,8 @@ law long_arg_step:
   for h_dd: {String.eq("--" ++ body, "--") == False{} : Bool}
   for h_cut: {S.cut_eq(body) == (name, val) : String & Maybe<&2, String>}
   for h_name: {String.is_empty(name) == False{} : Bool}
-  {S.parse.step("--" ++ body, S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen})
-    == S.parse.take_arg(S.by_long(args, name), val, "--" ++ body, args, specs, subs, path, bs, pos,
+  {S.parse.step("--" ++ body, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen})
+    == S.parse.take_arg(S.by_long(args, name), val, "--" ++ body, args, up, subs, path, bs, pos,
       False{}, seen) : S.St}
 
 # LAW: wherever the words before it leave the walker free, a long option
@@ -465,7 +548,7 @@ law flag_long_valued:
   for +name: String
   for +vv: String
   for +args: List<&2, S.Arg>
-  for +specs: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
   for +subs: List<&2, S.Sub>
   for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
@@ -479,7 +562,7 @@ law flag_long_valued:
   for +dflt: Maybe<&2, String>
   for +cs: List<&2, String>
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
-    == S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+    == S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   for h_dd: {String.eq("--" ++ body, "--") == False{} : Bool}
   for h_cut: {S.cut_eq(body) == (name, Some{vv}) : String & Maybe<&2, String>}
   for h_name: {String.is_empty(name) == False{} : Bool}
@@ -500,7 +583,7 @@ law value_flag_shaped:
   for +tok: String
   for +name: String
   for +args: List<&2, S.Arg>
-  for +specs: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
   for +subs: List<&2, S.Sub>
   for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
@@ -508,7 +591,7 @@ law value_flag_shaped:
   for +raw: Bool
   for +seen: Bool
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
-    == S.St{S.Need{name}, args, specs, subs, path, bs, pos, raw, seen} : S.St}
+    == S.St{S.Need{name}, args, up, subs, path, bs, pos, raw, seen} : S.St}
   for h_flag: {S.looks_flag(tok) == True{} : Bool}
   {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, [tok]), more))
     == Fail{S.NoValue{path, name}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
@@ -521,7 +604,7 @@ law value_absent:
   for +ws: List<&2, String>
   for +name: String
   for +args: List<&2, S.Arg>
-  for +specs: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
   for +subs: List<&2, S.Sub>
   for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
@@ -529,7 +612,7 @@ law value_absent:
   for +raw: Bool
   for +seen: Bool
   for h_at: {S.parse.walk(ws, S.parse.start(spec))
-    == S.St{S.Need{name}, args, specs, subs, path, bs, pos, raw, seen} : S.St}
+    == S.St{S.Need{name}, args, up, subs, path, bs, pos, raw, seen} : S.St}
   {Shake.parse(spec, ws) == Fail{S.NoValue{path, name}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
 
 
@@ -543,7 +626,7 @@ law help_unknown:
   for +more: List<&2, String>
   for +tok: String
   for +args: List<&2, S.Arg>
-  for +specs: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
   for +subs: List<&2, S.Sub>
   for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
@@ -551,7 +634,7 @@ law help_unknown:
   for +raw: Bool
   for +seen: Bool
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
-    == S.St{S.Help{}, args, specs, subs, path, bs, pos, raw, seen} : S.St}
+    == S.St{S.Help{}, args, up, subs, path, bs, pos, raw, seen} : S.St}
   for h_sub: {S.find_sub(subs, tok) == None{} : Maybe<&2, S.Sub>}
   {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, [tok]), more))
     == Fail{S.Unexpected{path, tok}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
@@ -568,14 +651,14 @@ law long_no_name:
   for +name: String
   for +val: Maybe<&2, String>
   for +args: List<&2, S.Arg>
-  for +specs: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
   for +subs: List<&2, S.Sub>
   for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
   for +pos: List<&2, S.Arg>
   for +seen: Bool
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
-    == S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+    == S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   for h_dd: {String.eq("--" ++ body, "--") == False{} : Bool}
   for h_cut: {S.cut_eq(body) == (name, val) : String & Maybe<&2, String>}
   for h_empty: {String.is_empty(name) == True{} : Bool}
@@ -602,7 +685,7 @@ law repeated_long_flag:
   for +name: String
   for +val: Maybe<&2, String>
   for +args: List<&2, S.Arg>
-  for +specs: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
   for +subs: List<&2, S.Sub>
   for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
@@ -616,7 +699,7 @@ law repeated_long_flag:
   for +dflt: Maybe<&2, String>
   for +cs: List<&2, String>
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
-    == S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+    == S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   for h_dd: {String.eq("--" ++ body, "--") == False{} : Bool}
   for h_cut: {S.cut_eq(body) == (name, val) : String & Maybe<&2, String>}
   for h_name: {String.is_empty(name) == False{} : Bool}
@@ -638,7 +721,7 @@ law repeated_long_opt:
   for +name: String
   for +val: Maybe<&2, String>
   for +args: List<&2, S.Arg>
-  for +specs: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
   for +subs: List<&2, S.Sub>
   for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
@@ -652,7 +735,7 @@ law repeated_long_opt:
   for +dflt: Maybe<&2, String>
   for +cs: List<&2, String>
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
-    == S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+    == S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   for h_dd: {String.eq("--" ++ body, "--") == False{} : Bool}
   for h_cut: {S.cut_eq(body) == (name, val) : String & Maybe<&2, String>}
   for h_name: {String.is_empty(name) == False{} : Bool}
@@ -662,52 +745,74 @@ law repeated_long_opt:
   {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, ["--" ++ body]), more))
     == Fail{S.Repeated{path, nn}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
 
+# `get_all` of the command a path reaches in a Matched, when it reaches one
+def all_at.go(mm: Maybe<&2, Shake.Matched>, +name: String) -> Maybe<&2, List<&2, String>>:
+  match mm:
+    case None{}:
+      None{}
+    case Some{found}:
+      Some{Shake.get_all(found, name)}
+
+# `get_all` of the command at `path` in a Matched
+def all_at(found: Shake.Matched, path: List<&2, String>, +name: String) -> Maybe<&2, List<&2, String>>:
+  all_at.go(Shake.at(found, path), name)
+
 # LAW: when the words `mid`, read where the words before them leave the
-# walker, put bindings `xs` in front of the bindings `bs` it held, and the
-# parse succeeds, `get_all` of a name reads its values in `bs`, then its values
-# in `xs`, both in the order given, then any bound after, whatever follows (a
-# lemma)
+# walker, stay in the command at `path` and put bindings `xs` in front of the
+# bindings `bs` it made, and the parse succeeds, `get_all` of a name in that
+# command's Matched reads its values in `bs`, then its values in `xs`, both in
+# the order given, then any it bound after, whatever follows (a lemma)
 law kept_all:
   for +spec: Shake.Cli
   for +pre: List<&2, String>
   for +mid: List<&2, String>
   for +more: List<&2, String>
   for +st: S.St
+  for +args: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
+  for +path: List<&2, String>
   for +xs: List<&2, S.Bind>
   for +bs: List<&2, S.Bind>
   for +name: String
   for +found: Shake.Matched
   for h_at: {S.parse.walk(pre, S.parse.start(spec)) == st : S.St}
-  for h_mid: {Grow.binds_of(S.parse.walk(mid, st)) == List.append(&2, S.Bind, xs, bs) : List<&2, S.Bind>}
+  for h_mid: {Grow.view(S.parse.walk(mid, st)) == Grow.View{args, up, path, List.append(&2, S.Bind, xs, bs)}
+    : Grow.View}
   for h_done: {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, mid), more)) == Done{found}
     : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
   exs after: List<&2, String>
-  {Shake.get_all(found, name)
-    == List.append(&2, String, S.get_all.bind(List.reverse(&2, S.Bind, bs), name),
-      List.append(&2, String, S.get_all.bind(List.reverse(&2, S.Bind, xs), name), after)) : List<&2, String>}
+  {all_at(found, path, name)
+    == Some{List.append(&2, String, S.get_all.bind(List.reverse(&2, S.Bind, bs), name),
+      List.append(&2, String, S.get_all.bind(List.reverse(&2, S.Bind, xs), name), after))}
+    : Maybe<&2, List<&2, String>>}
 
-# LAW: when the words before `tok` reach a state where `tok` puts `Bind{name,
-# vv}` in front of the bindings `bs`, and the parse succeeds, `get_all` of the
-# name reads the values bound to it before `tok`, then `vv`, then any bound
-# after, whatever follows (a lemma: every binding row is its step fact through
-# this, as every refusal row is through `refused`)
+# LAW: when the words before `tok` reach a state where `tok` stays in the
+# command at `path` and puts `Bind{name, vv}` in front of the bindings `bs` it
+# made, and the parse succeeds, `get_all` of the name in that command's Matched
+# reads the values bound to it before `tok`, then `vv`, then any bound after,
+# whatever follows (a lemma: every binding row is its step fact through this,
+# as every refusal row is through `refused`)
 law kept:
   for +spec: Shake.Cli
   for +pre: List<&2, String>
   for +more: List<&2, String>
   for +tok: String
   for +st: S.St
+  for +args: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
+  for +path: List<&2, String>
   for +name: String
   for +vv: String
   for +bs: List<&2, S.Bind>
   for +found: Shake.Matched
   for h_at: {S.parse.walk(pre, S.parse.start(spec)) == st : S.St}
-  for h_step: {Grow.binds_of(S.parse.step(tok, st)) == S.Bind{name, vv} <> bs : List<&2, S.Bind>}
+  for h_step: {Grow.view(S.parse.step(tok, st)) == Grow.View{args, up, path, S.Bind{name, vv} <> bs} : Grow.View}
   for h_done: {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, [tok]), more)) == Done{found}
     : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
   exs after: List<&2, String>
-  {Shake.get_all(found, name)
-    == List.append(&2, String, S.get_all.bind(List.reverse(&2, S.Bind, bs), name), vv <> after) : List<&2, String>}
+  {all_at(found, path, name)
+    == Some{List.append(&2, String, S.get_all.bind(List.reverse(&2, S.Bind, bs), name), vv <> after)}
+    : Maybe<&2, List<&2, String>>}
 
 # LAW: wherever the words before it leave an option waiting for its value, a
 # word that is not flag-shaped and that the option's choices allow is its
@@ -722,7 +827,7 @@ law value_binds:
   for +tok: String
   for +name: String
   for +args: List<&2, S.Arg>
-  for +specs: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
   for +subs: List<&2, S.Sub>
   for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
@@ -731,14 +836,15 @@ law value_binds:
   for +seen: Bool
   for +found: Shake.Matched
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
-    == S.St{S.Need{name}, args, specs, subs, path, bs, pos, raw, seen} : S.St}
+    == S.St{S.Need{name}, args, up, subs, path, bs, pos, raw, seen} : S.St}
   for h_flag: {S.looks_flag(tok) == False{} : Bool}
   for h_ok: {S.allowed(S.parse.choices(S.by_name(args, name)), tok) == True{} : Bool}
   for h_done: {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, [tok]), more)) == Done{found}
     : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
   exs after: List<&2, String>
-  {Shake.get_all(found, name)
-    == List.append(&2, String, S.get_all.bind(List.reverse(&2, S.Bind, bs), name), tok <> after) : List<&2, String>}
+  {all_at(found, path, name)
+    == Some{List.append(&2, String, S.get_all.bind(List.reverse(&2, S.Bind, bs), name), tok <> after)}
+    : Maybe<&2, List<&2, String>>}
 
 # LAW: wherever the words before it leave the walker free with a positional
 # next, a plain word that names no subcommand and that the positional's
@@ -751,7 +857,7 @@ law pos_next:
   for +pre: List<&2, String>
   for +tok: String
   for +args: List<&2, S.Arg>
-  for +specs: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
   for +subs: List<&2, S.Sub>
   for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
@@ -766,7 +872,7 @@ law pos_next:
   for +cs: List<&2, String>
   for +rest: List<&2, S.Arg>
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
-    == S.St{S.Free{}, args, specs, subs, path, bs, S.Arg{name, sh, lo, kind, hp, req, dflt, cs} <> rest,
+    == S.St{S.Free{}, args, up, subs, path, bs, S.Arg{name, sh, lo, kind, hp, req, dflt, cs} <> rest,
       False{}, seen} : S.St}
   for h_dd: {String.eq(tok, "--") == False{} : Bool}
   for h_help: {String.eq(tok, "help") == False{} : Bool}
@@ -774,7 +880,7 @@ law pos_next:
   for h_sub: {S.find_sub(subs, tok) == None{} : Maybe<&2, S.Sub>}
   for h_ok: {S.allowed(cs, tok) == True{} : Bool}
   {S.parse.walk(List.append(&2, String, pre, [tok]), S.parse.start(spec))
-    == S.St{S.Free{}, args, specs, subs, path, S.Bind{name, tok} <> bs,
+    == S.St{S.Free{}, args, up, subs, path, S.Bind{name, tok} <> bs,
       S.parse.take_pos.keep(S.rest.is(S.Arg{name, sh, lo, kind, hp, req, dflt, cs}),
         S.Arg{name, sh, lo, kind, hp, req, dflt, cs}, rest), False{}, True{}} : S.St}
 
@@ -791,7 +897,7 @@ law pos_binds:
   for +more: List<&2, String>
   for +tok: String
   for +args: List<&2, S.Arg>
-  for +specs: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
   for +subs: List<&2, S.Sub>
   for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
@@ -807,7 +913,7 @@ law pos_binds:
   for +rest: List<&2, S.Arg>
   for +found: Shake.Matched
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
-    == S.St{S.Free{}, args, specs, subs, path, bs, S.Arg{name, sh, lo, kind, hp, req, dflt, cs} <> rest,
+    == S.St{S.Free{}, args, up, subs, path, bs, S.Arg{name, sh, lo, kind, hp, req, dflt, cs} <> rest,
       False{}, seen} : S.St}
   for h_dd: {String.eq(tok, "--") == False{} : Bool}
   for h_help: {String.eq(tok, "help") == False{} : Bool}
@@ -817,8 +923,9 @@ law pos_binds:
   for h_done: {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, [tok]), more)) == Done{found}
     : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
   exs after: List<&2, String>
-  {Shake.get_all(found, name)
-    == List.append(&2, String, S.get_all.bind(List.reverse(&2, S.Bind, bs), name), tok <> after) : List<&2, String>}
+  {all_at(found, path, name)
+    == Some{List.append(&2, String, S.get_all.bind(List.reverse(&2, S.Bind, bs), name), tok <> after)}
+    : Maybe<&2, List<&2, String>>}
 
 # LAW: wherever the words before it leave the walker free and before `--`, a
 # word `--` binds nothing and leaves it free after `--`
@@ -827,16 +934,16 @@ law dd_step:
   for +spec: Shake.Cli
   for +pre: List<&2, String>
   for +args: List<&2, S.Arg>
-  for +specs: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
   for +subs: List<&2, S.Sub>
   for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
   for +pos: List<&2, S.Arg>
   for +seen: Bool
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
-    == S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+    == S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   {S.parse.walk(List.append(&2, String, pre, ["--"]), S.parse.start(spec))
-    == S.St{S.Free{}, args, specs, subs, path, bs, pos, True{}, seen} : S.St}
+    == S.St{S.Free{}, args, up, subs, path, bs, pos, True{}, seen} : S.St}
 
 # LAW: wherever the words before it leave the walker free after `--`, any
 # word, whatever its shape, is read as a plain word bound to the next
@@ -848,7 +955,7 @@ law raw_next:
   for +pre: List<&2, String>
   for +tok: String
   for +args: List<&2, S.Arg>
-  for +specs: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
   for +subs: List<&2, S.Sub>
   for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
@@ -863,11 +970,11 @@ law raw_next:
   for +cs: List<&2, String>
   for +rest: List<&2, S.Arg>
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
-    == S.St{S.Free{}, args, specs, subs, path, bs, S.Arg{name, sh, lo, kind, hp, req, dflt, cs} <> rest,
+    == S.St{S.Free{}, args, up, subs, path, bs, S.Arg{name, sh, lo, kind, hp, req, dflt, cs} <> rest,
       True{}, seen} : S.St}
   for h_ok: {S.allowed(cs, tok) == True{} : Bool}
   {S.parse.walk(List.append(&2, String, pre, [tok]), S.parse.start(spec))
-    == S.St{S.Free{}, args, specs, subs, path, S.Bind{name, tok} <> bs,
+    == S.St{S.Free{}, args, up, subs, path, S.Bind{name, tok} <> bs,
       S.parse.take_pos.keep(S.rest.is(S.Arg{name, sh, lo, kind, hp, req, dflt, cs}),
         S.Arg{name, sh, lo, kind, hp, req, dflt, cs}, rest), True{}, True{}} : S.St}
 
@@ -883,7 +990,7 @@ law raw_binds:
   for +more: List<&2, String>
   for +tok: String
   for +args: List<&2, S.Arg>
-  for +specs: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
   for +subs: List<&2, S.Sub>
   for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
@@ -899,14 +1006,15 @@ law raw_binds:
   for +rest: List<&2, S.Arg>
   for +found: Shake.Matched
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
-    == S.St{S.Free{}, args, specs, subs, path, bs, S.Arg{name, sh, lo, kind, hp, req, dflt, cs} <> rest,
+    == S.St{S.Free{}, args, up, subs, path, bs, S.Arg{name, sh, lo, kind, hp, req, dflt, cs} <> rest,
       True{}, seen} : S.St}
   for h_ok: {S.allowed(cs, tok) == True{} : Bool}
   for h_done: {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, [tok]), more)) == Done{found}
     : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
   exs after: List<&2, String>
-  {Shake.get_all(found, name)
-    == List.append(&2, String, S.get_all.bind(List.reverse(&2, S.Bind, bs), name), tok <> after) : List<&2, String>}
+  {all_at(found, path, name)
+    == Some{List.append(&2, String, S.get_all.bind(List.reverse(&2, S.Bind, bs), name), tok <> after)}
+    : Maybe<&2, List<&2, String>>}
 
 # LAW: wherever the words before it leave the walker free after `--` with no
 # positional left, any word fails the parse with Unexpected of the word,
@@ -918,13 +1026,13 @@ law raw_no_pos:
   for +more: List<&2, String>
   for +tok: String
   for +args: List<&2, S.Arg>
-  for +specs: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
   for +subs: List<&2, S.Sub>
   for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
   for +seen: Bool
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
-    == S.St{S.Free{}, args, specs, subs, path, bs, [], True{}, seen} : S.St}
+    == S.St{S.Free{}, args, up, subs, path, bs, [], True{}, seen} : S.St}
   {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, [tok]), more))
     == Fail{S.Unexpected{path, tok}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
 
@@ -939,7 +1047,7 @@ law raw_refused:
   for +more: List<&2, String>
   for +tok: String
   for +args: List<&2, S.Arg>
-  for +specs: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
   for +subs: List<&2, S.Sub>
   for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
@@ -954,7 +1062,7 @@ law raw_refused:
   for +cs: List<&2, String>
   for +rest: List<&2, S.Arg>
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
-    == S.St{S.Free{}, args, specs, subs, path, bs, S.Arg{name, sh, lo, kind, hp, req, dflt, cs} <> rest,
+    == S.St{S.Free{}, args, up, subs, path, bs, S.Arg{name, sh, lo, kind, hp, req, dflt, cs} <> rest,
       True{}, seen} : S.St}
   for h_bad: {S.allowed(cs, tok) == False{} : Bool}
   {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, [tok]), more))
@@ -987,7 +1095,7 @@ law long_binds:
   for +name: String
   for +vv: String
   for +args: List<&2, S.Arg>
-  for +specs: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
   for +subs: List<&2, S.Sub>
   for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
@@ -1003,7 +1111,7 @@ law long_binds:
   for +cs: List<&2, String>
   for +found: Shake.Matched
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
-    == S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+    == S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   for h_dd: {String.eq("--" ++ body, "--") == False{} : Bool}
   for h_cut: {S.cut_eq(body) == (name, Some{vv}) : String & Maybe<&2, String>}
   for h_name: {String.is_empty(name) == False{} : Bool}
@@ -1013,8 +1121,9 @@ law long_binds:
   for h_done: {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, ["--" ++ body]), more))
     == Done{found} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
   exs after: List<&2, String>
-  {Shake.get_all(found, nn)
-    == List.append(&2, String, S.get_all.bind(List.reverse(&2, S.Bind, bs), nn), vv <> after) : List<&2, String>}
+  {all_at(found, path, nn)
+    == Some{List.append(&2, String, S.get_all.bind(List.reverse(&2, S.Bind, bs), nn), vv <> after)}
+    : Maybe<&2, List<&2, String>>}
 
 # LAW: wherever the words before it leave an option waiting for its value, a
 # word that is not flag-shaped and that the option's choices do not allow
@@ -1027,7 +1136,7 @@ law value_refused:
   for +tok: String
   for +name: String
   for +args: List<&2, S.Arg>
-  for +specs: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
   for +subs: List<&2, S.Sub>
   for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
@@ -1035,7 +1144,7 @@ law value_refused:
   for +raw: Bool
   for +seen: Bool
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
-    == S.St{S.Need{name}, args, specs, subs, path, bs, pos, raw, seen} : S.St}
+    == S.St{S.Need{name}, args, up, subs, path, bs, pos, raw, seen} : S.St}
   for h_flag: {S.looks_flag(tok) == False{} : Bool}
   for h_bad: {S.allowed(S.parse.choices(S.by_name(args, name)), tok) == False{} : Bool}
   {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, [tok]), more))
@@ -1054,7 +1163,7 @@ law long_refused:
   for +name: String
   for +vv: String
   for +args: List<&2, S.Arg>
-  for +specs: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
   for +subs: List<&2, S.Sub>
   for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
@@ -1069,7 +1178,7 @@ law long_refused:
   for +dflt: Maybe<&2, String>
   for +cs: List<&2, String>
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
-    == S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+    == S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   for h_dd: {String.eq("--" ++ body, "--") == False{} : Bool}
   for h_cut: {S.cut_eq(body) == (name, Some{vv}) : String & Maybe<&2, String>}
   for h_name: {String.is_empty(name) == False{} : Bool}

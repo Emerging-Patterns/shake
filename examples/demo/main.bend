@@ -47,29 +47,53 @@ def greet.tags(tags: List<&2, String>) -> IO(Unit):
 def text(+mm: Shake.Matched, +name: String) -> String:
   Maybe.default(&2, String, Shake.get(mm, name), "")
 
-# a successful greet: `who` when given, else `--name`, which has a default
-def greet(+mm: Shake.Matched) -> IO(Unit):  # noqa: L001 IO
+# a successful greet: `who` when given, else `--name`, which has a default;
+# verbose when the root's `-v` or greet's own is set
+def greet(+root: Shake.Matched, +mm: Shake.Matched) -> IO(Unit):  # noqa: L001 IO
   do IO<Unit>:
     +who : String <- IO.pure(String,
       Maybe.default(&2, String, Shake.get(mm, "who"), text(mm, "name")))
     IO.print("hello " ++ who)
     greet.tags(Shake.get_all(mm, "tag"))
-    greet.v(Shake.on(mm, "verbose"))
+    greet.v(Bool.or(Shake.on(root, "verbose"), Shake.on(mm, "verbose")))
 
 # a successful add
 def add(+mm: Shake.Matched) -> IO(Unit):  # noqa: L001 IO
   IO.print(text(mm, "a") ++ " + " ++ text(mm, "b") ++ " x" ++ text(mm, "times") ++ " base " ++
     text(mm, "base"))
 
-# dispatch on the selected path
-def run.path(+path: String, +mm: Shake.Matched) -> IO(Unit):
-  Bool.pick(IO(Unit), String.eq(path, "greet"), greet(mm),
-    Bool.pick(IO(Unit), String.eq(path, "add"), add(mm),
-      IO.write(Shake.help(spec(), []))))
+# the root's help page, when no subcommand was selected
+def run.none() -> IO(Unit):
+  IO.write(Shake.help(spec(), []))
 
-# the selected command
+# greet with its own Matched
+def run.greet(+root: Shake.Matched, sel: Maybe<&2, Shake.Matched>) -> IO(Unit):
+  match sel:
+    case Some{mm}:
+      greet(root, mm)
+    case None{}:
+      run.none()
+
+# add with its own Matched
+def run.add(sel: Maybe<&2, Shake.Matched>) -> IO(Unit):
+  match sel:
+    case Some{mm}:
+      add(mm)
+    case None{}:
+      run.none()
+
+# dispatch on the name of the subcommand selected
+def run.sub(+root: Shake.Matched, sel: Maybe<&2, String>) -> IO(Unit):
+  match sel:
+    case None{}:
+      run.none()
+    case Some{name}:
+      Bool.pick(IO(Unit), String.eq(name, "greet"), run.greet(root, Shake.sub_of(root, "greet")),
+        run.add(Shake.sub_of(root, "add")))
+
+# the root's Matched: dispatch on its subcommand
 def run(+mm: Shake.Matched) -> IO(Unit):  # noqa: L001 IO
-  run.path(String.join(Shake.path_of(mm), "/"), mm)
+  run.sub(mm, Shake.sub_name(mm))
 
 # a hard error
 def fail.err(+app: Shake.Cli, ee: Shake.ParseErr) -> IO(Unit):

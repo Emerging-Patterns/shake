@@ -22,8 +22,9 @@ import 0xdf41d30432187d983a3c5b9db32d376d/main.bend as Shake
 `main.bend` is the whole interface: the types (`Shake.Cli`, `Shake.Sub`,
 `Shake.Arg`, `Shake.Matched`, `Shake.ParseErr`, `Shake.SpecErr`), the
 builders (`app`, `sub`, `flag`, `opt`, `many`, `pos`, `rest`), `check` and
-`spec_err_text`, `parse`, the readers (`get`, `get_all`, `on`, `path_of`),
-`help`, `err_text`, `help_path`, `err_path` and `argv`. Everything under `src/` is
+`spec_err_text`, `parse`, the readers (`get`, `get_all`, `on`, `sub_name`,
+`sub_of`, `at`, `path_of`), `help`, `err_text`, `help_path`, `err_path` and
+`argv`. Everything under `src/` is
 internal and may change in any release; import only `main.bend`.
 [SPEC.md](SPEC.md) lists what shake guarantees, and which of it is proved.
 
@@ -36,8 +37,14 @@ passes, so check yours once, at start or in your own laws.
 `parse` fails with a request for help on `tool help` or
 `tool help <command>`: `help_path` gives its command path, for `help` to
 print, and is `None` for every other error, which `err_text` describes.
-A rest positional keeps every leftover word under one name; `get_all` reads
-that list, and `get` still reads one value. `argv` is the process's
+A successful parse is read one command at a time, as clap's `ArgMatches`
+is: `get`, `get_all` and `on` read the bindings a command made, and
+`sub_name(m)` and `sub_of(m, name)` give the subcommand selected under it and
+its own `Matched` (`at(m, path)` follows a whole path). A root `-v` and a
+subcommand's `-v` are different arguments, so `tool -v greet -v` sets both;
+a flag or `opt` option given twice to one command is refused. A rest
+positional keeps every leftover word under one name; `get_all` reads that
+list, and `get` still reads one value. `argv` is the process's
 arguments, each word reusable.
 
 A compiled Bend program's runtime reads the command line before shake does

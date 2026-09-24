@@ -25,6 +25,7 @@ This draft was written from the code at `b93357a`, from the evidence in [shake-l
 - [x] <!-- REVIEW-13 (resolved): Every error shows the root usage line (F8). Decision: every error but `NeedHelp` carries `at`, the command path the parse had selected where it failed, and `err_text` shows that command's usage line. A new row, SHAKE-ERR-2, states it. -->
 - [x] <!-- REVIEW-14 (resolved): `-vn Ada` is refused, where clap reads it as `-v -n Ada`. Decision: short options cluster. Each letter of `-abc` is looked up in turn: a flag binds and the next letter continues; an option takes the rest of the word, after one optional `=`, as its value, or the next word when nothing is left; an unknown letter refuses the word with `UnknownFlag`; a flag followed by `=` refuses it with `Unexpected`. SHAKE-TOK-2 and SHAKE-TOK-5 are reworded. -->
 - [x] <!-- REVIEW-15 (resolved): The maintainer's direction: shake is designed for its own long-term shape, not around existing callers. bolt is the only one, and it adapts when it bumps. The walker freeze in REVIEW-2 and the refactoring contract is dropped, and the arguments below that leaned on callers are restated on the merits. -->
+- [x] <!-- REVIEW-16 (resolved): Bindings were one flat list keyed by name for the whole selected path, so an argument of a parent and one of a subcommand with the same name shared values: with `-v` on the root and on `greet`, `-v greet -v` was refused as `Repeated`, and a parent's default could fill in for the subcommand's. clap 4.6.7 keeps each command's matches apart: `-v greet -v` sets both, `-v -v greet` is refused, and `subcommand_matches("greet")` reads greet's own. Decision: follow clap. Each command keeps its own bindings, defaults and required checks; a successful parse answers the root's `Matched`, whose readers `get`, `get_all` and `on` read that command's bindings only, and `sub_name`, `sub_of`, `at` and `path_of` reach the subcommands below it. A repeat is refused only within one command. `global` options, which clap also offers, are not part of this change. SHAKE-GET-1, PARSE-1, PARSE-4, PARSE-6, PARSE-7 and PARSE-10 are reworded; SHAKE-GET-2 is new. Behavior and API change. -->
 
 ## Abstract
 
@@ -239,6 +240,7 @@ Each lands as its own PR, checked against master's demo binary, and a row that d
 | Errors carry the command path; `err_text` shows that command's usage (F8, REVIEW-13) | SHAKE-ERR-2 | behavior |
 | After a short option's letter one `=` is dropped (F7, REVIEW-5, reversed) | SHAKE-TOK-2 | behavior |
 | Short options cluster (REVIEW-14) | SHAKE-TOK-2, SHAKE-TOK-5 | behavior |
+| Each command keeps its own bindings; `Matched` is read one command at a time, with `sub_name`, `sub_of`, `at` and `path_of` (REVIEW-16) | SHAKE-GET-1, SHAKE-GET-2, SHAKE-PARSE-1, SHAKE-PARSE-4, SHAKE-PARSE-6, SHAKE-PARSE-7, SHAKE-PARSE-10 | behavior, API change |
 
 Not changed: the wording of each message, which no row promises.
 

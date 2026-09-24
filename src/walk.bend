@@ -235,7 +235,7 @@ def wk.unfound(+subs: List<&2, Shake.Sub>, ws: List<&2, String>) -> Bool:
 law wk.word_step:
   for +tok: String
   for +args: List<&2, Shake.Arg>
-  for +specs: List<&2, Shake.Arg>
+  for +up: List<&2, Shake.Level>
   for +subs: List<&2, Shake.Sub>
   for +path: List<&2, String>
   for +bs: List<&2, Shake.Bind>
@@ -245,32 +245,32 @@ law wk.word_step:
   for h_help: {String.eq(tok, "help") == False{} : Bool}
   for +h_dash: {String.starts_with(tok, "-") == False{} : Bool}
   for h_sub: {Shake.find_sub(subs, tok) == None{} : Maybe<&2, Shake.Sub>}
-  {Shake.parse.step(tok, Shake.St{Shake.Free{}, args, specs, subs, path, bs, pos, False{}, seen})
-    == Shake.parse.take_pos(tok, args, specs, subs, path, bs, pos, False{}) : Shake.St}
+  {Shake.parse.step(tok, Shake.St{Shake.Free{}, args, up, subs, path, bs, pos, False{}, seen})
+    == Shake.parse.take_pos(tok, args, up, subs, path, bs, pos, False{}) : Shake.St}
 
-def wk.word_step(tok, args, specs, subs, path, bs, pos, seen, h_dd, h_help, h_dash, h_sub):
+def wk.word_step(tok, args, up, subs, path, bs, pos, seen, h_dd, h_help, h_dash, h_sub):
   e1 = Equal.sym(Bool, String.eq(tok, "--"), False{}, h_dd)
-  %e1 : {Shake.parse.step.end(_, tok, args, specs, subs, path, bs, pos, seen)
-    == Shake.parse.take_pos(tok, args, specs, subs, path, bs, pos, False{}) : Shake.St}
+  %e1 : {Shake.parse.step.end(_, tok, args, up, subs, path, bs, pos, seen)
+    == Shake.parse.take_pos(tok, args, up, subs, path, bs, pos, False{}) : Shake.St}
   e2 = Equal.sym(Bool, String.eq(tok, "help"), False{}, h_help)
-  %e2 : {Shake.parse.step.help(Bool.and(_, Bool.not(seen)), tok, args, specs, subs, path, bs, pos, seen)
-    == Shake.parse.take_pos(tok, args, specs, subs, path, bs, pos, False{}) : Shake.St}
+  %e2 : {Shake.parse.step.help(Bool.and(_, Bool.not(seen)), tok, args, up, subs, path, bs, pos, seen)
+    == Shake.parse.take_pos(tok, args, up, subs, path, bs, pos, False{}) : Shake.St}
   e3 = Equal.sym(Bool, String.starts_with(tok, "--"), False{}, wk.dash(tok, h_dash))
-  %e3 : {Shake.parse.step.kind.go(_, String.starts_with(tok, "-"), tok, args, specs, subs, path, bs, pos, seen)
-    == Shake.parse.take_pos(tok, args, specs, subs, path, bs, pos, False{}) : Shake.St}
+  %e3 : {Shake.parse.step.kind.go(_, String.starts_with(tok, "-"), tok, args, up, subs, path, bs, pos, seen)
+    == Shake.parse.take_pos(tok, args, up, subs, path, bs, pos, False{}) : Shake.St}
   e4 = Equal.sym(Bool, String.starts_with(tok, "-"), False{}, h_dash)
-  %e4 : {Shake.parse.step.kind.go(False{}, _, tok, args, specs, subs, path, bs, pos, seen)
-    == Shake.parse.take_pos(tok, args, specs, subs, path, bs, pos, False{}) : Shake.St}
+  %e4 : {Shake.parse.step.kind.go(False{}, _, tok, args, up, subs, path, bs, pos, seen)
+    == Shake.parse.take_pos(tok, args, up, subs, path, bs, pos, False{}) : Shake.St}
   e5 = Equal.sym(Maybe<&2, Shake.Sub>, Shake.find_sub(subs, tok), None{}, h_sub)
-  %e5 : {Shake.parse.word.go(_, tok, args, specs, subs, path, bs, pos, False{}, seen)
-    == Shake.parse.take_pos(tok, args, specs, subs, path, bs, pos, False{}) : Shake.St}
+  %e5 : {Shake.parse.word.go(_, tok, args, up, subs, path, bs, pos, False{}, seen)
+    == Shake.parse.take_pos(tok, args, up, subs, path, bs, pos, False{}) : Shake.St}
   {==}
 
 # plain words, none a subcommand here, each bind the rest positional once more
 law wk.walk_plain:
   for fs: List<&2, String>
   for +args: List<&2, Shake.Arg>
-  for +specs: List<&2, Shake.Arg>
+  for +up: List<&2, Shake.Level>
   for +subs: List<&2, Shake.Sub>
   for +path: List<&2, String>
   for +bs: List<&2, Shake.Bind>
@@ -281,12 +281,12 @@ law wk.walk_plain:
   for +seen: Bool
   for +hp: {all_plain(fs) == True{} : Bool}
   for +hu: {wk.unfound(subs, fs) == True{} : Bool}
-  {Shake.parse.walk(fs, Shake.St{Shake.Free{}, args, specs, subs, path, bs,
+  {Shake.parse.walk(fs, Shake.St{Shake.Free{}, args, up, subs, path, bs,
       [wk.rest(nm, hlp, req, dflt)], False{}, seen})
-    == Shake.St{Shake.Free{}, args, specs, subs, path, wk.pushed(fs, nm, bs), [wk.rest(nm, hlp, req, dflt)], False{},
+    == Shake.St{Shake.Free{}, args, up, subs, path, wk.pushed(fs, nm, bs), [wk.rest(nm, hlp, req, dflt)], False{},
       wk.seen(fs, seen)} : Shake.St}
 
-def wk.walk_plain(fs, args, specs, subs, path, bs, nm, hlp, req, dflt, seen, hp, hu):
+def wk.walk_plain(fs, args, up, subs, path, bs, nm, hlp, req, dflt, seen, hp, hu):
   match fs:
     case Nil{}:
       {==}
@@ -294,15 +294,15 @@ def wk.walk_plain(fs, args, specs, subs, path, bs, nm, hlp, req, dflt, seen, hp,
       +pl = wk.and_l(plain_word(ww), all_plain(tl), hp)
       su = wk.and_l(Maybe.is_none(&2, Shake.Sub, Shake.find_sub(subs, ww)), wk.unfound(subs, tl), hu)
       e = Equal.sym(Shake.St,
-        Shake.parse.step(ww, Shake.St{Shake.Free{}, args, specs, subs, path, bs,
+        Shake.parse.step(ww, Shake.St{Shake.Free{}, args, up, subs, path, bs,
             [wk.rest(nm, hlp, req, dflt)], False{}, seen}),
-        Shake.parse.take_pos(ww, args, specs, subs, path, bs, [wk.rest(nm, hlp, req, dflt)], False{}),
-        wk.word_step(ww, args, specs, subs, path, bs, [wk.rest(nm, hlp, req, dflt)], seen, wk.plain_dd(ww, pl),
+        Shake.parse.take_pos(ww, args, up, subs, path, bs, [wk.rest(nm, hlp, req, dflt)], False{}),
+        wk.word_step(ww, args, up, subs, path, bs, [wk.rest(nm, hlp, req, dflt)], seen, wk.plain_dd(ww, pl),
           wk.plain_help(ww, pl), wk.plain_dash(ww, pl), wk.none_of(Shake.find_sub(subs, ww), su)))
       %e : {Shake.parse.walk(tl, _)
-        == Shake.St{Shake.Free{}, args, specs, subs, path, wk.pushed(tl, nm, Shake.Bind{nm, ww} <> bs),
+        == Shake.St{Shake.Free{}, args, up, subs, path, wk.pushed(tl, nm, Shake.Bind{nm, ww} <> bs),
           [wk.rest(nm, hlp, req, dflt)], False{}, wk.seen(tl, True{})} : Shake.St}
-      wk.walk_plain(tl, args, specs, subs, path, Shake.Bind{nm, ww} <> bs, nm, hlp, req, dflt, True{},
+      wk.walk_plain(tl, args, up, subs, path, Shake.Bind{nm, ww} <> bs, nm, hlp, req, dflt, True{},
         wk.and_r(plain_word(ww), all_plain(tl), hp),
         wk.and_r(Maybe.is_none(&2, Shake.Sub, Shake.find_sub(subs, ww)), wk.unfound(subs, tl), hu))
 
@@ -310,7 +310,7 @@ def wk.walk_plain(fs, args, specs, subs, path, bs, nm, hlp, req, dflt, seen, hp,
 law wk.walk_raw:
   for fs: List<&2, String>
   for +args: List<&2, Shake.Arg>
-  for +specs: List<&2, Shake.Arg>
+  for +up: List<&2, Shake.Level>
   for +subs: List<&2, Shake.Sub>
   for +path: List<&2, String>
   for bs: List<&2, Shake.Bind>
@@ -319,14 +319,14 @@ law wk.walk_raw:
   for +req: Bool
   for +dflt: Maybe<&2, String>
   for seen: Bool
-  {Shake.parse.walk(fs, Shake.St{Shake.Free{}, args, specs, subs, path, bs,
+  {Shake.parse.walk(fs, Shake.St{Shake.Free{}, args, up, subs, path, bs,
       [wk.rest(nm, hlp, req, dflt)], True{}, seen})
-    == Shake.St{Shake.Free{}, args, specs, subs, path, wk.pushed(fs, nm, bs), [wk.rest(nm, hlp, req, dflt)], True{},
+    == Shake.St{Shake.Free{}, args, up, subs, path, wk.pushed(fs, nm, bs), [wk.rest(nm, hlp, req, dflt)], True{},
       wk.seen(fs, seen)} : Shake.St}
 
-def wk.walk_raw(fs, args, specs, subs, path, bs, nm, hlp, req, dflt, _seen):
+def wk.walk_raw(fs, args, up, subs, path, bs, nm, hlp, req, dflt, _seen):
   match fs:
     case Nil{}:
       {==}
     case Con{ww, tl}:
-      wk.walk_raw(tl, args, specs, subs, path, Shake.Bind{nm, ww} <> bs, nm, hlp, req, dflt, True{})
+      wk.walk_raw(tl, args, up, subs, path, Shake.Bind{nm, ww} <> bs, nm, hlp, req, dflt, True{})
