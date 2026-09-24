@@ -6061,7 +6061,7 @@ def gv.step_short(
 ) -> gv.G(S.parse.step.short(dash, tok, args, up, subs, path, binds, pos, seen), ws):
   match dash:
     case True{}:
-      gv.short_go(String.eq(tok, "-"), tok, args, up, subs, path, binds, pos, seen, ws, hh, hb, hu)
+      gv.short_go(String.is_empty(String.drop(tok, 1n)), tok, args, up, subs, path, binds, pos, seen, ws, hh, hb, hu)
     case False{}:
       gv.word(tok, args, up, subs, path, binds, pos, False{}, seen, ws, hh, hb, hu)
 
@@ -6104,7 +6104,8 @@ def gv.skind(
   hb: gv.B(binds, ws),
   hu: gv.U(up, ws)
 ) -> gv.G(S.parse.step.kind(tok, args, up, subs, path, binds, pos, seen), ws):
-  gv.kind_go(String.starts_with(tok, "--"), String.starts_with(tok, "-"), tok, args, up, subs, path, binds, pos, seen, ws,
+  gv.kind_go(String.starts_with(tok, "--"), String.starts_with(tok, "-"), tok, args, up, subs, path, binds, pos, seen,
+    ws,
     hh, hb, hu)
 
 # `help` starts a help path, keeping the bindings
@@ -7261,7 +7262,7 @@ def gn.step_short(
 ) -> gn.G(S.parse.step.short(dash, tok, args, up, subs, path, binds, pos, seen), ws):
   match dash:
     case True{}:
-      gn.short_go(String.eq(tok, "-"), tok, args, up, subs, path, binds, pos, seen, ws, hh, hb, hp)
+      gn.short_go(String.is_empty(String.drop(tok, 1n)), tok, args, up, subs, path, binds, pos, seen, ws, hh, hb, hp)
     case False{}:
       gn.word(tok, args, up, subs, path, binds, pos, False{}, seen, ws, hh, hb, hp)
 
@@ -7304,7 +7305,8 @@ def gn.skind(
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
 ) -> gn.G(S.parse.step.kind(tok, args, up, subs, path, binds, pos, seen), ws):
-  gn.kind_go(String.starts_with(tok, "--"), String.starts_with(tok, "-"), tok, args, up, subs, path, binds, pos, seen, ws,
+  gn.kind_go(String.starts_with(tok, "--"), String.starts_with(tok, "-"), tok, args, up, subs, path, binds, pos, seen,
+    ws,
     hh, hb, hp)
 
 # `help` starts a help path
@@ -7803,3 +7805,1850 @@ def Laws.values_here(spec, pre, mid, post, found, qs, args, bs, up, path, ms, h_
         gn.all_named(bs, args, mid, gn.here(spec, pre, mid, args, bs, up, path, h_pre, h_mid)),
         gn.dsub_self(args)),
       {==}))
+
+# ---- SHAKE-PARSE-1: a word binds at most one value
+
+# a walker's bindings count at most `kk` values
+def nd.T(st: S.St, +kk: Nat) -> Type:
+  {Laws.nat_le(Laws.valued(Laws.binds_of(st)), kk) == True{} : Bool}
+
+# a count is at most itself
+def nd.le_refl(nn: Nat) -> {Laws.nat_le(nn, nn) == True{} : Bool}:
+  match nn:
+    case 0n:
+      {==}
+    case 1n+pp:
+      nd.le_refl(pp)
+
+# a count is at most one more
+def nd.le_s(nn: Nat) -> {Laws.nat_le(nn, 1n+nn) == True{} : Bool}:
+  match nn:
+    case 0n:
+      {==}
+    case 1n+pp:
+      nd.le_s(pp)
+
+# at most is transitive
+def nd.le_trans(
+  aa: Nat,
+  bb: Nat,
+  cc: Nat,
+  h1: {Laws.nat_le(aa, bb) == True{} : Bool},
+  h2: {Laws.nat_le(bb, cc) == True{} : Bool}
+) -> {Laws.nat_le(aa, cc) == True{} : Bool}:
+  match aa:
+    case 0n:
+      {==}
+    case 1n+pp:
+      match bb:
+        case 0n:
+          Empty.absurd({Laws.nat_le(1n+pp, cc) == True{} : Bool}, Walk.wk.false_true(h1))
+        case 1n+qq:
+          match cc:
+            case 0n:
+              Empty.absurd({False{} == True{} : Bool}, Walk.wk.false_true(h2))
+            case 1n+rr:
+              nd.le_trans(pp, qq, rr, h1, h2)
+
+# a binding in front counts at most one more
+def nd.put_le(flag: Bool, +nn: Nat) -> {Laws.nat_le(Laws.valued.at(flag, nn), 1n+nn) == True{} : Bool}:
+  match flag:
+    case True{}:
+      nd.le_s(nn)
+    case False{}:
+      nd.le_refl(1n+nn)
+
+# the once-check keeps the walker's bindings
+def nd.once_keep(
+  again: Bool,
+  st: S.St,
+  +name: String,
+  +path: List<&2, String>
+) -> {Laws.binds_of(S.parse.once(again, st, name, path)) == Laws.binds_of(st) : List<&2, S.Bind>}:
+  match again:
+    case True{}:
+      match st:
+        case S.St{_m, _a, _g, _s, _p, _b, _o, _r, _n}:
+          {==}
+    case False{}:
+      {==}
+
+# the once-check keeps a count
+def nd.once(
+  again: Bool,
+  +st: S.St,
+  +name: String,
+  +path: List<&2, String>,
+  +kk: Nat,
+  hh: {Laws.nat_le(Laws.valued(Laws.binds_of(st)), kk) == True{} : Bool}
+) -> nd.T(S.parse.once(again, st, name, path), kk):
+  ee = Equal.sym(List<&2, S.Bind>, Laws.binds_of(S.parse.once(again, st, name, path)), Laws.binds_of(st),
+    nd.once_keep(again, st, name, path))
+  %ee : {Laws.nat_le(Laws.valued(_), kk) == True{} : Bool}
+  hh
+
+# a binding
+def nd.put(
+  +name: String,
+  +val: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool
+) -> nd.T(S.parse.put(name, val, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+  nd.put_le(String.eq(val, "true"), Laws.valued(binds))
+
+# a value bound when allowed
+def nd.choice(
+  ok: Bool,
+  +name: String,
+  +val: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool
+) -> nd.T(S.parse.take_choice(ok, name, val, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+  match ok:
+    case True{}:
+      nd.put(name, val, args, up, subs, path, binds, pos, raw, seen)
+    case False{}:
+    nd.le_s(Laws.valued(binds))
+
+# an option's value
+def nd.opt_val(
+  +name: String,
+  +val: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool
+) -> nd.T(S.parse.take_opt_val(name, val, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+  nd.choice(S.allowed(S.parse.choices(S.by_name(args, name)), val), name, val, args, up, subs, path, binds, pos, raw,
+    seen)
+
+# a flag
+def nd.flag(
+  val: Maybe<&2, String>,
+  +name: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool
+) -> nd.T(S.parse.take_flag(val, name, orig, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+  match val:
+    case None{}:
+      nd.put(name, "true", args, up, subs, path, binds, pos, raw, seen)
+    case Some{_v}:
+    nd.le_s(Laws.valued(binds))
+
+# an option
+def nd.opt(
+  val: Maybe<&2, String>,
+  +name: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool
+) -> nd.T(S.parse.take_opt(val, name, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+  match val:
+    case None{}:
+    nd.le_s(Laws.valued(binds))
+    case Some{vv}:
+      nd.opt_val(name, vv, args, up, subs, path, binds, pos, raw, seen)
+
+# a found argument, by its kind
+def nd.akind(
+  kk: S.ArgKind,
+  +name: String,
+  +val: Maybe<&2, String>,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool
+) -> nd.T(S.parse.take_arg.kind(kk, name, val, orig, args, up, subs, path, binds, pos, raw,
+  seen), 1n+Laws.valued(binds)):
+  match kk:
+    case S.Flag{}:
+      nd.once(S.bound(binds, name), S.parse.take_flag(val, name, orig, args, up, subs, path, binds, pos, raw, seen),
+        name, path, 1n+Laws.valued(binds), nd.flag(val, name, orig, args, up, subs, path, binds, pos, raw, seen))
+    case S.Opt{}:
+      nd.once(S.bound(binds, name), S.parse.take_opt(val, name, args, up, subs, path, binds, pos, raw, seen),
+        name, path, 1n+Laws.valued(binds), nd.opt(val, name, args, up, subs, path, binds, pos, raw, seen))
+    case S.Many{}:
+      nd.opt(val, name, args, up, subs, path, binds, pos, raw, seen)
+    case S.Pos{}:
+    nd.le_s(Laws.valued(binds))
+    case S.Rest{}:
+    nd.le_s(Laws.valued(binds))
+
+# a found argument, or an unknown flag
+def nd.arg(
+  found: Maybe<&2, S.Arg>,
+  +val: Maybe<&2, String>,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool
+) -> nd.T(S.parse.take_arg(found, val, orig, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+  match found:
+    case None{}:
+    nd.le_s(Laws.valued(binds))
+    case Some{aa}:
+      match aa:
+        case S.Arg{+name, _s, _l, kind, _h, _r, _d, _c}:
+          nd.akind(kind, name, val, orig, args, up, subs, path, binds, pos, raw, seen)
+
+# a long option with a name
+def nd.named(
+  empty: Bool,
+  +name: String,
+  +val: Maybe<&2, String>,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool
+) -> nd.T(S.parse.take_long.named(empty, name, val, orig, args, up, subs, path, binds, pos, raw,
+  seen), 1n+Laws.valued(binds)):
+  match empty:
+    case True{}:
+    nd.le_s(Laws.valued(binds))
+    case False{}:
+      nd.arg(S.by_long(args, name), val, orig, args, up, subs, path, binds, pos, raw, seen)
+
+# a long option after the `=` cut
+def nd.cut(
+  nv: String & Maybe<&2, String>,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool
+) -> nd.T(S.parse.take_long.cut(nv, orig, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+  match nv:
+    case (+name, +val):
+      nd.named(String.is_empty(name), name, val, orig, args, up, subs, path, binds, pos, raw, seen)
+
+# a long option
+def nd.long(
+  +body: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool
+) -> nd.T(S.parse.take_long(body, orig, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+  nd.cut(S.cut_eq(body), orig, args, up, subs, path, binds, pos, raw, seen)
+
+# the bound on a cluster so far: the count it started with while no letter
+# has ended it, one more once one has
+def nd.inv(st: S.St, +n0: Nat, done: Bool) -> Bool:
+  match done:
+    case True{}:
+      Laws.nat_le(Laws.valued(Laws.binds_of(st)), 1n+n0)
+    case False{}:
+      Laws.nat_le(Laws.valued(Laws.binds_of(st)), n0)
+
+# a walker within the count it started with is within the bound, ended or not
+def nd.inv_any(
+  done: Bool,
+  +st: S.St,
+  +n0: Nat,
+  +hh: {Laws.nat_le(Laws.valued(Laws.binds_of(st)), n0) == True{} : Bool}
+) -> {nd.inv(st, n0, done) == True{} : Bool}:
+  match done:
+    case True{}:
+      nd.le_trans(Laws.valued(Laws.binds_of(st)), n0, 1n+n0, hh, nd.le_s(n0))
+    case False{}:
+      hh
+
+# one more than a count within the start, lifted
+def nd.lift(
+  +st: S.St,
+  +bs: List<&2, S.Bind>,
+  +n0: Nat,
+  ht: {Laws.nat_le(Laws.valued(Laws.binds_of(st)), 1n+Laws.valued(bs)) == True{} : Bool},
+  hh: {Laws.nat_le(Laws.valued(bs), n0) == True{} : Bool}
+) -> {nd.inv(st, n0, True{}) == True{} : Bool}:
+  nd.le_trans(Laws.valued(Laws.binds_of(st)), 1n+Laws.valued(bs), 1n+n0, ht, hh)
+
+# a flag letter: `true` goes on, or `=` ends the cluster refused
+def nd.lflag(
+  eq: Bool,
+  +name: String,
+  +rest: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +n0: Nat,
+  +hh: {Laws.nat_le(Laws.valued(binds), n0) == True{} : Bool}
+) -> {nd.inv(S.parse.once(S.bound(binds, name), S.parse.take_flag(S.cluster.val.flag(eq, rest), name, orig, args, up,
+    subs, path, binds, pos, raw, seen), name, path), n0, eq) == True{} : Bool}:
+  match eq:
+    case True{}:
+      +st = S.parse.take_flag(Some{rest}, name, orig, args, up, subs, path, binds, pos, raw, seen)
+      ee = Equal.sym(List<&2, S.Bind>, Laws.binds_of(S.parse.once(S.bound(binds, name), st, name, path)),
+        Laws.binds_of(st), nd.once_keep(S.bound(binds, name), st, name, path))
+      %ee : {Laws.nat_le(Laws.valued(_), 1n+n0) == True{} : Bool}
+      nd.le_trans(Laws.valued(binds), n0, 1n+n0, hh, nd.le_s(n0))
+    case False{}:
+      +st = S.parse.take_flag(None{}, name, orig, args, up, subs, path, binds, pos, raw, seen)
+      ee = Equal.sym(List<&2, S.Bind>, Laws.binds_of(S.parse.once(S.bound(binds, name), st, name, path)),
+        Laws.binds_of(st), nd.once_keep(S.bound(binds, name), st, name, path))
+      %ee : {Laws.nat_le(Laws.valued(_), n0) == True{} : Bool}
+      hh
+
+# a letter's effect, and whether it ends the cluster
+def nd.lpair(
+  found: Maybe<&2, S.Arg>,
+  +rest: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +n0: Nat,
+  +hh: {Laws.nat_le(Laws.valued(binds), n0) == True{} : Bool}
+) -> {nd.inv(S.parse.take_arg(found, S.cluster.val(found, rest), orig, args, up, subs, path, binds, pos, raw, seen), n0,
+    S.cluster.ends(found, rest)) == True{} : Bool}:
+  match found:
+    case None{}:
+      nd.le_trans(Laws.valued(binds), n0, 1n+n0, hh, nd.le_s(n0))
+    case Some{aa}:
+      match aa:
+        case S.Arg{+name, +sh, +lo, kind, +hl, +req, +dd, +cs}:
+          match kind:
+            case S.Flag{}:
+              nd.lflag(String.starts_with(rest, "="), name, rest, orig, args, up, subs, path, binds, pos, raw, seen, n0,
+                hh)
+            case S.Opt{}:
+              +vv = S.short_of.val(String.starts_with(rest, "="), rest)
+              nd.lift(S.parse.once(S.bound(binds, name), S.parse.take_opt(vv, name, args, up, subs, path, binds, pos,
+                raw,
+                seen), name, path), binds, n0,
+                nd.once(S.bound(binds, name), S.parse.take_opt(vv, name, args, up, subs, path, binds, pos, raw, seen),
+                  name, path, 1n+Laws.valued(binds), nd.opt(vv, name, args, up, subs, path, binds, pos, raw, seen)), hh)
+            case S.Many{}:
+              +vv = S.short_of.val(String.starts_with(rest, "="), rest)
+              nd.lift(S.parse.take_opt(vv, name, args, up, subs, path, binds, pos, raw, seen), binds, n0,
+                nd.opt(vv, name, args, up, subs, path, binds, pos, raw, seen), hh)
+            case S.Pos{}:
+              nd.le_trans(Laws.valued(binds), n0, 1n+n0, hh, nd.le_s(n0))
+            case S.Rest{}:
+              nd.le_trans(Laws.valued(binds), n0, 1n+n0, hh, nd.le_s(n0))
+
+# a walker within the bound is within one more than the start
+def nd.inv_out(
+  done: Bool,
+  +st: S.St,
+  +n0: Nat,
+  +hh: {nd.inv(st, n0, done) == True{} : Bool}
+) -> nd.T(st, 1n+n0):
+  match done:
+    case True{}:
+      hh
+    case False{}:
+      nd.le_trans(Laws.valued(Laws.binds_of(st)), n0, 1n+n0, hh, nd.le_s(n0))
+
+# one letter, by the walker's mode
+def nd.cmode(
+  mode: S.Mode,
+  +cc: Char,
+  +rest: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +n0: Nat,
+  +hh: {Laws.nat_le(Laws.valued(binds), n0) == True{} : Bool}
+) -> {nd.inv(S.cluster.apply.mode(mode, cc, rest, orig, args, up, subs, path, binds, pos, raw, seen), n0,
+    S.cluster.ends(S.by_short(args, SCon{cc, SNil{}}), rest)) == True{} : Bool}:
+  match mode:
+    case S.Dead{+ee}:
+      nd.inv_any(S.cluster.ends(S.by_short(args, SCon{cc, SNil{}}), rest),
+        S.St{S.Dead{ee}, args, up, subs, path, binds, pos, raw, seen}, n0, hh)
+    case S.Free{}:
+      nd.lpair(S.by_short(args, SCon{cc, SNil{}}), rest, orig, args, up, subs, path, binds, pos, raw, seen, n0, hh)
+    case S.Need{_n}:
+      nd.lpair(S.by_short(args, SCon{cc, SNil{}}), rest, orig, args, up, subs, path, binds, pos, raw, seen, n0, hh)
+    case S.Help{}:
+      nd.lpair(S.by_short(args, SCon{cc, SNil{}}), rest, orig, args, up, subs, path, binds, pos, raw, seen, n0, hh)
+
+# one letter against a walker within the start
+def nd.capply(
+  st: S.St,
+  +cc: Char,
+  +rest: String,
+  +orig: String,
+  +n0: Nat,
+  +hh: {Laws.nat_le(Laws.valued(Laws.binds_of(st)), n0) == True{} : Bool}
+) -> {nd.inv(S.cluster.apply(st, cc, rest, orig), n0, S.cluster.done(False{}, cc, rest, st)) == True{} : Bool}:
+  match st:
+    case S.St{mode, +args, +up, +subs, +path, +binds, +pos, +raw, +seen}:
+      nd.cmode(mode, cc, rest, orig, args, up, subs, path, binds, pos, raw, seen, n0, hh)
+
+# a letter, and whether the cluster goes on
+def nd.letter(
+  done: Bool,
+  +cc: Char,
+  +rest: String,
+  +orig: String,
+  +st: S.St,
+  +n0: Nat,
+  +hh: {nd.inv(st, n0, done) == True{} : Bool}
+) -> {nd.inv(S.cluster.letter(done, cc, rest, orig, st), n0, S.cluster.done(done, cc, rest, st)) == True{} : Bool}:
+  match done:
+    case True{}:
+      hh
+    case False{}:
+      nd.capply(st, cc, rest, orig, n0, hh)
+
+# a whole cluster adds at most one value to what it started with
+def nd.cluster(
+  body: String,
+  +orig: String,
+  +st: S.St,
+  +done: Bool,
+  +n0: Nat,
+  +hh: {nd.inv(st, n0, done) == True{} : Bool}
+) -> nd.T(S.cluster(body, orig, st, done), 1n+n0):
+  match body:
+    case SNil{}:
+      nd.inv_out(done, st, n0, hh)
+    case SCon{+cc, +rest}:
+      nd.cluster(rest, orig, S.cluster.letter(done, cc, rest, orig, st), S.cluster.done(done, cc, rest, st), n0,
+        nd.letter(done, cc, rest, orig, st, n0, hh))
+
+# a short option
+def nd.short(
+  +body: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool
+) -> nd.T(S.parse.take_short(body, orig, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+  nd.cluster(body, orig, S.St{S.Free{}, args, up, subs, path, binds, pos, raw, seen}, False{}, Laws.valued(binds),
+    nd.le_refl(Laws.valued(binds)))
+
+# a positional
+def nd.take_pos(
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  pos: List<&2, S.Arg>,
+  +raw: Bool
+) -> nd.T(S.parse.take_pos(tok, args, up, subs, path, binds, pos, raw), 1n+Laws.valued(binds)):
+  match pos:
+    case Nil{}:
+    nd.le_s(Laws.valued(binds))
+    case Con{ph, +tt}:
+      match ph:
+        case S.Arg{+name, +sh, +lo, +kind, +hl, +req, +dd, +cs}:
+          nd.choice(S.allowed(cs, tok), name, tok, args, up, subs, path, binds,
+            S.parse.take_pos.keep(S.rest.is(S.Arg{name, sh, lo, kind, hl, req, dd, cs}),
+              S.Arg{name, sh, lo, kind, hl, req, dd, cs}, tt), raw, True{})
+
+# entering a subcommand starts with no bindings
+def nd.enter(
+  ss: S.Sub,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>
+) -> nd.T(S.parse.enter(ss, args, up, path, binds), 1n+Laws.valued(binds)):
+  match ss:
+    case S.Sub{_n, _a, _g, _c}:
+      {==}
+
+# a subcommand entered, or a missing positional
+def nd.enter_or(
+  miss: Maybe<&2, String>,
+  ss: S.Sub,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool
+) -> nd.T(S.parse.enter_or(miss, ss, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+  match miss:
+    case None{}:
+      nd.enter(ss, args, up, path, binds)
+    case Some{_n}:
+    nd.le_s(Laws.valued(binds))
+
+# a word
+def nd.word_go(
+  found: Maybe<&2, S.Sub>,
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool
+) -> nd.T(S.parse.word.go(found, tok, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+  match found:
+    case None{}:
+      nd.take_pos(tok, args, up, subs, path, binds, pos, raw)
+    case Some{ss}:
+      nd.enter_or(S.parse.first_req(pos), ss, args, up, subs, path, binds, pos, raw, seen)
+
+# a word
+def nd.word(
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool
+) -> nd.T(S.parse.word(tok, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+  nd.word_go(S.find_sub(subs, tok), tok, args, up, subs, path, binds, pos, raw, seen)
+
+# `-` alone, or a cluster
+def nd.short_go(
+  alone: Bool,
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool
+) -> nd.T(S.parse.step.short.go(alone, tok, args, up, subs, path, binds, pos, seen), 1n+Laws.valued(binds)):
+  match alone:
+    case True{}:
+      nd.word(tok, args, up, subs, path, binds, pos, False{}, seen)
+    case False{}:
+      nd.short(String.drop(tok, 1n), tok, args, up, subs, path, binds, pos, False{}, seen)
+
+# a short option or a word
+def nd.step_short(
+  dash: Bool,
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool
+) -> nd.T(S.parse.step.short(dash, tok, args, up, subs, path, binds, pos, seen), 1n+Laws.valued(binds)):
+  match dash:
+    case True{}:
+      nd.short_go(String.is_empty(String.drop(tok, 1n)), tok, args, up, subs, path, binds, pos, seen)
+    case False{}:
+      nd.word(tok, args, up, subs, path, binds, pos, False{}, seen)
+
+# a long option, a short one, or a word
+def nd.kind_go(
+  long: Bool,
+  dash: Bool,
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool
+) -> nd.T(S.parse.step.kind.go(long, dash, tok, args, up, subs, path, binds, pos, seen), 1n+Laws.valued(binds)):
+  match long:
+    case True{}:
+      nd.long(String.drop(tok, 2n), tok, args, up, subs, path, binds, pos, False{}, seen)
+    case False{}:
+      nd.step_short(dash, tok, args, up, subs, path, binds, pos, seen)
+
+# a word by its shape
+def nd.skind(
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool
+) -> nd.T(S.parse.step.kind(tok, args, up, subs, path, binds, pos, seen), 1n+Laws.valued(binds)):
+  nd.kind_go(String.starts_with(tok, "--"), String.starts_with(tok, "-"), tok, args, up, subs, path, binds, pos, seen)
+
+# `help`
+def nd.help(
+  hit: Bool,
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool
+) -> nd.T(S.parse.step.help(hit, tok, args, up, subs, path, binds, pos, seen), 1n+Laws.valued(binds)):
+  match hit:
+    case True{}:
+    nd.le_s(Laws.valued(binds))
+    case False{}:
+      nd.skind(tok, args, up, subs, path, binds, pos, seen)
+
+# `--`
+def nd.end(
+  end: Bool,
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool
+) -> nd.T(S.parse.step.end(end, tok, args, up, subs, path, binds, pos, seen), 1n+Laws.valued(binds)):
+  match end:
+    case True{}:
+    nd.le_s(Laws.valued(binds))
+    case False{}:
+      nd.help(Bool.and(String.eq(tok, "help"), Bool.not(seen)), tok, args, up, subs, path, binds, pos, seen)
+
+# after `--`
+def nd.raw(
+  raw: Bool,
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool
+) -> nd.T(S.parse.step.raw(raw, tok, args, up, subs, path, binds, pos, seen), 1n+Laws.valued(binds)):
+  match raw:
+    case True{}:
+      nd.take_pos(tok, args, up, subs, path, binds, pos, True{})
+    case False{}:
+      nd.end(String.eq(tok, "--"), tok, args, up, subs, path, binds, pos, seen)
+
+# a waiting option
+def nd.need(
+  flag: Bool,
+  +name: String,
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool
+) -> nd.T(S.parse.step.need(flag, name, tok, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+  match flag:
+    case True{}:
+    nd.le_s(Laws.valued(binds))
+    case False{}:
+      nd.opt_val(name, tok, args, up, subs, path, binds, pos, raw, seen)
+
+# a word of a help path
+def nd.help_path(
+  found: Maybe<&2, S.Sub>,
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool
+) -> nd.T(S.parse.step.help_path(found, tok, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+  match found:
+    case None{}:
+    nd.le_s(Laws.valued(binds))
+    case Some{ss}:
+      match ss:
+        case S.Sub{_n, _a, _g, _c}:
+      nd.le_s(Laws.valued(binds))
+
+# one word, by the walker's mode
+def nd.mode(
+  mode: S.Mode,
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool
+) -> nd.T(S.parse.step.mode(mode, tok, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+  match mode:
+    case S.Dead{_e}:
+    nd.le_s(Laws.valued(binds))
+    case S.Need{name}:
+      nd.need(S.looks_flag(tok), name, tok, args, up, subs, path, binds, pos, raw, seen)
+    case S.Help{}:
+      nd.help_path(S.find_sub(subs, tok), tok, args, up, subs, path, binds, pos, raw, seen)
+    case S.Free{}:
+      nd.raw(raw, tok, args, up, subs, path, binds, pos, seen)
+
+def Laws.one_value_per_word(tok, st):
+  match st:
+    case S.St{mode, +args, +up, +subs, +path, +binds, +pos, +raw, +seen}:
+      nd.mode(mode, tok, args, up, subs, path, binds, pos, raw, seen)
+
+# ---- SHAKE-PARSE-1: no word is ignored
+
+# whether a mode has failed, waits for a value, reads a help path
+def nu.dead_m(mode: S.Mode) -> Bool:
+  match mode:
+    case S.Dead{_e}:
+      True{}
+    case S.Free{}:
+      False{}
+    case S.Need{_n}:
+      False{}
+    case S.Help{}:
+      False{}
+
+def nu.need_m(mode: S.Mode) -> Bool:
+  match mode:
+    case S.Need{_n}:
+      True{}
+    case S.Free{}:
+      False{}
+    case S.Dead{_e}:
+      False{}
+    case S.Help{}:
+      False{}
+
+def nu.help_m(mode: S.Mode) -> Bool:
+  match mode:
+    case S.Help{}:
+      True{}
+    case S.Free{}:
+      False{}
+    case S.Need{_n}:
+      False{}
+    case S.Dead{_e}:
+      False{}
+
+# a walker's mode facts, its raw switch, its binding and level counts
+def nu.dead(st: S.St) -> Bool:
+  S.St{mode, _a, _g, _s, _p, _b, _o, _r, _n} = st
+  nu.dead_m(mode)
+
+def nu.need(st: S.St) -> Bool:
+  S.St{mode, _a, _g, _s, _p, _b, _o, _r, _n} = st
+  nu.need_m(mode)
+
+def nu.help(st: S.St) -> Bool:
+  S.St{mode, _a, _g, _s, _p, _b, _o, _r, _n} = st
+  nu.help_m(mode)
+
+def nu.raw(st: S.St) -> Bool:
+  S.St{_m, _a, _g, _s, _p, _b, _o, raw, _n} = st
+  raw
+
+def nu.blen(st: S.St) -> Nat:
+  S.St{_m, _a, _g, _s, _p, binds, _o, _r, _n} = st
+  List.length(&2, S.Bind, binds)
+
+def nu.ulen(st: S.St) -> Nat:
+  S.St{_m, _a, up, _s, _p, _b, _o, _r, _n} = st
+  List.length(&2, S.Level, up)
+
+# a walker that is not the other one
+def nu.N(res: S.St, orig: S.St) -> Type:
+  {res == orig : S.St} -> Empty
+
+# one fact that tells two walkers apart
+def nu.apart(
+  +res: S.St,
+  +orig: S.St,
+  ff: S.St -> Bool,
+  hr: {ff(res) == True{} : Bool},
+  ho: {ff(orig) == False{} : Bool}
+) -> nu.N(res, orig):
+  ee => Walk.wk.true_false(Equal.trans(Bool, True{}, ff(res), False{}, Equal.sym(Bool, ff(res), True{}, hr),
+    Equal.trans(Bool, ff(res), ff(orig), False{}, Equal.cong(S.St, Bool, ff, res, orig, ee), ho)))
+
+# zero is not one more than a count
+def nu.z_ty(nn: Nat) -> Type:
+  match nn:
+    case 0n:
+      Unit
+    case 1n+_p:
+      Empty
+
+# the count before this one
+def nu.pred(nn: Nat) -> Nat:
+  match nn:
+    case 0n:
+      0n
+    case 1n+pp:
+      pp
+
+# no count is one more than itself
+def nu.succ_ne(nn: Nat, ee: {1n+nn == nn : Nat}) -> Empty:
+  match nn:
+    case 0n:
+      e2 = Equal.sym(Nat, 1n, 0n, ee)
+      %e2 : nu.z_ty(_)
+      Unit{}
+    case 1n+pp:
+      nu.succ_ne(pp, Equal.cong(Nat, Nat, xx => nu.pred(xx), 1n+(1n+pp), 1n+pp, ee))
+
+# more bindings tell two walkers apart
+def nu.more(
+  +res: S.St,
+  +orig: S.St,
+  +nn: Nat,
+  hr: {nu.blen(res) == 1n+nn : Nat},
+  ho: {nu.blen(orig) == nn : Nat}
+) -> nu.N(res, orig):
+  ee => nu.succ_ne(nn, Equal.trans(Nat, 1n+nn, nu.blen(res), nn, Equal.sym(Nat, nu.blen(res), 1n+nn, hr),
+    Equal.trans(Nat, nu.blen(res), nu.blen(orig), nn, Equal.cong(S.St, Nat, ss => nu.blen(ss), res, orig, ee), ho)))
+
+# more levels tell two walkers apart
+def nu.deeper(
+  +res: S.St,
+  +orig: S.St,
+  +nn: Nat,
+  hr: {nu.ulen(res) == 1n+nn : Nat},
+  ho: {nu.ulen(orig) == nn : Nat}
+) -> nu.N(res, orig):
+  ee => nu.succ_ne(nn, Equal.trans(Nat, 1n+nn, nu.ulen(res), nn, Equal.sym(Nat, nu.ulen(res), 1n+nn, hr),
+    Equal.trans(Nat, nu.ulen(res), nu.ulen(orig), nn, Equal.cong(S.St, Nat, ss => nu.ulen(ss), res, orig, ee), ho)))
+
+# a binding tells the walker apart
+def nu.put(
+  +name: String,
+  +val: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +m0: S.Mode
+) -> nu.N(S.parse.put(name, val, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs, path, binds,
+  pos, raw, seen}):
+  nu.more(S.parse.put(name, val, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs, path, binds,
+    pos, raw, seen},
+    List.length(&2, S.Bind, binds), {==}, {==})
+
+# a value bound or refused
+def nu.choice(
+  ok: Bool,
+  +name: String,
+  +val: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +m0: S.Mode,
+  +hd: {nu.dead_m(m0) == False{} : Bool}
+) -> nu.N(S.parse.take_choice(ok, name, val, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs,
+  path, binds, pos, raw, seen}):
+  match ok:
+    case True{}:
+      nu.put(name, val, args, up, subs, path, binds, pos, raw, seen, m0)
+    case False{}:
+      nu.apart(S.parse.take_choice(False{}, name, val, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args,
+        up, subs, path, binds, pos, raw, seen}, ss => nu.dead(ss), {==}, hd)
+
+# an option's value
+def nu.opt_val(
+  +name: String,
+  +val: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +m0: S.Mode,
+  +hd: {nu.dead_m(m0) == False{} : Bool}
+) -> nu.N(S.parse.take_opt_val(name, val, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs, path,
+  binds, pos, raw, seen}):
+  nu.choice(S.allowed(S.parse.choices(S.by_name(args, name)), val), name, val, args, up, subs, path, binds, pos, raw,
+    seen,
+    m0, hd)
+
+# a flag
+def nu.flag(
+  val: Maybe<&2, String>,
+  +name: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +m0: S.Mode,
+  +hd: {nu.dead_m(m0) == False{} : Bool}
+) -> nu.N(S.parse.take_flag(val, name, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs,
+  path, binds, pos, raw, seen}):
+  match val:
+    case None{}:
+      nu.put(name, "true", args, up, subs, path, binds, pos, raw, seen, m0)
+    case Some{+vv}:
+      nu.apart(S.parse.take_flag(Some{vv}, name, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args,
+        up, subs, path, binds, pos, raw, seen}, ss => nu.dead(ss), {==}, hd)
+
+# an option
+def nu.opt(
+  val: Maybe<&2, String>,
+  +name: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +m0: S.Mode,
+  +hd: {nu.dead_m(m0) == False{} : Bool},
+  +hn: {nu.need_m(m0) == False{} : Bool}
+) -> nu.N(S.parse.take_opt(val, name, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs, path,
+  binds, pos, raw, seen}):
+  match val:
+    case None{}:
+      nu.apart(S.parse.take_opt(None{}, name, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs,
+        path, binds, pos, raw, seen},
+        ss => nu.need(ss), {==}, hn)
+    case Some{vv}:
+      nu.opt_val(name, vv, args, up, subs, path, binds, pos, raw, seen, m0, hd)
+
+# a repeat fails
+def nu.once_dead(
+  st: S.St,
+  +name: String,
+  +path0: List<&2, String>
+) -> {nu.dead(S.parse.once(True{}, st, name, path0)) == True{} : Bool}:
+  match st:
+    case S.St{_m, _a, _g, _s, _p, _b, _o, _r, _n}:
+      {==}
+
+# the once-check: a repeat fails, else the walker it was given
+def nu.once(
+  again: Bool,
+  +st: S.St,
+  +name: String,
+  +path0: List<&2, String>,
+  +orig: S.St,
+  +hdo: {nu.dead(orig) == False{} : Bool},
+  hh: nu.N(st, orig)
+) -> nu.N(S.parse.once(again, st, name, path0), orig):
+  match again:
+    case True{}:
+      nu.apart(S.parse.once(True{}, st, name, path0), orig, ss => nu.dead(ss), nu.once_dead(st, name, path0), hdo)
+    case False{}:
+      hh
+
+# a found argument, by its kind
+def nu.akind(
+  kk: S.ArgKind,
+  +name: String,
+  +val: Maybe<&2, String>,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +m0: S.Mode,
+  +hd: {nu.dead_m(m0) == False{} : Bool},
+  +hn: {nu.need_m(m0) == False{} : Bool}
+) -> nu.N(S.parse.take_arg.kind(kk, name, val, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up,
+  subs, path, binds, pos, raw, seen}):
+  match kk:
+    case S.Flag{}:
+      nu.once(S.bound(binds, name), S.parse.take_flag(val, name, orig, args, up, subs, path, binds, pos, raw, seen),
+        name, path, S.St{m0, args, up, subs, path, binds, pos, raw, seen}, hd, nu.flag(val, name, orig, args, up,
+          subs, path, binds, pos, raw, seen, m0, hd))
+    case S.Opt{}:
+      nu.once(S.bound(binds, name), S.parse.take_opt(val, name, args, up, subs, path, binds, pos, raw, seen),
+        name, path, S.St{m0, args, up, subs, path, binds, pos, raw, seen}, hd, nu.opt(val, name, args, up, subs, path,
+          binds, pos, raw, seen, m0, hd, hn))
+    case S.Many{}:
+      nu.opt(val, name, args, up, subs, path, binds, pos, raw, seen, m0, hd, hn)
+    case S.Pos{}:
+      nu.apart(S.parse.take_arg.kind(S.Pos{}, name, val, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0,
+        args, up, subs, path, binds, pos, raw, seen}, ss => nu.dead(ss), {==}, hd)
+    case S.Rest{}:
+      nu.apart(S.parse.take_arg.kind(S.Rest{}, name, val, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0,
+        args, up, subs, path, binds, pos, raw, seen}, ss => nu.dead(ss), {==}, hd)
+
+# a found argument, or an unknown flag
+def nu.arg(
+  found: Maybe<&2, S.Arg>,
+  +val: Maybe<&2, String>,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +m0: S.Mode,
+  +hd: {nu.dead_m(m0) == False{} : Bool},
+  +hn: {nu.need_m(m0) == False{} : Bool}
+) -> nu.N(S.parse.take_arg(found, val, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs,
+  path, binds, pos, raw, seen}):
+  match found:
+    case None{}:
+      nu.apart(S.parse.take_arg(None{}, val, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up,
+        subs, path, binds, pos, raw, seen}, ss => nu.dead(ss), {==}, hd)
+    case Some{aa}:
+      match aa:
+        case S.Arg{+name, _s, _l, kind, _h, _r, _d, _c}:
+          nu.akind(kind, name, val, orig, args, up, subs, path, binds, pos, raw, seen, m0, hd, hn)
+
+# a long option with a name
+def nu.named(
+  empty: Bool,
+  +name: String,
+  +val: Maybe<&2, String>,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +m0: S.Mode,
+  +hd: {nu.dead_m(m0) == False{} : Bool},
+  +hn: {nu.need_m(m0) == False{} : Bool}
+) -> nu.N(S.parse.take_long.named(empty, name, val, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args,
+  up, subs, path, binds, pos, raw, seen}):
+  match empty:
+    case True{}:
+      nu.apart(S.parse.take_long.named(True{}, name, val, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0,
+        args, up, subs, path, binds, pos, raw, seen}, ss => nu.dead(ss), {==}, hd)
+    case False{}:
+      nu.arg(S.by_long(args, name), val, orig, args, up, subs, path, binds, pos, raw, seen, m0, hd, hn)
+
+# a long option after the `=` cut
+def nu.cut(
+  nv: String & Maybe<&2, String>,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +m0: S.Mode,
+  +hd: {nu.dead_m(m0) == False{} : Bool},
+  +hn: {nu.need_m(m0) == False{} : Bool}
+) -> nu.N(S.parse.take_long.cut(nv, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs, path,
+  binds, pos, raw, seen}):
+  match nv:
+    case (+name, +val):
+      nu.named(String.is_empty(name), name, val, orig, args, up, subs, path, binds, pos, raw, seen, m0, hd, hn)
+
+# a long option
+def nu.long(
+  +body: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +m0: S.Mode,
+  +hd: {nu.dead_m(m0) == False{} : Bool},
+  +hn: {nu.need_m(m0) == False{} : Bool}
+) -> nu.N(S.parse.take_long(body, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs, path,
+  binds, pos, raw, seen}):
+  nu.cut(S.cut_eq(body), orig, args, up, subs, path, binds, pos, raw, seen, m0, hd, hn)
+
+# a cluster walker changed from one with `l0` bindings, free: no fewer
+# bindings, and failed, waiting, reading a help path, or more bindings
+def nu.J(+st: S.St, +l0: Nat) -> Bool:
+  Bool.and(Laws.nat_le(l0, nu.blen(st)),
+    Bool.or(Bool.or(nu.dead(st), Bool.or(nu.need(st), nu.help(st))), Laws.nat_le(1n+l0, nu.blen(st))))
+
+# a walker that is not free and has no fewer bindings has changed
+def nu.j_stop(
+  +st: S.St,
+  +l0: Nat,
+  hb: {Laws.nat_le(l0, nu.blen(st)) == True{} : Bool},
+  hs: {Bool.or(nu.dead(st), Bool.or(nu.need(st), nu.help(st))) == True{} : Bool}
+) -> {nu.J(st, l0) == True{} : Bool}:
+  ee = Equal.sym(Bool, Bool.or(nu.dead(st), Bool.or(nu.need(st), nu.help(st))), True{}, hs)
+  %ee : {Bool.and(Laws.nat_le(l0, nu.blen(st)), Bool.or(_, Laws.nat_le(1n+l0, nu.blen(st)))) == True{} : Bool}
+  gv.and_tt(Laws.nat_le(l0, nu.blen(st)), True{}, hb, {==})
+
+# a binding changes a cluster walker
+def nu.jput(
+  +name: String,
+  +val: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +l0: Nat,
+  +hl0: {Laws.nat_le(l0, List.length(&2, S.Bind, binds)) == True{} : Bool}
+) -> {nu.J(S.parse.put(name, val, args, up, subs, path, binds, pos, raw, seen), l0) == True{} : Bool}:
+  gv.and_tt(Laws.nat_le(l0, 1n+List.length(&2, S.Bind, binds)), Laws.nat_le(l0, List.length(&2, S.Bind, binds)),
+    nd.le_trans(l0, List.length(&2, S.Bind, binds), 1n+List.length(&2, S.Bind, binds), hl0,
+      nd.le_s(List.length(&2, S.Bind, binds))), hl0)
+
+# bound or refused
+def nu.jchoice(
+  ok: Bool,
+  +name: String,
+  +val: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +l0: Nat,
+  +hl0: {Laws.nat_le(l0, List.length(&2, S.Bind, binds)) == True{} : Bool}
+) -> {nu.J(S.parse.take_choice(ok, name, val, args, up, subs, path, binds, pos, raw, seen), l0) == True{} : Bool}:
+  match ok:
+    case True{}:
+      nu.jput(name, val, args, up, subs, path, binds, pos, raw, seen, l0, hl0)
+    case False{}:
+      nu.j_stop(S.parse.take_choice(False{}, name, val, args, up, subs, path, binds, pos, raw, seen), l0, hl0, {==})
+
+# an option's value
+def nu.jopt_val(
+  +name: String,
+  +val: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +l0: Nat,
+  +hl0: {Laws.nat_le(l0, List.length(&2, S.Bind, binds)) == True{} : Bool}
+) -> {nu.J(S.parse.take_opt_val(name, val, args, up, subs, path, binds, pos, raw, seen), l0) == True{} : Bool}:
+  nu.jchoice(S.allowed(S.parse.choices(S.by_name(args, name)), val), name, val, args, up, subs, path, binds, pos, raw,
+    seen, l0, hl0)
+
+# a flag
+def nu.jflag(
+  val: Maybe<&2, String>,
+  +name: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +l0: Nat,
+  +hl0: {Laws.nat_le(l0, List.length(&2, S.Bind, binds)) == True{} : Bool}
+) -> {nu.J(S.parse.take_flag(val, name, orig, args, up, subs, path, binds, pos, raw, seen), l0) == True{} : Bool}:
+  match val:
+    case None{}:
+      nu.jput(name, "true", args, up, subs, path, binds, pos, raw, seen, l0, hl0)
+    case Some{+vv}:
+      nu.j_stop(S.parse.take_flag(Some{vv}, name, orig, args, up, subs, path, binds, pos, raw, seen), l0, hl0, {==})
+
+# an option
+def nu.jopt(
+  val: Maybe<&2, String>,
+  +name: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +l0: Nat,
+  +hl0: {Laws.nat_le(l0, List.length(&2, S.Bind, binds)) == True{} : Bool}
+) -> {nu.J(S.parse.take_opt(val, name, args, up, subs, path, binds, pos, raw, seen), l0) == True{} : Bool}:
+  match val:
+    case None{}:
+      nu.j_stop(S.parse.take_opt(None{}, name, args, up, subs, path, binds, pos, raw, seen), l0, hl0, {==})
+    case Some{vv}:
+      nu.jopt_val(name, vv, args, up, subs, path, binds, pos, raw, seen, l0, hl0)
+
+# the once-check keeps a changed cluster walker changed
+def nu.jonce(
+  again: Bool,
+  +st: S.St,
+  +name: String,
+  +path0: List<&2, String>,
+  +l0: Nat,
+  +hh: {nu.J(st, l0) == True{} : Bool}
+) -> {nu.J(S.parse.once(again, st, name, path0), l0) == True{} : Bool}:
+  match again:
+    case True{}:
+      match st:
+        case S.St{+mm, +aa, +gg, +ss, +pp, +bb, +oo, +rr, +nn}:
+          nu.j_stop(S.parse.once(True{}, S.St{mm, aa, gg, ss, pp, bb, oo, rr, nn}, name, path0), l0,
+            gv.and_l(Laws.nat_le(l0, List.length(&2, S.Bind, bb)),
+              Bool.or(Bool.or(nu.dead_m(mm), Bool.or(nu.need_m(mm), nu.help_m(mm))),
+                Laws.nat_le(1n+l0, List.length(&2, S.Bind, bb))), hh), {==})
+    case False{}:
+      hh
+
+# a found argument, by its kind
+def nu.jakind(
+  kk: S.ArgKind,
+  +name: String,
+  +val: Maybe<&2, String>,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +l0: Nat,
+  +hl0: {Laws.nat_le(l0, List.length(&2, S.Bind, binds)) == True{} : Bool}
+) -> {nu.J(S.parse.take_arg.kind(kk, name, val, orig, args, up, subs, path, binds, pos, raw, seen),
+  l0) == True{} : Bool}:
+  match kk:
+    case S.Flag{}:
+      nu.jonce(S.bound(binds, name), S.parse.take_flag(val, name, orig, args, up, subs, path, binds, pos, raw, seen),
+        name, path, l0, nu.jflag(val, name, orig, args, up, subs, path, binds, pos, raw, seen, l0, hl0))
+    case S.Opt{}:
+      nu.jonce(S.bound(binds, name), S.parse.take_opt(val, name, args, up, subs, path, binds, pos, raw, seen),
+        name, path, l0, nu.jopt(val, name, args, up, subs, path, binds, pos, raw, seen, l0, hl0))
+    case S.Many{}:
+      nu.jopt(val, name, args, up, subs, path, binds, pos, raw, seen, l0, hl0)
+    case S.Pos{}:
+      nu.j_stop(S.parse.take_arg.kind(S.Pos{}, name, val, orig, args, up, subs, path, binds, pos, raw, seen), l0, hl0,
+        {==})
+    case S.Rest{}:
+      nu.j_stop(S.parse.take_arg.kind(S.Rest{}, name, val, orig, args, up, subs, path, binds, pos, raw, seen), l0,
+        hl0, {==})
+
+# a found argument, or an unknown flag
+def nu.jarg(
+  found: Maybe<&2, S.Arg>,
+  +val: Maybe<&2, String>,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +l0: Nat,
+  +hl0: {Laws.nat_le(l0, List.length(&2, S.Bind, binds)) == True{} : Bool}
+) -> {nu.J(S.parse.take_arg(found, val, orig, args, up, subs, path, binds, pos, raw, seen), l0) == True{} : Bool}:
+  match found:
+    case None{}:
+      nu.j_stop(S.parse.take_arg(None{}, val, orig, args, up, subs, path, binds, pos, raw, seen), l0, hl0, {==})
+    case Some{aa}:
+      match aa:
+        case S.Arg{+name, _s, _l, kind, _h, _r, _d, _c}:
+          nu.jakind(kind, name, val, orig, args, up, subs, path, binds, pos, raw, seen, l0, hl0)
+
+# one letter, by the walker's mode
+def nu.jmode(
+  mode: S.Mode,
+  +cc: Char,
+  +rest: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +l0: Nat,
+  +hl0: {Laws.nat_le(l0, List.length(&2, S.Bind, binds)) == True{} : Bool}
+) -> {nu.J(S.cluster.apply.mode(mode, cc, rest, orig, args, up, subs, path, binds, pos, raw, seen),
+  l0) == True{} : Bool}:
+  match mode:
+    case S.Dead{+ee}:
+      nu.j_stop(S.St{S.Dead{ee}, args, up, subs, path, binds, pos, raw, seen}, l0, hl0, {==})
+    case S.Free{}:
+      nu.jarg(S.by_short(args, SCon{cc, SNil{}}), S.cluster.val(S.by_short(args, SCon{cc, SNil{}}), rest), orig, args,
+        up, subs, path, binds, pos, raw, seen, l0, hl0)
+    case S.Need{_n}:
+      nu.jarg(S.by_short(args, SCon{cc, SNil{}}), S.cluster.val(S.by_short(args, SCon{cc, SNil{}}), rest), orig, args,
+        up, subs, path, binds, pos, raw, seen, l0, hl0)
+    case S.Help{}:
+      nu.jarg(S.by_short(args, SCon{cc, SNil{}}), S.cluster.val(S.by_short(args, SCon{cc, SNil{}}), rest), orig, args,
+        up, subs, path, binds, pos, raw, seen, l0, hl0)
+
+# one letter against a walker with no fewer bindings than the start
+def nu.japply(
+  st: S.St,
+  +cc: Char,
+  +rest: String,
+  +orig: String,
+  +l0: Nat,
+  +hb: {Laws.nat_le(l0, nu.blen(st)) == True{} : Bool}
+) -> {nu.J(S.cluster.apply(st, cc, rest, orig), l0) == True{} : Bool}:
+  match st:
+    case S.St{mode, +args, +up, +subs, +path, +binds, +pos, +raw, +seen}:
+      nu.jmode(mode, cc, rest, orig, args, up, subs, path, binds, pos, raw, seen, l0, hb)
+
+# a changed walker has no fewer bindings
+def nu.j_le(
+  +st: S.St,
+  +l0: Nat,
+  +hh: {nu.J(st, l0) == True{} : Bool}
+) -> {Laws.nat_le(l0, nu.blen(st)) == True{} : Bool}:
+  gv.and_l(Laws.nat_le(l0, nu.blen(st)),
+    Bool.or(Bool.or(nu.dead(st), Bool.or(nu.need(st), nu.help(st))), Laws.nat_le(1n+l0, nu.blen(st))), hh)
+
+# a letter keeps a changed walker changed
+def nu.jletter(
+  done: Bool,
+  +cc: Char,
+  +rest: String,
+  +orig: String,
+  +st: S.St,
+  +l0: Nat,
+  +hh: {nu.J(st, l0) == True{} : Bool}
+) -> {nu.J(S.cluster.letter(done, cc, rest, orig, st), l0) == True{} : Bool}:
+  match done:
+    case True{}:
+      hh
+    case False{}:
+      nu.japply(st, cc, rest, orig, l0, nu.j_le(st, l0, hh))
+
+# the rest of a cluster keeps a changed walker changed
+def nu.jcluster(
+  body: String,
+  +orig: String,
+  +st: S.St,
+  +done: Bool,
+  +l0: Nat,
+  +hh: {nu.J(st, l0) == True{} : Bool}
+) -> {nu.J(S.cluster(body, orig, st, done), l0) == True{} : Bool}:
+  match body:
+    case SNil{}:
+      hh
+    case SCon{+cc, +rest}:
+      nu.jcluster(rest, orig, S.cluster.letter(done, cc, rest, orig, st), S.cluster.done(done, cc, rest, st), l0,
+        nu.jletter(done, cc, rest, orig, st, l0, hh))
+
+# a count is never above itself by one
+def nu.le_sn(nn: Nat) -> {Laws.nat_le(1n+nn, nn) == False{} : Bool}:
+  match nn:
+    case 0n:
+      {==}
+    case 1n+pp:
+      nu.le_sn(pp)
+
+# a cluster of at least one letter changes the walker
+def nu.cluster1(
+  +cc: Char,
+  +rest: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool,
+  +m0: S.Mode,
+  +hd: {nu.dead_m(m0) == False{} : Bool},
+  +hn: {nu.need_m(m0) == False{} : Bool},
+  +hl: {nu.help_m(m0) == False{} : Bool}
+) -> nu.N(S.cluster(SCon{cc, rest}, orig, S.St{S.Free{}, args, up, subs, path, binds, pos, False{}, seen},
+  False{}), S.St{m0, args, up, subs, path, binds, pos, False{}, seen}):
+  +l0 = List.length(&2, S.Bind, binds)
+  +s0 = {S.St{S.Free{}, args, up, subs, path, binds, pos, False{}, seen} : S.St}
+  +fin = S.cluster(SCon{cc, rest}, orig, s0, False{})
+  hj = nu.jcluster(rest, orig, S.cluster.letter(False{}, cc, rest, orig, s0), S.cluster.done(False{}, cc, rest, s0), l0,
+    nu.japply(s0, cc, rest, orig, l0, nd.le_refl(l0)))
+  e1 = Equal.sym(Bool, nu.dead_m(m0), False{}, hd)
+  e2 = Equal.sym(Bool, nu.need_m(m0), False{}, hn)
+  e3 = Equal.sym(Bool, nu.help_m(m0), False{}, hl)
+  e4 = Equal.sym(Bool, Laws.nat_le(l0, l0), True{}, nd.le_refl(l0))
+  e5 = Equal.sym(Bool, Laws.nat_le(1n+l0, l0), False{}, nu.le_sn(l0))
+  jo = {%e1 : {Bool.and(Laws.nat_le(l0, l0), Bool.or(Bool.or(_, Bool.or(nu.need_m(m0), nu.help_m(m0))),
+      Laws.nat_le(1n+l0, l0))) == False{} : Bool}
+    %e2 : {Bool.and(Laws.nat_le(l0, l0), Bool.or(Bool.or(False{}, Bool.or(_, nu.help_m(m0))),
+      Laws.nat_le(1n+l0, l0))) == False{} : Bool}
+    %e3 : {Bool.and(Laws.nat_le(l0, l0), Bool.or(Bool.or(False{}, Bool.or(False{}, _)),
+      Laws.nat_le(1n+l0, l0))) == False{} : Bool}
+    %e4 : {Bool.and(_, Laws.nat_le(1n+l0, l0)) == False{} : Bool}
+    %e5 : {_ == False{} : Bool}
+    {==} : {nu.J(S.St{m0, args, up, subs, path, binds, pos, False{}, seen}, l0) == False{} : Bool}}
+  nu.apart(fin, S.St{m0, args, up, subs, path, binds, pos, False{}, seen}, ss => nu.J(ss, l0), hj, jo)
+
+# a nonempty cluster body is a char in front of the rest
+def nu.cl0(
+  body: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool,
+  +m0: S.Mode,
+  +hd: {nu.dead_m(m0) == False{} : Bool},
+  +hn: {nu.need_m(m0) == False{} : Bool},
+  +hl: {nu.help_m(m0) == False{} : Bool},
+  +he: {String.is_empty(body) == False{} : Bool}
+) -> nu.N(S.parse.take_short(body, orig, args, up, subs, path, binds, pos, False{}, seen),
+    S.St{m0, args, up, subs, path, binds, pos, False{}, seen}):
+  match body:
+    case SNil{}:
+      Empty.absurd(nu.N(S.parse.take_short(SNil{}, orig, args, up, subs, path, binds, pos, False{}, seen),
+        S.St{m0, args, up, subs, path, binds, pos, False{}, seen}), Walk.wk.true_false(he))
+    case SCon{+cc, +rest}:
+      nu.cluster1(cc, rest, orig, args, up, subs, path, binds, pos, seen, m0, hd, hn, hl)
+
+# a value bound or refused, against any walker with as many bindings that has
+# not failed
+def nu.choice_any(
+  ok: Bool,
+  +name: String,
+  +val: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +orig: S.St,
+  +hb: {nu.blen(orig) == List.length(&2, S.Bind, binds) : Nat},
+  +hd: {nu.dead(orig) == False{} : Bool}
+) -> nu.N(S.parse.take_choice(ok, name, val, args, up, subs, path, binds, pos, raw, seen), orig):
+  match ok:
+    case True{}:
+      nu.more(S.parse.put(name, val, args, up, subs, path, binds, pos, raw, seen), orig, List.length(&2, S.Bind, binds),
+        {==}, hb)
+    case False{}:
+      nu.apart(S.parse.take_choice(False{}, name, val, args, up, subs, path, binds, pos, raw, seen), orig,
+        ss => nu.dead(ss), {==}, hd)
+
+# a positional binds the word, or none is left
+def nu.take_pos(
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +m0: S.Mode,
+  +hd: {nu.dead_m(m0) == False{} : Bool}
+) -> nu.N(S.parse.take_pos(tok, args, up, subs, path, binds, pos, raw), S.St{m0, args, up, subs, path, binds, pos,
+  raw, seen}):
+  match pos:
+    case Nil{}:
+      nu.apart(S.parse.take_pos(tok, args, up, subs, path, binds, [], raw), S.St{m0, args, up, subs, path, binds, [],
+        raw, seen},
+        ss => nu.dead(ss), {==}, hd)
+    case Con{ph, +tt}:
+      match ph:
+        case S.Arg{+name, +sh, +lo, +kind, +hl, +req, +dd, +cs}:
+          nu.choice_any(S.allowed(cs, tok), name, tok, args, up, subs, path, binds,
+            S.parse.take_pos.keep(S.rest.is(S.Arg{name, sh, lo, kind, hl, req, dd, cs}),
+              S.Arg{name, sh, lo, kind, hl, req, dd, cs}, tt), raw, True{},
+            S.St{m0, args, up, subs, path, binds, S.Arg{name, sh, lo, kind, hl, req, dd, cs} <> tt, raw,
+              seen}, {==}, hd)
+
+# entering a subcommand adds a level
+def nu.enter(
+  ss: S.Sub,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +m0: S.Mode
+) -> nu.N(S.parse.enter(ss, args, up, path, binds), S.St{m0, args, up, subs, path, binds, pos, raw, seen}):
+  match ss:
+    case S.Sub{+nn, +na, +nx, +nc}:
+      nu.deeper(S.parse.enter(S.Sub{nn, na, nx, nc}, args, up, path, binds), S.St{m0, args, up, subs, path, binds,
+        pos, raw, seen},
+        List.length(&2, S.Level, up), {==}, {==})
+
+# a subcommand entered, or a missing positional
+def nu.enter_or(
+  miss: Maybe<&2, String>,
+  ss: S.Sub,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +m0: S.Mode,
+  +hd: {nu.dead_m(m0) == False{} : Bool}
+) -> nu.N(S.parse.enter_or(miss, ss, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs, path,
+  binds, pos, raw, seen}):
+  match miss:
+    case None{}:
+      nu.enter(ss, args, up, subs, path, binds, pos, raw, seen, m0)
+    case Some{+nn}:
+      nu.apart(S.parse.enter_or(Some{nn}, ss, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs,
+        path, binds, pos, raw, seen}, ss => nu.dead(ss), {==}, hd)
+
+# a word
+def nu.word_go(
+  found: Maybe<&2, S.Sub>,
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +m0: S.Mode,
+  +hd: {nu.dead_m(m0) == False{} : Bool}
+) -> nu.N(S.parse.word.go(found, tok, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs, path,
+  binds, pos, raw, seen}):
+  match found:
+    case None{}:
+      nu.take_pos(tok, args, up, subs, path, binds, pos, raw, seen, m0, hd)
+    case Some{ss}:
+      nu.enter_or(S.parse.first_req(pos), ss, args, up, subs, path, binds, pos, raw, seen, m0, hd)
+
+# a word
+def nu.word(
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +m0: S.Mode,
+  +hd: {nu.dead_m(m0) == False{} : Bool}
+) -> nu.N(S.parse.word(tok, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs, path, binds, pos,
+  raw, seen}):
+  nu.word_go(S.find_sub(subs, tok), tok, args, up, subs, path, binds, pos, raw, seen, m0, hd)
+
+# `-` alone, or a cluster
+def nu.short_go(
+  alone: Bool,
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool,
+  +m0: S.Mode,
+  +hd: {nu.dead_m(m0) == False{} : Bool},
+  +hn: {nu.need_m(m0) == False{} : Bool},
+  +hl: {nu.help_m(m0) == False{} : Bool},
+  +ha: {String.is_empty(String.drop(tok, 1n)) == alone : Bool}
+) -> nu.N(S.parse.step.short.go(alone, tok, args, up, subs, path, binds, pos, seen), S.St{m0, args, up, subs, path,
+  binds, pos, False{}, seen}):
+  match alone:
+    case True{}:
+      nu.word(tok, args, up, subs, path, binds, pos, False{}, seen, m0, hd)
+    case False{}:
+      nu.cl0(String.drop(tok, 1n), tok, args, up, subs, path, binds, pos, seen, m0, hd, hn, hl, ha)
+
+# a short option or a word
+def nu.step_short(
+  dash: Bool,
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool,
+  +m0: S.Mode,
+  +hd: {nu.dead_m(m0) == False{} : Bool},
+  +hn: {nu.need_m(m0) == False{} : Bool},
+  +hl: {nu.help_m(m0) == False{} : Bool}
+) -> nu.N(S.parse.step.short(dash, tok, args, up, subs, path, binds, pos, seen), S.St{m0, args, up, subs, path, binds,
+  pos, False{}, seen}):
+  match dash:
+    case True{}:
+      nu.short_go(String.is_empty(String.drop(tok, 1n)), tok, args, up, subs, path, binds, pos, seen, m0, hd, hn, hl,
+        {==})
+    case False{}:
+      nu.word(tok, args, up, subs, path, binds, pos, False{}, seen, m0, hd)
+
+# a long option, a short one, or a word
+def nu.kind_go(
+  long: Bool,
+  dash: Bool,
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool,
+  +m0: S.Mode,
+  +hd: {nu.dead_m(m0) == False{} : Bool},
+  +hn: {nu.need_m(m0) == False{} : Bool},
+  +hl: {nu.help_m(m0) == False{} : Bool}
+) -> nu.N(S.parse.step.kind.go(long, dash, tok, args, up, subs, path, binds, pos, seen), S.St{m0, args, up, subs,
+  path, binds, pos, False{}, seen}):
+  match long:
+    case True{}:
+      nu.long(String.drop(tok, 2n), tok, args, up, subs, path, binds, pos, False{}, seen, m0, hd, hn)
+    case False{}:
+      nu.step_short(dash, tok, args, up, subs, path, binds, pos, seen, m0, hd, hn, hl)
+
+# a word by its shape
+def nu.skind(
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool,
+  +m0: S.Mode,
+  +hd: {nu.dead_m(m0) == False{} : Bool},
+  +hn: {nu.need_m(m0) == False{} : Bool},
+  +hl: {nu.help_m(m0) == False{} : Bool}
+) -> nu.N(S.parse.step.kind(tok, args, up, subs, path, binds, pos, seen), S.St{m0, args, up, subs, path, binds, pos,
+  False{}, seen}):
+  nu.kind_go(String.starts_with(tok, "--"), String.starts_with(tok, "-"), tok, args, up, subs, path, binds, pos, seen,
+    m0,
+    hd, hn, hl)
+
+# `help` starts a help path
+def nu.help_w(
+  hit: Bool,
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool,
+  +m0: S.Mode,
+  +hd: {nu.dead_m(m0) == False{} : Bool},
+  +hn: {nu.need_m(m0) == False{} : Bool},
+  +hl: {nu.help_m(m0) == False{} : Bool}
+) -> nu.N(S.parse.step.help(hit, tok, args, up, subs, path, binds, pos, seen), S.St{m0, args, up, subs, path, binds,
+  pos, False{}, seen}):
+  match hit:
+    case True{}:
+      nu.apart(S.parse.step.help(True{}, tok, args, up, subs, path, binds, pos, seen), S.St{m0, args, up, subs, path,
+        binds, pos, False{}, seen}, ss => nu.help(ss), {==}, hl)
+    case False{}:
+      nu.skind(tok, args, up, subs, path, binds, pos, seen, m0, hd, hn, hl)
+
+# `--` switches to positionals
+def nu.end(
+  end: Bool,
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool,
+  +m0: S.Mode,
+  +hd: {nu.dead_m(m0) == False{} : Bool},
+  +hn: {nu.need_m(m0) == False{} : Bool},
+  +hl: {nu.help_m(m0) == False{} : Bool}
+) -> nu.N(S.parse.step.end(end, tok, args, up, subs, path, binds, pos, seen), S.St{m0, args, up, subs, path, binds,
+  pos, False{}, seen}):
+  match end:
+    case True{}:
+      nu.apart(S.parse.step.end(True{}, tok, args, up, subs, path, binds, pos, seen), S.St{m0, args, up, subs, path,
+        binds, pos, False{}, seen}, ss => nu.raw(ss), {==}, {==})
+    case False{}:
+      nu.help_w(Bool.and(String.eq(tok, "help"), Bool.not(seen)), tok, args, up, subs, path, binds, pos, seen, m0, hd,
+        hn,
+        hl)
+
+# after `--` a word is a positional
+def nu.rawf(
+  raw: Bool,
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool,
+  +m0: S.Mode,
+  +hd: {nu.dead_m(m0) == False{} : Bool},
+  +hn: {nu.need_m(m0) == False{} : Bool},
+  +hl: {nu.help_m(m0) == False{} : Bool}
+) -> nu.N(S.parse.step.raw(raw, tok, args, up, subs, path, binds, pos, seen), S.St{m0, args, up, subs, path, binds,
+  pos, raw, seen}):
+  match raw:
+    case True{}:
+      nu.take_pos(tok, args, up, subs, path, binds, pos, True{}, seen, m0, hd)
+    case False{}:
+      nu.end(String.eq(tok, "--"), tok, args, up, subs, path, binds, pos, seen, m0, hd, hn, hl)
+
+# a waiting option binds the word, or refuses it
+def nu.need_w(
+  flag: Bool,
+  +name: String,
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +m0: S.Mode,
+  +hd: {nu.dead_m(m0) == False{} : Bool}
+) -> nu.N(S.parse.step.need(flag, name, tok, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs,
+  path, binds, pos, raw, seen}):
+  match flag:
+    case True{}:
+      nu.apart(S.parse.step.need(True{}, name, tok, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up,
+        subs, path, binds, pos, raw, seen}, ss => nu.dead(ss), {==}, hd)
+    case False{}:
+      nu.opt_val(name, tok, args, up, subs, path, binds, pos, raw, seen, m0, hd)
+
+def Laws.word_used(tok, st, h_live, h_same):
+  match st:
+    case S.St{mode, +args, +up, +subs, +path, +binds, +pos, +raw, +seen}:
+      match mode:
+        case S.Dead{+ee}:
+          Walk.wk.false_true(h_live)
+        case S.Help{}:
+          Walk.wk.false_true(h_live)
+        case S.Need{+nn}:
+          nu.need_w(S.looks_flag(tok), nn, tok, args, up, subs, path, binds, pos, raw, seen, S.Need{nn}, {==}, h_same)
+        case S.Free{}:
+          nu.rawf(raw, tok, args, up, subs, path, binds, pos, seen, S.Free{}, {==}, {==}, {==}, h_same)
