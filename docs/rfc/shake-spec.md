@@ -109,7 +109,7 @@ The Law cells below are sketches. Names that exist today are real; `check`, `Spe
 | ID | Requirement | Level |
 | :---- | :---- | :---- |
 | SHAKE-TOK-1 | A word that starts with `--`, is not exactly `--`, and has at least one char before its first `=` is a long option: the chars between `--` and the first `=` (or the end) are its spelling, and when there is an `=` everything after it, verbatim and possibly empty, is its value. A word `--=...` is refused as `UnknownFlag{word}`. | Proved |
-| SHAKE-TOK-2 | A word that starts with `-`, is not `-` and does not start with `--` is a short option: its second char is the spelling, and the rest of the word, verbatim, is its value when it is not empty. | Proved |
+| SHAKE-TOK-2 | A word that starts with `-`, is not `-` and does not start with `--` is a short option: its second char is the spelling. When the rest of the word starts with `=`, everything after that one `=`, verbatim and possibly empty, is its value; otherwise the rest, verbatim, is its value when it is not empty. | Proved |
 | SHAKE-TOK-3 | `-` alone, and every word that does not start with `-`, is a plain word. | Proved |
 | SHAKE-TOK-4 | When a word exactly `--` reaches `parse` in option position, it binds nothing and every later word is read as a plain word bound to a positional, whatever its shape. | Proved |
 | SHAKE-TOK-5 | A flag given a value (`--verbose=x`, `-vx`) is refused as `Unexpected{word}`. | Proved |

@@ -219,9 +219,19 @@ def cut_eq.go(
 def cut_eq(ss: String) -> String & Maybe<&2, String>:
   cut_eq.go(String.to_list(ss), [])
 
+# the value glued after a short letter: what follows one `=` when the rest
+# starts with it (possibly empty, as `--name=` is), else the rest when there
+# is any
+def short_of.val(eq: Bool, +rest: String) -> Maybe<&2, String>:
+  match eq:
+    case True{}:
+      Some{String.drop(rest, 1n)}
+    case False{}:
+      Bool.pick(Maybe<&2, String>, String.is_empty(rest), None{}, Some{rest})
+
 # a short spelling and a glued value
 def short_of.go(+name: String, +rest: String) -> String & Maybe<&2, String>:
-  (name, Bool.pick(Maybe<&2, String>, String.is_empty(rest), None{}, Some{rest}))
+  (name, short_of.val(String.starts_with(rest, "="), rest))
 
 # the short name and optional glued value of the body after `-`
 def short_of(+ss: String) -> String & Maybe<&2, String>:
