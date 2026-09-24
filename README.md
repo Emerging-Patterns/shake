@@ -28,12 +28,22 @@ import 0xdf41d30432187d983a3c5b9db32d376d/main.bend as Shake
 `parse` fails with a request for help on `tool help` or
 `tool help <command>`: `help_path` gives its command path, for `help` to
 print, and is `None` for every other error, which `err_text` describes.
-`--help` is consumed by the Bend runtime of a compiled binary and never
-reaches the program. A `--` ends option parsing: every word after it is a
-positional. A rest positional keeps every leftover word under one name;
-`get_all` reads that list, and `get` still reads one value. `argv` is the
-process's arguments, each word reusable; the runtime also strips
-`--threads`, `--gpu`, and `--gpu-build`.
+A rest positional keeps every leftover word under one name; `get_all` reads
+that list, and `get` still reads one value. `argv` is the process's
+arguments, each word reusable.
+
+A compiled Bend program's runtime reads the command line before shake does
+(bend 2.0.26):
+
+- `--help` prints the runtime's own usage and exits, and `--gpu-build`
+  builds the GPU image and exits; neither runs `main`.
+- `--threads N` and `--gpu X` are taken, with their value, and a bad value
+  stops the program.
+- The first `--` is taken too, and every word after it is passed on
+  unexamined.
+
+So a `--` ends shake's option parsing (every later word is a positional)
+only when it is the second one: `tool add -- -- -5 3` binds `-5` and `3`.
 
 ```
 git clone https://github.com/Emerging-Patterns/shake

@@ -1,6 +1,6 @@
-# shake/args: the process argv, each word reusable. `IO.args` answers a `&1`
-# list; the rest of a program reads the line more than once, so the walk
-# copies it.
+# shake/args: the process argv, each word reusable, internal (main.bend
+# exports it). `IO.args` answers a `&1` list; the rest of a program reads the
+# line more than once, so the walk copies it.
 import Base
 
 # a &1 list copied to &2
