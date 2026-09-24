@@ -248,3 +248,14 @@ Every finding is recorded, not resolved. The RFC carries a REVIEW item for each 
 ### Requirements with no code
 
 - The README says a rest positional is "every leftover word", and nothing checks that the rest is the last positional (F6).
+
+## Rollout progress
+
+| Phase | State | What landed |
+| :---- | :---- | :---- |
+| Preliminary | done | This inventory and the RFC; the RFC accepted with every review item resolved; the README builds from a fresh clone (`mkdir -p bin`) and, with `main.bend` and `src/cli.bend`, says what a compiled program's runtime takes before shake (F1, F2). |
+| Zero | done | The code moved to `src/` behind `main.bend`; ez at `df6d616`; bolt at `ada294e` as a `[tools.bolt]` pin in the lock; the newer style rules' findings fixed; `coverage` at warn, IO marked `# noqa: L001`. |
+| One | done | SPEC.md; 73 laws and `src/sample.bend` deleted (every closed law, and every quantified law marked definitional, wiring or wording above); `err_text_help` restated over `main.bend` and tagged SHAKE-ERR-1 as a partial law; `looks_flag_long`, `allowed_any`, `get_nil`, `on_nil` and `copy_one` kept untagged as lemmas; `trace` at error. `coverage` now reports 41 defs no quantified law reaches, the map of what the rows below must reach. |
+| Two | next | PARSE-9, ERR-1, GET-1 with PARSE-10's change, ARGS-1, PARSE-5, TOK-3, TOK-5, TOK-7. |
+
+The planted truncation bug (F3) is still not caught: no row about values is proved yet. PARSE-1 is the row that catches it.
