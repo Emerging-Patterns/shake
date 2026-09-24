@@ -2,8 +2,7 @@
 
 CLI argument parser for [Bend 2](https://github.com/bendlang/bend). A program
 spec is Bend data: `parse` binds flags, options, positionals, and nested
-commands; `help` writes usage. `shake/LAWS.bend` states the parser;
-`shake/PROOF.bend` proves those laws.
+commands; `help` writes usage.
 
 ## Install
 
@@ -17,20 +16,29 @@ ez add Emerging-Patterns/shake
 ## Usage
 
 ```
-import 0xba6940aab8a335b70bf79944bd9b53c4/main.bend as Shake
+import 0xdf41d30432187d983a3c5b9db32d376d/main.bend as Shake
 ```
 
-Print usage with `tool help` or `tool help <command>`. `--help` is consumed
-by the Bend runtime of a compiled binary and never reaches the program. A
-`--` ends option parsing: every word after it is a positional. A rest
-positional keeps every leftover word under one name; `get_all` reads that
-list, and `get` still reads one value. Copy `IO.args` so each word can be
-read more than once; the runtime also strips `--threads`, `--gpu`, and
-`--gpu-build`.
+`main.bend` is the whole interface: the types (`Shake.Cli`, `Shake.Sub`,
+`Shake.Arg`, `Shake.Matched`, `Shake.ParseErr`), the builders (`app`, `sub`,
+`flag`, `opt`, `pos`, `rest`), `parse`, the readers (`get`, `get_all`, `on`,
+`path_of`), `help`, `err_text`, `help_path` and `argv`. Everything under
+`src/` is internal and may change in any release; import only `main.bend`.
+
+`parse` fails with a request for help on `tool help` or
+`tool help <command>`: `help_path` gives its command path, for `help` to
+print, and is `None` for every other error, which `err_text` describes.
+`--help` is consumed by the Bend runtime of a compiled binary and never
+reaches the program. A `--` ends option parsing: every word after it is a
+positional. A rest positional keeps every leftover word under one name;
+`get_all` reads that list, and `get` still reads one value. `argv` is the
+process's arguments, each word reusable; the runtime also strips
+`--threads`, `--gpu`, and `--gpu-build`.
 
 ```
 git clone https://github.com/Emerging-Patterns/shake
 cd shake
+mkdir -p bin
 bend examples/demo/main.bend -o bin/demo.bin
 bin/demo.bin help
 bin/demo.bin greet --name Ada -v
@@ -38,3 +46,13 @@ bin/demo.bin add 2 3 --times 2
 ```
 
 `nix build` builds the same fixture to `result/bin/demo`.
+
+## Layout
+
+- `main.bend`: the interface.
+- `src/`: the implementation, with `src/LAWS.bend` stating the parser's laws
+  and `src/PROOF.bend` proving them. `ez prove` is the proof gate.
+- `examples/demo/`: a small program that uses only `main.bend`.
+- `ez.toml` and `ez.lock.toml`: the ledger and lock; bolt, the linter, is
+  pinned there as `[tools.bolt]`, and `nix flake check` runs it.
+- `docs/rfc/`: the specification in progress.
