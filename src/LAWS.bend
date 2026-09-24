@@ -282,35 +282,48 @@ law unknown_long:
   {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, ["--" ++ body]), more))
     == Fail{S.UnknownFlag{path, "--" ++ body}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
 
-# LAW: in a free walker, a short option whose letter no argument of the
-# current command has kills the walk with UnknownFlag of the whole word (a
-# step lemma)
-law unknown_short_step:
-  for +body: String
-  for +name: String
-  for val: Maybe<&2, String>
-  for +args: List<&2, S.Arg>
-  for +specs: List<&2, S.Arg>
-  for +subs: List<&2, S.Sub>
-  for +path: List<&2, String>
-  for +bs: List<&2, S.Bind>
-  for +pos: List<&2, S.Arg>
-  for +seen: Bool
-  for h_dd: {String.eq("-" ++ body, "--") == False{} : Bool}
-  for h_alone: {String.eq("-" ++ body, "-") == False{} : Bool}
-  for h_dash: {String.starts_with(body, "-") == False{} : Bool}
-  for h_cut: {S.short_of(body) == (name, val) : String & Maybe<&2, String>}
-  for h_none: {S.by_short(args, name) == None{} : Maybe<&2, S.Arg>}
-  {S.parse.step("-" ++ body, S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen})
-    == S.St{S.Dead{S.UnknownFlag{path, "-" ++ body}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
-
-# LAW: a walk that reaches an unknown short option dies there (a lemma)
-law unknown_short_dies:
+# LAW: when the words before `tok` reach a state where `tok` fails the walk,
+# the walk through `tok` has failed with that error (a lemma)
+law step_dies:
   for +spec: Shake.Cli
   for +pre: List<&2, String>
-  for +body: String
-  for +name: String
-  for val: Maybe<&2, String>
+  for +tok: String
+  for +st: S.St
+  for +err: S.ParseErr
+  for h_at: {S.parse.walk(pre, S.parse.start(spec)) == st : S.St}
+  for h_step: {dead_of(S.parse.step(tok, st)) == Some{err} : Maybe<&2, S.ParseErr>}
+  {dead_of(S.parse.walk(List.append(&2, String, pre, [tok]), S.parse.start(spec)))
+    == Some{err} : Maybe<&2, S.ParseErr>}
+
+# LAW: when the words before `tok` reach a state where `tok` fails the walk,
+# the parse fails with that error, whatever follows (a lemma: every refusal
+# row is its step fact through this)
+law refused:
+  for +spec: Shake.Cli
+  for +pre: List<&2, String>
+  for +more: List<&2, String>
+  for +tok: String
+  for +st: S.St
+  for +err: S.ParseErr
+  for h_at: {S.parse.walk(pre, S.parse.start(spec)) == st : S.St}
+  for h_step: {dead_of(S.parse.step(tok, st)) == Some{err} : Maybe<&2, S.ParseErr>}
+  {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, [tok]), more))
+    == Fail{err} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+
+# LAW: once a short cluster has ended, the letters left change nothing (a
+# lemma)
+law cluster_done:
+  for body: String
+  for +orig: String
+  for +st: S.St
+  {S.cluster(body, orig, st, True{}) == st : S.St}
+
+# LAW: in a free walker, a short option word whose first letter no argument
+# of the current command has kills the walk with UnknownFlag of the whole
+# word (a step lemma)
+law unknown_short_step:
+  for +cc: Char
+  for +rest: String
   for +args: List<&2, S.Arg>
   for +specs: List<&2, S.Arg>
   for +subs: List<&2, S.Sub>
@@ -318,27 +331,22 @@ law unknown_short_dies:
   for +bs: List<&2, S.Bind>
   for +pos: List<&2, S.Arg>
   for +seen: Bool
-  for h_at: {S.parse.walk(pre, S.parse.start(spec))
-    == S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
-  for h_dd: {String.eq("-" ++ body, "--") == False{} : Bool}
-  for h_alone: {String.eq("-" ++ body, "-") == False{} : Bool}
-  for h_dash: {String.starts_with(body, "-") == False{} : Bool}
-  for h_cut: {S.short_of(body) == (name, val) : String & Maybe<&2, String>}
-  for h_none: {S.by_short(args, name) == None{} : Maybe<&2, S.Arg>}
-  {dead_of(S.parse.walk(List.append(&2, String, pre, ["-" ++ body]), S.parse.start(spec)))
-    == Some{S.UnknownFlag{path, "-" ++ body}} : Maybe<&2, S.ParseErr>}
+  for h_dd: {String.eq("-" ++ SCon{cc, rest}, "--") == False{} : Bool}
+  for h_dash: {Char.is_eq(cc, '-') == False{} : Bool}
+  for h_none: {S.by_short(args, SCon{cc, SNil{}}) == None{} : Maybe<&2, S.Arg>}
+  {S.parse.step("-" ++ SCon{cc, rest}, S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen})
+    == S.St{S.Dead{S.UnknownFlag{path, "-" ++ SCon{cc, rest}}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
 
-# LAW: wherever the words before it leave the parse, a short option whose
-# letter no argument of that command has fails the parse with UnknownFlag of
-# the word, whatever follows
+# LAW: wherever the words before it leave the walker free, a short option
+# word whose first letter no argument of that command has fails the parse
+# with UnknownFlag of the word, whatever follows
 # SHAKE-TOK-7
 law unknown_short:
   for +spec: Shake.Cli
   for +pre: List<&2, String>
   for +more: List<&2, String>
-  for +body: String
-  for +name: String
-  for val: Maybe<&2, String>
+  for +cc: Char
+  for +rest: String
   for +args: List<&2, S.Arg>
   for +specs: List<&2, S.Arg>
   for +subs: List<&2, S.Sub>
@@ -348,10 +356,9 @@ law unknown_short:
   for +seen: Bool
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
     == S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
-  for h_dd: {String.eq("-" ++ body, "--") == False{} : Bool}
-  for h_alone: {String.eq("-" ++ body, "-") == False{} : Bool}
-  for h_dash: {String.starts_with(body, "-") == False{} : Bool}
-  for h_cut: {S.short_of(body) == (name, val) : String & Maybe<&2, String>}
-  for h_none: {S.by_short(args, name) == None{} : Maybe<&2, S.Arg>}
-  {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, ["-" ++ body]), more))
-    == Fail{S.UnknownFlag{path, "-" ++ body}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+  for h_dd: {String.eq("-" ++ SCon{cc, rest}, "--") == False{} : Bool}
+  for h_dash: {Char.is_eq(cc, '-') == False{} : Bool}
+  for h_none: {S.by_short(args, SCon{cc, SNil{}}) == None{} : Maybe<&2, S.Arg>}
+  {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, ["-" ++ SCon{cc, rest}]), more))
+    == Fail{S.UnknownFlag{path, "-" ++ SCon{cc, rest}}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+
