@@ -992,6 +992,28 @@ def parse.step.need(
     case False{}:
       parse.take_opt_val(name, tok, args, specs, subs, path, binds, pos, raw, seen)
 
+# a word after `help`: the subcommand it names, whose own subcommands the
+# next word is looked up in, or an unexpected word
+def parse.step.help_path(
+  found: Maybe<&2, Sub>,
+  +tok: String,
+  +args: List<&2, Arg>,
+  +specs: List<&2, Arg>,
+  +subs: List<&2, Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, Bind>,
+  +pos: List<&2, Arg>,
+  +raw: Bool,
+  +seen: Bool
+) -> St:
+  match found:
+    case None{}:
+      parse.dead(Unexpected{tok}, args, specs, subs, path, binds, pos, raw, seen)
+    case Some{ss}:
+      Sub{_n, _a, _g, next_subs} = ss
+      St{Help{}, args, specs, next_subs, List.append(&2, String, path, [tok]), binds,
+        pos, raw, seen}
+
 # one token against the walker
 def parse.step.mode(
   mode: Mode,
@@ -1012,8 +1034,8 @@ def parse.step.mode(
       parse.step.need(looks_flag(tok), name, tok, args, specs, subs, path, binds, pos,
         raw, seen)
     case Help{}:
-      St{Help{}, args, specs, subs, List.append(&2, String, path, [tok]), binds,
-        pos, raw, seen}
+      parse.step.help_path(find_sub(subs, tok), tok, args, specs, subs, path, binds, pos, raw,
+        seen)
     case Free{}:
       parse.step.raw(raw, tok, args, specs, subs, path, binds, pos, seen)
 
