@@ -2306,3 +2306,91 @@ law err_text_usage:
   {Shake.err_text(spec, err)
     == msg ++ "\n\n" ++ usage_line(reach(Shake.err_path(err), root(spec))) ++ "\n\n" ++ S.err.hint(Shake.err_path(err))
     : String}
+
+# the entry every Commands block ends with
+def help_sub() -> S.Sub:
+  S.Sub{"help", "Print this message or the help of the given subcommand(s)", [], []}
+
+# one Commands line per subcommand, its name and what it is about, in order
+def sub_lines(subs: List<&2, S.Sub>, +ww: Nat) -> String:
+  match subs:
+    case Nil{}:
+      ""
+    case Con{+hh, tt}:
+      S.help.cmd_line(S.help.sub_name(hh), S.help.sub_about(hh), ww) ++ sub_lines(tt, ww)
+
+# LAW: a page's Commands block has one line for each subcommand of its
+# command, in spec order, then one for `help`
+# SHAKE-HELP-2
+law cmds_listed:
+  for +subs: List<&2, S.Sub>
+  {S.help.cmds(subs)
+    == "Commands:\n" ++ sub_lines(List.append(&2, S.Sub, subs, [help_sub()]), S.help.cmd_width(subs, 0n)) ++ "\n"
+    : String}
+
+# whether an argument is a flag or an option
+def is_opt(aa: S.Arg) -> Bool:
+  Bool.not(S.pos.is(aa))
+
+# one Options line per argument, in order
+def opt_lines(args: List<&2, S.Arg>, +ww: Nat) -> String:
+  match args:
+    case Nil{}:
+      ""
+    case Con{+hh, tt}:
+      S.help.opt_line(hh, ww) ++ "\n" ++ opt_lines(tt, ww)
+
+# LAW: a page's Options block has one line for each flag and option of its
+# command, in spec order, and none for a positional
+# SHAKE-HELP-2
+law opts_listed:
+  for +args: List<&2, S.Arg>
+  {S.help.opts(args)
+    == S.help.opts.go(opt_lines(List.filter(~S.Arg, ~is_opt, args), S.help.opt_width(args, 0n))) : String}
+
+# a positional's mark: `<NAME>` when required, `[NAME]` otherwise
+def mark.req(req: Bool, +nn: String) -> String:
+  match req:
+    case True{}:
+      " <" ++ nn ++ ">"
+    case False{}:
+      " [" ++ nn ++ "]"
+
+# `...` after a rest positional
+def mark.rest(kk: S.ArgKind) -> String:
+  match kk:
+    case S.Rest{}:
+      "..."
+    case S.Pos{}:
+      ""
+    case S.Flag{}:
+      ""
+    case S.Opt{}:
+      ""
+    case S.Many{}:
+      ""
+
+# a positional as a usage line names it
+def mark(aa: S.Arg) -> String:
+  S.Arg{+name, _s, _l, kind, _h, required, _d, _c} = aa
+  mark.req(required, String.to_upper(name)) ++ mark.rest(kind)
+
+# the marks of a list of positionals, in order
+def marks(args: List<&2, S.Arg>) -> String:
+  match args:
+    case Nil{}:
+      ""
+    case Con{+hh, tt}:
+      mark(hh) ++ marks(tt)
+
+# LAW: a usage line names each positional of its command once, in spec
+# order, as `<NAME>` when required and `[NAME]` otherwise, with `...` after a
+# rest positional
+# SHAKE-HELP-2
+law usage_listed:
+  for +name: String
+  for +args: List<&2, S.Arg>
+  for +subs: List<&2, S.Sub>
+  {S.help.usage(name, args, subs)
+    == "Usage: " ++ name ++ S.help.opts_hint(args) ++ marks(List.filter(~S.Arg, ~S.pos.is, args)) ++ S.help.cmd_hint(subs)
+    : String}

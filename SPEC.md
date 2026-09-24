@@ -71,7 +71,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
 | SHAKE-HELP-1 | `help(spec, path)` renders the page of the command reached by following each name of `path` from the root through the subcommands, skipping a name that is not a subcommand where it stands. | Proved | proved | src/LAWS.bend help_page; src/LAWS.bend reach_child; src/LAWS.bend reach_skip |
-| SHAKE-HELP-2 | A page lists each subcommand of its command exactly once, in spec order, followed by `help`, and each flag and option exactly once, in spec order. Its usage line names each positional exactly once, in spec order, as `<NAME>` when required and `[NAME]` otherwise, with `...` after a rest positional. | Proved | pending |  |
+| SHAKE-HELP-2 | A page lists each subcommand of its command exactly once, in spec order, followed by `help`, and each flag and option exactly once, in spec order. Its usage line names each positional exactly once, in spec order, as `<NAME>` when required and `[NAME]` otherwise, with `...` after a rest positional. | Proved | proved | src/LAWS.bend cmds_listed; src/LAWS.bend opts_listed; src/LAWS.bend usage_listed |
 
 ### Errors (SHAKE-ERR)
 
