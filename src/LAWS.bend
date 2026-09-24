@@ -821,6 +821,7 @@ law kept:
 # given it before, then the word, whatever follows
 # SHAKE-TOK-6
 # SHAKE-PARSE-5
+# SHAKE-TOK-3
 law value_binds:
   for +spec: Shake.Cli
   for +pre: List<&2, String>
@@ -951,6 +952,7 @@ law dd_step:
 # positional: one its choices allow binds, and the walker goes on free after
 # `--` with the positionals after it pending
 # SHAKE-TOK-4
+# SHAKE-TOK-3
 law raw_next:
   for +spec: Shake.Cli
   for +pre: List<&2, String>
@@ -1130,6 +1132,7 @@ law long_binds:
 # word that is not flag-shaped and that the option's choices do not allow
 # fails the parse with BadValue of the option and the word, whatever follows
 # SHAKE-PARSE-5
+# SHAKE-TOK-3
 law value_refused:
   for +spec: Shake.Cli
   for +pre: List<&2, String>
@@ -1715,6 +1718,7 @@ law help_step:
 # words that each name a subcommand under the one before extend the path, in
 # order
 # SHAKE-PARSE-8
+# SHAKE-TOK-3
 law help_walk:
   for +spec: Shake.Cli
   for +pre: List<&2, String>
@@ -1872,3 +1876,319 @@ law cluster_dead:
   for +done: Bool
   {S.cluster(body, orig, S.St{S.Dead{err}, args, up, subs, path, bs, pos, raw, seen}, done)
     == S.St{S.Dead{err}, args, up, subs, path, bs, pos, raw, seen} : S.St}
+
+# LAW: in a free walker before `--`, a word that starts with `-`, is not `-`
+# and does not start with `--` is read as a cluster of short options, letter
+# by letter, from the walker as it stood
+# SHAKE-TOK-2
+law short_step:
+  for +cc: Char
+  for +rest: String
+  for +args: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +pos: List<&2, S.Arg>
+  for +seen: Bool
+  for h_dd: {String.eq("-" ++ SCon{cc, rest}, "--") == False{} : Bool}
+  for h_dash: {Char.is_eq(cc, '-') == False{} : Bool}
+  {S.parse.step("-" ++ SCon{cc, rest}, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen})
+    == S.cluster(SCon{cc, rest}, "-" ++ SCon{cc, rest}, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen},
+      False{}) : S.St}
+
+# LAW: a letter that spells a flag not yet given, with no `=` after it, binds
+# it, and the next letter goes on
+# SHAKE-TOK-2
+law letter_flag:
+  for +cc: Char
+  for +rest: String
+  for +orig: String
+  for +args: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +pos: List<&2, S.Arg>
+  for +raw: Bool
+  for +seen: Bool
+  for +nn: String
+  for +sh: Maybe<&2, String>
+  for +lo: Maybe<&2, String>
+  for +hp: String
+  for +req: Bool
+  for +dflt: Maybe<&2, String>
+  for +cs: List<&2, String>
+  for h_found: {S.by_short(args, SCon{cc, SNil{}}) == Some{S.Arg{nn, sh, lo, S.Flag{}, hp, req, dflt, cs}}
+    : Maybe<&2, S.Arg>}
+  for h_once: {S.bound(bs, nn) == False{} : Bool}
+  for h_noeq: {String.starts_with(rest, "=") == False{} : Bool}
+  {S.cluster(SCon{cc, rest}, orig, S.St{S.Free{}, args, up, subs, path, bs, pos, raw, seen}, False{})
+    == S.cluster(rest, orig, S.St{S.Free{}, args, up, subs, path, S.Bind{nn, "true"} <> bs, pos, raw, seen}, False{})
+    : S.St}
+
+# LAW: a letter that spells a flag not yet given, with `=` after it, refuses
+# the whole word as Unexpected
+# SHAKE-TOK-5
+law letter_flag_eq:
+  for +cc: Char
+  for +rest: String
+  for +orig: String
+  for +args: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +pos: List<&2, S.Arg>
+  for +raw: Bool
+  for +seen: Bool
+  for +nn: String
+  for +sh: Maybe<&2, String>
+  for +lo: Maybe<&2, String>
+  for +hp: String
+  for +req: Bool
+  for +dflt: Maybe<&2, String>
+  for +cs: List<&2, String>
+  for h_found: {S.by_short(args, SCon{cc, SNil{}}) == Some{S.Arg{nn, sh, lo, S.Flag{}, hp, req, dflt, cs}}
+    : Maybe<&2, S.Arg>}
+  for h_once: {S.bound(bs, nn) == False{} : Bool}
+  for h_eq: {String.starts_with(rest, "=") == True{} : Bool}
+  {S.cluster(SCon{cc, rest}, orig, S.St{S.Free{}, args, up, subs, path, bs, pos, raw, seen}, False{})
+    == S.St{S.Dead{S.Unexpected{path, orig}}, args, up, subs, path, bs, pos, raw, seen} : S.St}
+
+# LAW: a letter no argument of the current command spells refuses the whole
+# word as UnknownFlag, whatever letters came before it
+# SHAKE-TOK-2
+# SHAKE-TOK-7
+law letter_unknown:
+  for +cc: Char
+  for +rest: String
+  for +orig: String
+  for +args: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +pos: List<&2, S.Arg>
+  for +raw: Bool
+  for +seen: Bool
+  for h_none: {S.by_short(args, SCon{cc, SNil{}}) == None{} : Maybe<&2, S.Arg>}
+  {S.cluster(SCon{cc, rest}, orig, S.St{S.Free{}, args, up, subs, path, bs, pos, raw, seen}, False{})
+    == S.St{S.Dead{S.UnknownFlag{path, orig}}, args, up, subs, path, bs, pos, raw, seen} : S.St}
+
+# LAW: a letter that spells a flag already given refuses the whole word as
+# Repeated
+# SHAKE-PARSE-10
+law letter_flag_again:
+  for +cc: Char
+  for +rest: String
+  for +orig: String
+  for +args: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +pos: List<&2, S.Arg>
+  for +raw: Bool
+  for +seen: Bool
+  for +nn: String
+  for +sh: Maybe<&2, String>
+  for +lo: Maybe<&2, String>
+  for +hp: String
+  for +req: Bool
+  for +dflt: Maybe<&2, String>
+  for +cs: List<&2, String>
+  for h_found: {S.by_short(args, SCon{cc, SNil{}}) == Some{S.Arg{nn, sh, lo, S.Flag{}, hp, req, dflt, cs}}
+    : Maybe<&2, S.Arg>}
+  for h_again: {S.bound(bs, nn) == True{} : Bool}
+  {dead_of(S.cluster(SCon{cc, rest}, orig, S.St{S.Free{}, args, up, subs, path, bs, pos, raw, seen}, False{}))
+    == Some{S.Repeated{path, nn}} : Maybe<&2, S.ParseErr>}
+
+# LAW: a letter that spells an option built with `opt` already given refuses
+# the whole word as Repeated
+# SHAKE-PARSE-10
+law letter_opt_again:
+  for +cc: Char
+  for +rest: String
+  for +orig: String
+  for +args: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +pos: List<&2, S.Arg>
+  for +raw: Bool
+  for +seen: Bool
+  for +nn: String
+  for +sh: Maybe<&2, String>
+  for +lo: Maybe<&2, String>
+  for +hp: String
+  for +req: Bool
+  for +dflt: Maybe<&2, String>
+  for +cs: List<&2, String>
+  for h_found: {S.by_short(args, SCon{cc, SNil{}}) == Some{S.Arg{nn, sh, lo, S.Opt{}, hp, req, dflt, cs}}
+    : Maybe<&2, S.Arg>}
+  for h_again: {S.bound(bs, nn) == True{} : Bool}
+  {dead_of(S.cluster(SCon{cc, rest}, orig, S.St{S.Free{}, args, up, subs, path, bs, pos, raw, seen}, False{}))
+    == Some{S.Repeated{path, nn}} : Maybe<&2, S.ParseErr>}
+
+# LAW: a letter that spells an option taking a value now, with more chars
+# after it and no `=`, takes those chars as its value, verbatim, when its
+# choices allow them, and the cluster ends
+# SHAKE-TOK-2
+# SHAKE-PARSE-5
+# SHAKE-PARSE-10
+law letter_value:
+  for +cc: Char
+  for +rest: String
+  for +orig: String
+  for +args: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +pos: List<&2, S.Arg>
+  for +raw: Bool
+  for +seen: Bool
+  for +nn: String
+  for +sh: Maybe<&2, String>
+  for +lo: Maybe<&2, String>
+  for +kind: S.ArgKind
+  for +hp: String
+  for +req: Bool
+  for +dflt: Maybe<&2, String>
+  for +cs: List<&2, String>
+  for h_found: {S.by_short(args, SCon{cc, SNil{}}) == Some{S.Arg{nn, sh, lo, kind, hp, req, dflt, cs}}
+    : Maybe<&2, S.Arg>}
+  for h_kind: {takes(kind, S.bound(bs, nn)) == True{} : Bool}
+  for h_noeq: {String.starts_with(rest, "=") == False{} : Bool}
+  for h_some: {String.is_empty(rest) == False{} : Bool}
+  for h_ok: {S.allowed(S.parse.choices(S.by_name(args, nn)), rest) == True{} : Bool}
+  {S.cluster(SCon{cc, rest}, orig, S.St{S.Free{}, args, up, subs, path, bs, pos, raw, seen}, False{})
+    == S.St{S.Free{}, args, up, subs, path, S.Bind{nn, rest} <> bs, pos, raw, seen} : S.St}
+
+# LAW: a letter that spells an option taking a value now, followed by `=`,
+# takes everything after the `=` as its value, verbatim and possibly empty,
+# when its choices allow it
+# SHAKE-TOK-2
+# SHAKE-PARSE-5
+# SHAKE-PARSE-10
+law letter_value_eq:
+  for +cc: Char
+  for +vv: String
+  for +orig: String
+  for +args: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +pos: List<&2, S.Arg>
+  for +raw: Bool
+  for +seen: Bool
+  for +nn: String
+  for +sh: Maybe<&2, String>
+  for +lo: Maybe<&2, String>
+  for +kind: S.ArgKind
+  for +hp: String
+  for +req: Bool
+  for +dflt: Maybe<&2, String>
+  for +cs: List<&2, String>
+  for h_found: {S.by_short(args, SCon{cc, SNil{}}) == Some{S.Arg{nn, sh, lo, kind, hp, req, dflt, cs}}
+    : Maybe<&2, S.Arg>}
+  for h_kind: {takes(kind, S.bound(bs, nn)) == True{} : Bool}
+  for h_ok: {S.allowed(S.parse.choices(S.by_name(args, nn)), vv) == True{} : Bool}
+  {S.cluster(SCon{cc, "=" ++ vv}, orig, S.St{S.Free{}, args, up, subs, path, bs, pos, raw, seen}, False{})
+    == S.St{S.Free{}, args, up, subs, path, S.Bind{nn, vv} <> bs, pos, raw, seen} : S.St}
+
+# LAW: a letter that spells an option taking a value now, last in its word,
+# leaves the option waiting for the next word
+# SHAKE-TOK-2
+law letter_value_next:
+  for +cc: Char
+  for +orig: String
+  for +args: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +pos: List<&2, S.Arg>
+  for +raw: Bool
+  for +seen: Bool
+  for +nn: String
+  for +sh: Maybe<&2, String>
+  for +lo: Maybe<&2, String>
+  for +kind: S.ArgKind
+  for +hp: String
+  for +req: Bool
+  for +dflt: Maybe<&2, String>
+  for +cs: List<&2, String>
+  for h_found: {S.by_short(args, SCon{cc, SNil{}}) == Some{S.Arg{nn, sh, lo, kind, hp, req, dflt, cs}}
+    : Maybe<&2, S.Arg>}
+  for h_kind: {takes(kind, S.bound(bs, nn)) == True{} : Bool}
+  {S.cluster(SCon{cc, SNil{}}, orig, S.St{S.Free{}, args, up, subs, path, bs, pos, raw, seen}, False{})
+    == S.St{S.Need{nn}, args, up, subs, path, bs, pos, raw, seen} : S.St}
+
+# LAW: a letter that spells an option taking a value now, with a glued value
+# its choices do not allow, refuses the whole word as BadValue
+# SHAKE-PARSE-5
+law letter_value_bad:
+  for +cc: Char
+  for +rest: String
+  for +orig: String
+  for +args: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +pos: List<&2, S.Arg>
+  for +raw: Bool
+  for +seen: Bool
+  for +nn: String
+  for +sh: Maybe<&2, String>
+  for +lo: Maybe<&2, String>
+  for +kind: S.ArgKind
+  for +hp: String
+  for +req: Bool
+  for +dflt: Maybe<&2, String>
+  for +cs: List<&2, String>
+  for h_found: {S.by_short(args, SCon{cc, SNil{}}) == Some{S.Arg{nn, sh, lo, kind, hp, req, dflt, cs}}
+    : Maybe<&2, S.Arg>}
+  for h_kind: {takes(kind, S.bound(bs, nn)) == True{} : Bool}
+  for h_noeq: {String.starts_with(rest, "=") == False{} : Bool}
+  for h_some: {String.is_empty(rest) == False{} : Bool}
+  for h_bad: {S.allowed(S.parse.choices(S.by_name(args, nn)), rest) == False{} : Bool}
+  {S.cluster(SCon{cc, rest}, orig, S.St{S.Free{}, args, up, subs, path, bs, pos, raw, seen}, False{})
+    == S.St{S.Dead{S.BadValue{path, nn, rest}}, args, up, subs, path, bs, pos, raw, seen} : S.St}
+
+# LAW: in a free walker before `--`, a word that does not start with `-`, other
+# than a `help` that asks for help, is read as a subcommand or a positional,
+# never as an option
+# SHAKE-TOK-3
+law plain_word_step:
+  for +tok: String
+  for +args: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +pos: List<&2, S.Arg>
+  for +seen: Bool
+  for h_dd: {String.eq(tok, "--") == False{} : Bool}
+  for +h_dash: {String.starts_with(tok, "-") == False{} : Bool}
+  for h_help: {Bool.and(String.eq(tok, "help"), Bool.not(seen)) == False{} : Bool}
+  {S.parse.step(tok, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen})
+    == S.parse.word.go(S.find_sub(subs, tok), tok, args, up, subs, path, bs, pos, False{}, seen) : S.St}
+
+# LAW: in a free walker before `--`, the word `-` is read as a subcommand or a
+# positional, never as an option
+# SHAKE-TOK-3
+law dash_word_step:
+  for +args: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +pos: List<&2, S.Arg>
+  for +seen: Bool
+  {S.parse.step("-", S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen})
+    == S.parse.word.go(S.find_sub(subs, "-"), "-", args, up, subs, path, bs, pos, False{}, seen) : S.St}
