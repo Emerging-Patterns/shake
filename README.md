@@ -20,10 +20,18 @@ import 0xdf41d30432187d983a3c5b9db32d376d/main.bend as Shake
 ```
 
 `main.bend` is the whole interface: the types (`Shake.Cli`, `Shake.Sub`,
-`Shake.Arg`, `Shake.Matched`, `Shake.ParseErr`), the builders (`app`, `sub`,
-`flag`, `opt`, `pos`, `rest`), `parse`, the readers (`get`, `get_all`, `on`,
-`path_of`), `help`, `err_text`, `help_path` and `argv`. Everything under
-`src/` is internal and may change in any release; import only `main.bend`.
+`Shake.Arg`, `Shake.Matched`, `Shake.ParseErr`, `Shake.SpecErr`), the
+builders (`app`, `sub`, `flag`, `opt`, `pos`, `rest`), `check` and
+`spec_err_text`, `parse`, the readers (`get`, `get_all`, `on`, `path_of`),
+`help`, `err_text`, `help_path` and `argv`. Everything under `src/` is
+internal and may change in any release; import only `main.bend`.
+[SPEC.md](SPEC.md) lists what shake guarantees, and which of it is proved.
+
+`check(spec)` lists every way a spec contradicts itself (a rest positional
+that is not the last, a repeated name or spelling, a subcommand named
+`help`, a default outside its choices, a required positional after an
+optional one). `parse` does not call it; the guarantees hold for a spec it
+passes, so check yours once, at start or in your own laws.
 
 `parse` fails with a request for help on `tool help` or
 `tool help <command>`: `help_path` gives its command path, for `help` to

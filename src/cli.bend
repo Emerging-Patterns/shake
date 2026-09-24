@@ -350,22 +350,6 @@ def pos_of(args: List<&2, Arg>) -> List<&2, Arg>:
     case Con{+h, t}:
       pos_of.put(pos.is(h), h, pos_of(t))
 
-# a rest is last only when nothing follows
-def rest.last.hit(is_rest: Bool, empty: Bool, tail_ok: Bool) -> Bool:
-  match is_rest:
-    case True{}:
-      empty
-    case False{}:
-      tail_ok
-
-# whether rest positionals are last (and at most one)
-def rest.last(pos: List<&2, Arg>) -> Bool:
-  match pos:
-    case Nil{}:
-      True{}
-    case Con{+h, +t}:
-      rest.last.hit(rest.is(h), List.is_empty(&2, Arg, t), rest.last(t))
-
 # whether `v` is among the choices; an empty list accepts any value
 def allowed.ok.at(hit: Bool, rest: Bool) -> Bool:
   match hit:
