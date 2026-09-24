@@ -50,7 +50,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | SHAKE-PARSE-6 | After the last word, each argument of every command on the selected path that the words left unbound and that has a default is bound to its default. A bound argument's value is never replaced, and no argument without a default gains a binding. | Proved | pending |  |
 | SHAKE-PARSE-7 | A successful parse binds every required argument of every command on the selected path. Otherwise the parse fails with `Missing{name}`. | Proved | pending |  |
 | SHAKE-PARSE-8 | Before `--` and before any positional of the current command is bound, a plain word `help` makes the parse fail with `NeedHelp{path}`, where `path` is the selected path followed by the remaining words, as long as each names a subcommand under the one before; the first remaining word that does not makes the parse fail with `Unexpected{word}`. | Proved | pending |  |
-| SHAKE-PARSE-9 | Once a word makes the parse fail, the words after it do not change the error. | Proved | pending |  |
+| SHAKE-PARSE-9 | Once a word makes the parse fail, the words after it do not change the error. | Proved | proved | src/LAWS.bend fail_stays |
 | SHAKE-PARSE-10 | When an option or flag is given more than once, `get` reads the last value given and `get_all` every value, in the order given. | Proved | pending |  |
 
 ### Checking a spec (SHAKE-SPEC)

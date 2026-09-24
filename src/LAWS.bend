@@ -14,6 +14,14 @@ def down(ys: List<&2, String>) -> List<&1, String>:
     case Con{+hh, tt}:
       hh <> down(tt)
 
+# the error a walker has failed with, or None while it is still going
+def dead_of(st: S.St) -> Maybe<&2, S.ParseErr>:
+  match st:
+    case S.St{S.Dead{err}, _a, _g, _s, _p, _b, _o, _r, _n}:
+      Some{err}
+    case S.St{_mode, _a, _g, _s, _p, _b, _o, _r, _n}:
+      None{}
+
 # LAW: a word that starts `--` is flag-shaped
 law looks_flag_long:
   for ss: String
@@ -147,3 +155,48 @@ law path_of_path:
 law copy_keeps:
   for xs: List<&1, String>
   {down(Args.copy(xs)) == xs : List<&1, String>}
+
+# LAW: walking two word lists is walking the first, then the second (a lemma)
+law walk_append:
+  for xs: List<&2, String>
+  for ys: List<&2, String>
+  for st: S.St
+  {S.parse.walk(List.append(&2, String, xs, ys), st)
+    == S.parse.walk(ys, S.parse.walk(xs, st)) : S.St}
+
+# LAW: a failed walker stays as it is, whatever words follow (a lemma)
+law dead_walk:
+  for ys: List<&2, String>
+  for +err: S.ParseErr
+  for +args: List<&2, S.Arg>
+  for +specs: List<&2, S.Arg>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +binds: List<&2, S.Bind>
+  for +pos: List<&2, S.Arg>
+  for +raw: Bool
+  for +seen: Bool
+  {S.parse.walk(ys, S.St{S.Dead{err}, args, specs, subs, path, binds, pos, raw, seen})
+    == S.St{S.Dead{err}, args, specs, subs, path, binds, pos, raw, seen} : S.St}
+
+# LAW: a walker that has failed finishes as that failure, whatever words
+# follow (a lemma)
+law fail_from:
+  for st: S.St
+  for +more: List<&2, String>
+  for +err: S.ParseErr
+  for died: {dead_of(st) == Some{err} : Maybe<&2, S.ParseErr>}
+  {S.parse.finish(S.parse.walk(more, st)) == Fail{err}
+    : Result<&2, &2, S.ParseErr, S.Matched>}
+
+# LAW: once a word makes the parse fail, the words after it do not change the
+# error
+# SHAKE-PARSE-9
+law fail_stays:
+  for +spec: Shake.Cli
+  for +ws: List<&2, String>
+  for +more: List<&2, String>
+  for +err: Shake.ParseErr
+  for died: {dead_of(S.parse.walk(ws, S.parse.start(spec))) == Some{err} : Maybe<&2, S.ParseErr>}
+  {Shake.parse(spec, List.append(&2, String, ws, more)) == Fail{err}
+    : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
