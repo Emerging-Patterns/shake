@@ -431,20 +431,28 @@ def get_all(mm: Matched, +name: String) -> List<&2, String>:
   get_all.bind(binds, name)
 
 # the last of a list of values, or `dflt` when it is empty
-def get.last(vs: List<&2, String>, dflt: String) -> String:
+def get.last(vs: List<&2, String>, dflt: Maybe<&2, String>) -> Maybe<&2, String>:
   match vs:
     case Nil{}:
       dflt
     case Con{hh, tt}:
-      get.last(tt, hh)
+      get.last(tt, Some{hh})
 
-# the value bound to `name` last, or "" when there is none
-def get(mm: Matched, +name: String) -> String:
-  get.last(get_all(mm, name), "")
+# the value bound to `name` last, or None when nothing bound it
+def get(mm: Matched, +name: String) -> Maybe<&2, String>:
+  get.last(get_all(mm, name), None{})
+
+# whether a value is `true`
+def on.of(mv: Maybe<&2, String>) -> Bool:
+  match mv:
+    case None{}:
+      False{}
+    case Some{vv}:
+      String.eq(vv, "true")
 
 # whether a flag named `name` was set
 def on(mm: Matched, +name: String) -> Bool:
-  String.eq(get(mm, name), "true")
+  on.of(get(mm, name))
 
 # the selected command path
 def path_of(mm: Matched) -> List<&2, String>:

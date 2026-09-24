@@ -1,5 +1,6 @@
 # shake: the proofs. `bend src/PROOF.bend` is the gate.
 import Base
+import ../main.bend as Shake
 import ../src/cli.bend as S
 import ../src/eq.bend as Eq
 import ../src/args.bend as Args
@@ -66,7 +67,7 @@ def Laws.last_snoc(xs, vv, _dflt):
     case Nil{}:
       {==}
     case Con{hh, tt}:
-      Laws.last_snoc(tt, vv, hh)
+      Laws.last_snoc(tt, vv, Some{hh})
 
 def Laws.get_all_append(_path, bs, cs, name):
   Laws.bind_values_append(bs, cs, name)
@@ -86,21 +87,29 @@ def Laws.get_last(_path, bs, cs, name, vv, after):
     S.get_all.bind(List.append(&2, S.Bind, bs, S.Bind{name, vv} <> cs), name),
     List.append(&2, String, S.get_all.bind(bs, name), S.get_all.bind(S.Bind{name, vv} <> cs, name)),
     Laws.bind_values_append(bs, S.Bind{name, vv} <> cs, name))
-  %e1 : {S.get.last(_, "") == vv : String}
+  %e1 : {S.get.last(_, None{}) == Some{vv} : Maybe<&2, String>}
   e2 = Equal.sym(Bool, String.eq(name, name), True{}, Eq.string_eq_self(name))
   %e2 : {S.get.last(List.append(&2, String, S.get_all.bind(bs, name),
-    S.get_all.bind.hit(_, vv, S.get_all.bind(cs, name))), "") == vv : String}
+    S.get_all.bind.hit(_, vv, S.get_all.bind(cs, name))), None{}) == Some{vv}
+    : Maybe<&2, String>}
   e3 = Equal.sym(List<&2, String>, S.get_all.bind(cs, name), [], after)
-  %e3 : {S.get.last(List.append(&2, String, S.get_all.bind(bs, name), vv <> _), "")
-    == vv : String}
-  Laws.last_snoc(S.get_all.bind(bs, name), vv, "")
+  %e3 : {S.get.last(List.append(&2, String, S.get_all.bind(bs, name), vv <> _), None{})
+    == Some{vv} : Maybe<&2, String>}
+  Laws.last_snoc(S.get_all.bind(bs, name), vv, None{})
 
 def Laws.get_none(_path, bs, name, none):
   ee = Equal.sym(List<&2, String>, S.get_all.bind(bs, name), [], none)
-  %ee : {S.get.last(_, "") == "" : String}
+  %ee : {S.get.last(_, None{}) == None{} : Maybe<&2, String>}
   {==}
 
-def Laws.on_get(_found, _name):
+def Laws.on_some(found, name, vv, h_get):
+  ee = Equal.sym(Maybe<&2, String>, Shake.get(found, name), Some{vv}, h_get)
+  %ee : {S.on.of(_) == String.eq(vv, "true") : Bool}
+  {==}
+
+def Laws.on_none(found, name, h_get):
+  ee = Equal.sym(Maybe<&2, String>, Shake.get(found, name), None{}, h_get)
+  %ee : {S.on.of(_) == False{} : Bool}
   {==}
 
 def Laws.path_of_path(_path, _bs):

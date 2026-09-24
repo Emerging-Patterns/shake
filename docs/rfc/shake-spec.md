@@ -133,7 +133,7 @@ Law sketch for TOK-1, over every well-formed spec, argv prefix and value: `parse
 | SHAKE-PARSE-7 | A successful parse binds every required argument of every command on the selected path. Otherwise the parse fails with `Missing{name}`. | Proved |
 | SHAKE-PARSE-8 | Before `--` and before any positional of the current command is bound, a plain word `help` makes the parse fail with `NeedHelp{path}`, where `path` is the selected path followed by the remaining words, each of which names a subcommand under the one before; a remaining word that does not fails with `Unexpected{word}`. | Proved |
 | SHAKE-PARSE-9 | Once a word makes the parse fail, the words after it do not change the error. | Proved |
-| SHAKE-PARSE-10 | When an option or flag is given more than once, `get` reads the last value given and `get_all` every value, in argv order. | Proved |
+| SHAKE-PARSE-10 | When an option or flag is given more than once, `get` reads `Some` of the last value given and `get_all` every value, in argv order. | Proved |
 
 Evidence: `parse.take_pos` (`main.bend:571-580`) and `parse.take_pos.keep`; `parse.word.go` and `parse.enter_or` (`main.bend:625-643`); `allowed` (`main.bend:347-348`) and `parse.take_opt_val`; `fill.args` and `miss.args` (`main.bend:787-815`); `parse.step.help` and the `Help{}` arm of `parse.step.mode`; the `Dead{e}` arm of `parse.step.mode` (`main.bend:739-740`). PARSE-8's last clause depends on REVIEW-6, and PARSE-10 on REVIEW-4: both rows stay pending until their change lands.
 
@@ -167,7 +167,7 @@ This is new API (REVIEW-7). Its laws are completeness as a count equality and a 
 
 | ID | Requirement | Level |
 | :---- | :---- | :---- |
-| SHAKE-GET-1 | For every Matched and name: `get` is the value of the last binding with that name, or `""` when there is none; `get_all` is the values of every binding with that name, in binding order; `on` is true exactly when `get` is `"true"`; `path_of` is the selected path. | Proved |
+| SHAKE-GET-1 | For every Matched and name: `get` is `Some` of the value of the last binding with that name, or `None` when there is none; `get_all` is the values of every binding with that name, in binding order; `on` is true exactly when `get` is `Some{"true"}`; `path_of` is the selected path. | Proved |
 
 GET-1 is pure list reasoning and one of the first rows to prove. Its first clause changes from "first" to "last" with REVIEW-4, and stays pending until then. The empty string for "not bound" and for "bound to empty" (F10) is stated rather than changed: telling them apart needs a new accessor, which we list under Future Steps.
 

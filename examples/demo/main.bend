@@ -33,19 +33,22 @@ def greet.v(vv: Bool) -> IO(Unit):
     case False{}:
       IO.pure(Unit, Unit{})
 
-# a successful greet
+# the value bound to `name`, or "" when nothing bound it
+def text(+mm: Shake.Matched, +name: String) -> String:
+  Maybe.default(&2, String, Shake.get(mm, name), "")
+
+# a successful greet: `who` when given, else `--name`, which has a default
 def greet(+mm: Shake.Matched) -> IO(Unit):  # noqa: L001 IO
   do IO<Unit>:
     +who : String <- IO.pure(String,
-      Bool.pick(String, String.is_empty(Shake.get(mm, "who")),
-        Shake.get(mm, "name"), Shake.get(mm, "who")))
+      Maybe.default(&2, String, Shake.get(mm, "who"), text(mm, "name")))
     IO.print("hello " ++ who)
     greet.v(Shake.on(mm, "verbose"))
 
 # a successful add
 def add(+mm: Shake.Matched) -> IO(Unit):  # noqa: L001 IO
-  IO.print(Shake.get(mm, "a") ++ " + " ++ Shake.get(mm, "b") ++ " x" ++
-    Shake.get(mm, "times") ++ " base " ++ Shake.get(mm, "base"))
+  IO.print(text(mm, "a") ++ " + " ++ text(mm, "b") ++ " x" ++ text(mm, "times") ++ " base " ++
+    text(mm, "base"))
 
 # dispatch on the selected path
 def run.path(+path: String, +mm: Shake.Matched) -> IO(Unit):
