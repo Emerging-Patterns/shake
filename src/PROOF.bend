@@ -3,6 +3,7 @@ import Base
 import ../src/cli.bend as S
 import ../src/eq.bend as Eq
 import ../src/args.bend as Args
+import ../src/walk.bend as Walk
 import ./LAWS.bend as Laws
 
 def Laws.looks_flag_long(_ss):
