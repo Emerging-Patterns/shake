@@ -2549,3 +2549,91 @@ law check_listed:
   for +subs: List<&2, S.Sub>
   {Shake.check(S.Cli{name, about, version, args, subs}) == K.both(cmd_reports([], args, subs), below(subs, []))
     : List<&2, K.SpecErr>}
+
+# whether `vv` is what is left of the word `wd` once some chars, maybe none, are
+# dropped from its front
+def ends(wd: String, +vv: String) -> Bool:
+  match wd:
+    case SNil{}:
+      String.eq(vv, "")
+    case SCon{+hh, +tt}:
+      Bool.or(String.eq(vv, SCon{hh, tt}), ends(tt, vv))
+
+# whether `vv` is a piece of one of the words: what is left of it once some
+# chars are dropped from its front
+def piece(ws: List<&2, String>, +vv: String) -> Bool:
+  match ws:
+    case Nil{}:
+      False{}
+    case Con{+ww, tt}:
+      Bool.or(ends(ww, vv), piece(tt, vv))
+
+# whether a default is `vv`
+def default_is(dd: Maybe<&2, String>, +vv: String) -> Bool:
+  match dd:
+    case None{}:
+      False{}
+    case Some{dv}:
+      String.eq(dv, vv)
+
+# whether `vv` is the default of one of `args` named `name`
+def is_default(args: List<&2, S.Arg>, +name: String, +vv: String) -> Bool:
+  match args:
+    case Nil{}:
+      False{}
+    case Con{hh, tt}:
+      S.Arg{nn, _s, _l, _k, _h, _r, dd, _c} = hh
+      Bool.or(Bool.and(String.eq(nn, name), default_is(dd, vv)), is_default(tt, name, vv))
+
+# whether a binding's value is `true`, which a flag binds, a piece of one of
+# the words, or the default of one of `args` of its name
+def given(+ws: List<&2, String>, +args: List<&2, S.Arg>, bb: S.Bind) -> Bool:
+  S.Bind{+name, +vv} = bb
+  Bool.or(String.eq(vv, "true"), Bool.or(piece(ws, vv), is_default(args, name, vv)))
+
+# whether every binding is given
+def all_given(bs: List<&2, S.Bind>, +ws: List<&2, String>, +args: List<&2, S.Arg>) -> Bool:
+  match bs:
+    case Nil{}:
+      True{}
+    case Con{hh, tt}:
+      Bool.and(given(ws, args, hh), all_given(tt, ws, args))
+
+# whether every binding of a command's own Matched is given, when there is one
+def given_at.go(mm: Maybe<&2, Shake.Matched>, +ws: List<&2, String>, +args: List<&2, S.Arg>) -> Maybe<&2, Bool>:
+  match mm:
+    case None{}:
+      None{}
+    case Some{found}:
+      Some{all_given(S.own(found), ws, args)}
+
+# whether every binding of the command at `path` in a Matched is given
+def given_at(
+  found: Shake.Matched,
+  path: List<&2, String>,
+  +ws: List<&2, String>,
+  +args: List<&2, S.Arg>
+) -> Maybe<&2, Bool>:
+  given_at.go(Shake.at(found, path), ws, args)
+
+# LAW: when the parse succeeds, every binding in the Matched of a command on
+# the selected path is `true`, which a flag binds, a piece of one of the words,
+# verbatim, or the default of one of that command's arguments: no value is
+# invented, cut short or changed
+# SHAKE-PARSE-1
+law values_given:
+  for +spec: Shake.Cli
+  for +ws: List<&2, String>
+  for +found: Shake.Matched
+  for +qs: List<&2, S.Level>
+  for +args: List<&2, S.Arg>
+  for +bs: List<&2, S.Bind>
+  for +up: List<&2, S.Level>
+  for +path: List<&2, String>
+  for +ms: List<&2, String>
+  for h_done: {Shake.parse(spec, ws) == Done{found} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+  for +h_fr: {Grow.gw.frame(S.parse.walk(ws, S.parse.start(spec)))
+    == Grow.Frame{List.append(&2, S.Level, qs, S.Level{args, bs} <> up), List.append(&2, String, path, ms)}
+    : Grow.Frame}
+  for h_len: {List.length(&2, S.Level, up) == List.length(&2, String, path) : Nat}
+  {given_at(found, path, ws, args) == Some{True{}} : Maybe<&2, Bool>}

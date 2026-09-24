@@ -5184,3 +5184,1341 @@ def sc.forest(
 def Laws.check_listed(_name, _about, _version, args, subs):
   sc.both(K.cmd([], args, subs), Laws.cmd_reports([], args, subs), K.forest(subs, []), Laws.below(subs, []),
     sc.cmd([], args, subs), sc.forest(subs, []))
+
+# ---- SHAKE-PARSE-1: every value bound is a piece of a word, `true` or a default
+
+# anything or true is true
+def gv.or_t(bb: Bool) -> {Bool.or(bb, True{}) == True{} : Bool}:
+  match bb:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# both halves of a true `and` are true
+def gv.and_tt(
+  aa: Bool,
+  +bb: Bool,
+  ha: {aa == True{} : Bool},
+  hb: {bb == True{} : Bool}
+) -> {Bool.and(aa, bb) == True{} : Bool}:
+  match aa:
+    case True{}:
+      hb
+    case False{}:
+      Empty.absurd({Bool.and(False{}, bb) == True{} : Bool}, Walk.wk.false_true(ha))
+
+# the left half of a true `and`
+def gv.and_l(aa: Bool, bb: Bool, +hh: {Bool.and(aa, bb) == True{} : Bool}) -> {aa == True{} : Bool}:
+  match aa:
+    case True{}:
+      {==}
+    case False{}:
+      Empty.absurd({False{} == True{} : Bool}, Walk.wk.false_true(hh))
+
+# the right half of a true `and`
+def gv.and_r(aa: Bool, +bb: Bool, +hh: {Bool.and(aa, bb) == True{} : Bool}) -> {bb == True{} : Bool}:
+  match aa:
+    case True{}:
+      hh
+    case False{}:
+      Empty.absurd({bb == True{} : Bool}, Walk.wk.false_true(hh))
+
+# a word is what is left of itself
+def gv.ends_self(ww: String) -> {Laws.ends(ww, ww) == True{} : Bool}:
+  match ww:
+    case SNil{}:
+      {==}
+    case SCon{+hh, +tt}:
+      ee = Equal.sym(Bool, String.eq(SCon{hh, tt}, SCon{hh, tt}), True{}, Eq.string_eq_self(SCon{hh, tt}))
+      %ee : {Bool.or(_, Laws.ends(tt, SCon{hh, tt})) == True{} : Bool}
+      {==}
+
+# what is left of a word's tail is left of the word
+def gv.ends_tail(
+  +cc: Char,
+  +tt: String,
+  +vv: String,
+  +hh: {Laws.ends(tt, vv) == True{} : Bool}
+) -> {Laws.ends(SCon{cc, tt}, vv) == True{} : Bool}:
+  ee = Equal.sym(Bool, Laws.ends(tt, vv), True{}, hh)
+  %ee : {Bool.or(String.eq(vv, SCon{cc, tt}), _) == True{} : Bool}
+  gv.or_t(String.eq(vv, SCon{cc, tt}))
+
+# dropping nothing leaves the string
+def gv.drop0(ss: String) -> {String.drop(ss, 0n) == ss : String}:
+  match ss:
+    case SNil{}:
+      {==}
+    case SCon{_c, _t}:
+      {==}
+
+# whether every piece of `ww` is a piece of one of the words
+def gv.sufs(ww: String, +ws: List<&2, String>) -> Bool:
+  match ww:
+    case SNil{}:
+      Laws.piece(ws, "")
+    case SCon{+cc, +tt}:
+      Bool.and(Laws.piece(ws, SCon{cc, tt}), gv.sufs(tt, ws))
+
+# every piece of `ww` is a piece of one of the words
+def gv.In(+ww: String, +ws: List<&2, String>) -> Type:
+  {gv.sufs(ww, ws) == True{} : Bool}
+
+# a word's tail is within the words when the word is
+def gv.in_tail(+cc: Char, +tt: String, +ws: List<&2, String>, hh: gv.In(SCon{cc, tt}, ws)) -> gv.In(tt, ws):
+  gv.and_r(Laws.piece(ws, SCon{cc, tt}), gv.sufs(tt, ws), hh)
+
+# a word with chars dropped from its front is within the words when it is
+def gv.in_drop(ww: String, kk: Nat, +ws: List<&2, String>, hh: gv.In(ww, ws)) -> gv.In(String.drop(ww, kk), ws):
+  match ww kk:
+    case SNil{} _:
+      hh
+    case SCon{+cc, +tt} 0n:
+      hh
+    case SCon{+cc, +tt} 1n+pp:
+      gv.in_drop(tt, pp, ws, gv.in_tail(cc, tt, ws, hh))
+
+# a word within the words is a piece of them
+def gv.in_piece(ww: String, +ws: List<&2, String>, hh: gv.In(ww, ws)) -> {Laws.piece(ws, ww) == True{} : Bool}:
+  match ww:
+    case SNil{}:
+      hh
+    case SCon{+cc, +tt}:
+      gv.and_l(Laws.piece(ws, SCon{cc, tt}), gv.sufs(tt, ws), hh)
+
+# what is left of a word once some chars are dropped is left of it
+def gv.ends_drop(ww: String, kk: Nat) -> {Laws.ends(ww, String.drop(ww, kk)) == True{} : Bool}:
+  match ww kk:
+    case SNil{} _:
+      {==}
+    case SCon{+cc, +tt} 0n:
+      gv.ends_self(SCon{cc, tt})
+    case SCon{+cc, +tt} 1n+(+pp):
+      gv.ends_tail(cc, tt, String.drop(tt, pp), gv.ends_drop(tt, pp))
+
+# what is left of a word of a list is a piece of the list
+def gv.mid_piece(
+  pre: List<&2, String>,
+  +tok: String,
+  +rest: List<&2, String>,
+  +vv: String,
+  +hv: {Laws.ends(tok, vv) == True{} : Bool}
+) -> {Laws.piece(List.append(&2, String, pre, tok <> rest), vv) == True{} : Bool}:
+  match pre:
+    case Nil{}:
+      ee = Equal.sym(Bool, Laws.ends(tok, vv), True{}, hv)
+      %ee : {Bool.or(_, Laws.piece(rest, vv)) == True{} : Bool}
+      {==}
+    case Con{+pp, +pt}:
+      ih = gv.mid_piece(pt, tok, rest, vv, hv)
+      ee = Equal.sym(Bool, Laws.piece(List.append(&2, String, pt, tok <> rest), vv), True{}, ih)
+      %ee : {Bool.or(Laws.ends(pp, vv), _) == True{} : Bool}
+      gv.or_t(Laws.ends(pp, vv))
+
+# the tail of a string, empty for the empty one
+def gv.tail(ss: String) -> String:
+  match ss:
+    case SNil{}:
+      SNil{}
+    case SCon{_c, tt}:
+      tt
+
+# whether a string is empty, as a type: the empty one is not a char in front
+def gv.snil_ty(ss: String) -> Type:
+  match ss:
+    case SNil{}:
+      Unit
+    case SCon{_c, _t}:
+      Empty
+
+# the empty string is never a char in front of one
+def gv.snil_scon(+cc: Char, +tt: String, ee: {SNil{} == SCon{cc, tt} : String}) -> Empty:
+  %ee : gv.snil_ty(_)
+  Unit{}
+
+# dropping one more char leaves the tail of what was left
+def gv.drop_succ(
+  ww: String,
+  kk: Nat,
+  +cc: Char,
+  +tt: String,
+  +ee: {String.drop(ww, kk) == SCon{cc, tt} : String}
+) -> {String.drop(ww, 1n+kk) == tt : String}:
+  match ww kk:
+    case SNil{} _:
+      Empty.absurd({SNil{} == tt : String}, gv.snil_scon(cc, tt, ee))
+    case SCon{+dd, +uu} 0n:
+      Equal.trans(String, String.drop(uu, 0n), uu, tt, gv.drop0(uu),
+        Equal.cong(String, String, ss => gv.tail(ss), SCon{dd, uu}, SCon{cc, tt}, ee))
+    case SCon{+dd, +uu} 1n+pp:
+      gv.drop_succ(uu, pp, cc, tt, ee)
+
+# what is left of a word once some chars are dropped, named
+def gv.ends_at(
+  +tok: String,
+  +kk: Nat,
+  +xx: String,
+  +ee: {String.drop(tok, kk) == xx : String}
+) -> {Laws.ends(tok, xx) == True{} : Bool}:
+  %ee : {Laws.ends(tok, _) == True{} : Bool}
+  gv.ends_drop(tok, kk)
+
+# every suffix of a word of a list is within the list
+def gv.sufs_in(
+  xx: String,
+  +tok: String,
+  +kk: Nat,
+  +pre: List<&2, String>,
+  +rest: List<&2, String>,
+  +ee: {String.drop(tok, kk) == xx : String}
+) -> gv.In(xx, List.append(&2, String, pre, tok <> rest)):
+  match xx:
+    case SNil{}:
+      gv.mid_piece(pre, tok, rest, SNil{}, gv.ends_at(tok, kk, SNil{}, ee))
+    case SCon{+cc, +tt}:
+      gv.and_tt(Laws.piece(List.append(&2, String, pre, tok <> rest), SCon{cc, tt}),
+        gv.sufs(tt, List.append(&2, String, pre, tok <> rest)),
+        gv.mid_piece(pre, tok, rest, SCon{cc, tt}, gv.ends_at(tok, kk, SCon{cc, tt}, ee)),
+        gv.sufs_in(tt, tok, 1n+kk, pre, rest, gv.drop_succ(tok, kk, cc, tt, ee)))
+
+# a word of a list is within it
+def gv.in_mid(
+  +pre: List<&2, String>,
+  +tok: String,
+  +rest: List<&2, String>
+) -> gv.In(tok, List.append(&2, String, pre, tok <> rest)):
+  gv.sufs_in(tok, tok, 0n, pre, rest, gv.drop0(tok))
+
+# a value is `true` or a piece of one of the words
+def gv.ok(+ws: List<&2, String>, +vv: String) -> Bool:
+  Bool.or(String.eq(vv, "true"), Laws.piece(ws, vv))
+
+# a value within the words is one
+def gv.ok_in(+ws: List<&2, String>, +vv: String, hh: gv.In(vv, ws)) -> {gv.ok(ws, vv) == True{} : Bool}:
+  ee = Equal.sym(Bool, Laws.piece(ws, vv), True{}, gv.in_piece(vv, ws, hh))
+  %ee : {Bool.or(String.eq(vv, "true"), _) == True{} : Bool}
+  gv.or_t(String.eq(vv, "true"))
+
+# every binding's value is one
+def gv.all(bs: List<&2, S.Bind>, +ws: List<&2, String>) -> Bool:
+  match bs:
+    case Nil{}:
+      True{}
+    case Con{hh, tt}:
+      S.Bind{_n, vv} = hh
+      Bool.and(gv.ok(ws, vv), gv.all(tt, ws))
+
+# every level's bindings' values are
+def gv.ups(lvs: List<&2, S.Level>, +ws: List<&2, String>) -> Bool:
+  match lvs:
+    case Nil{}:
+      True{}
+    case Con{hh, tt}:
+      S.Level{_a, bs} = hh
+      Bool.and(gv.all(bs, ws), gv.ups(tt, ws))
+
+# every value a walker holds, at every level, is one
+def gv.good(st: S.St, +ws: List<&2, String>) -> Bool:
+  S.St{_m, _a, up, _s, _p, binds, _o, _r, _n} = st
+  Bool.and(gv.all(binds, ws), gv.ups(up, ws))
+
+# a walker whose values all are
+def gv.G(st: S.St, +ws: List<&2, String>) -> Type:
+  {gv.good(st, ws) == True{} : Bool}
+
+# a value, when there is one, is
+def gv.mok(mv: Maybe<&2, String>, +ws: List<&2, String>) -> Bool:
+  match mv:
+    case None{}:
+      True{}
+    case Some{vv}:
+      gv.ok(ws, vv)
+
+# the value of a name and value cut, when there is one, is
+def gv.pok(nv: String & Maybe<&2, String>, +ws: List<&2, String>) -> Bool:
+  (_n, mv) = nv
+  gv.mok(mv, ws)
+
+# a walker that keeps its bindings and the levels above
+def gv.keep(
+  +binds: List<&2, S.Bind>,
+  +up: List<&2, S.Level>,
+  +ws: List<&2, String>,
+  +hb: {gv.all(binds, ws) == True{} : Bool},
+  +hu: {gv.ups(up, ws) == True{} : Bool}
+) -> {Bool.and(gv.all(binds, ws), gv.ups(up, ws)) == True{} : Bool}:
+  gv.and_tt(gv.all(binds, ws), gv.ups(up, ws), hb, hu)
+
+# the values a walker holds, as a type
+def gv.B(+binds: List<&2, S.Bind>, +ws: List<&2, String>) -> Type:
+  {gv.all(binds, ws) == True{} : Bool}
+
+# the values of the levels above, as a type
+def gv.U(+up: List<&2, S.Level>, +ws: List<&2, String>) -> Type:
+  {gv.ups(up, ws) == True{} : Bool}
+
+# a binding of a value that is one
+def gv.put(
+  +name: String,
+  +val: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  +hv: {gv.ok(ws, val) == True{} : Bool},
+  hb: gv.B(binds, ws),
+  hu: gv.U(up, ws)
+) -> gv.G(S.parse.put(name, val, args, up, subs, path, binds, pos, raw, seen), ws):
+  gv.and_tt(Bool.and(gv.ok(ws, val), gv.all(binds, ws)), gv.ups(up, ws),
+    gv.and_tt(gv.ok(ws, val), gv.all(binds, ws), hv, hb), hu)
+
+# a value bound when allowed
+def gv.choice(
+  ok: Bool,
+  +name: String,
+  +val: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  +hv: {gv.ok(ws, val) == True{} : Bool},
+  hb: gv.B(binds, ws),
+  hu: gv.U(up, ws)
+) -> gv.G(S.parse.take_choice(ok, name, val, args, up, subs, path, binds, pos, raw, seen), ws):
+  match ok:
+    case True{}:
+      gv.put(name, val, args, up, subs, path, binds, pos, raw, seen, ws, hv, hb, hu)
+    case False{}:
+      gv.keep(binds, up, ws, hb, hu)
+
+# an option's value
+def gv.opt_val(
+  +name: String,
+  +val: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  +hv: {gv.ok(ws, val) == True{} : Bool},
+  hb: gv.B(binds, ws),
+  hu: gv.U(up, ws)
+) -> gv.G(S.parse.take_opt_val(name, val, args, up, subs, path, binds, pos, raw, seen), ws):
+  gv.choice(S.allowed(S.parse.choices(S.by_name(args, name)), val), name, val, args, up, subs, path, binds, pos,
+    raw, seen, ws, hv, hb, hu)
+
+# a flag binds `true`
+def gv.flag(
+  val: Maybe<&2, String>,
+  +name: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  hb: gv.B(binds, ws),
+  hu: gv.U(up, ws)
+) -> gv.G(S.parse.take_flag(val, name, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+  match val:
+    case None{}:
+      gv.put(name, "true", args, up, subs, path, binds, pos, raw, seen, ws, {==}, hb, hu)
+    case Some{_v}:
+      gv.keep(binds, up, ws, hb, hu)
+
+# an option: its value now, or it waits
+def gv.opt(
+  val: Maybe<&2, String>,
+  +name: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  +hm: {gv.mok(val, ws) == True{} : Bool},
+  hb: gv.B(binds, ws),
+  hu: gv.U(up, ws)
+) -> gv.G(S.parse.take_opt(val, name, args, up, subs, path, binds, pos, raw, seen), ws):
+  match val:
+    case None{}:
+      gv.keep(binds, up, ws, hb, hu)
+    case Some{vv}:
+      gv.opt_val(name, vv, args, up, subs, path, binds, pos, raw, seen, ws, hm, hb, hu)
+
+# the once-check keeps the walker's values
+def gv.once(
+  again: Bool,
+  st: S.St,
+  +name: String,
+  +path: List<&2, String>,
+  +ws: List<&2, String>,
+  hg: gv.G(st, ws)
+) -> gv.G(S.parse.once(again, st, name, path), ws):
+  match again:
+    case True{}:
+      match st:
+        case S.St{_m, _a, _g, _s, _p, _b, _o, _r, _n}:
+          hg
+    case False{}:
+      hg
+
+# a found argument, by its kind
+def gv.akind(
+  kk: S.ArgKind,
+  +name: String,
+  +val: Maybe<&2, String>,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  +hm: {gv.mok(val, ws) == True{} : Bool},
+  hb: gv.B(binds, ws),
+  hu: gv.U(up, ws)
+) -> gv.G(S.parse.take_arg.kind(kk, name, val, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+  match kk:
+    case S.Flag{}:
+      gv.once(S.bound(binds, name), S.parse.take_flag(val, name, orig, args, up, subs, path, binds, pos, raw, seen),
+        name, path, ws, gv.flag(val, name, orig, args, up, subs, path, binds, pos, raw, seen, ws, hb, hu))
+    case S.Opt{}:
+      gv.once(S.bound(binds, name), S.parse.take_opt(val, name, args, up, subs, path, binds, pos, raw, seen),
+        name, path, ws, gv.opt(val, name, args, up, subs, path, binds, pos, raw, seen, ws, hm, hb, hu))
+    case S.Many{}:
+      gv.opt(val, name, args, up, subs, path, binds, pos, raw, seen, ws, hm, hb, hu)
+    case S.Pos{}:
+      gv.keep(binds, up, ws, hb, hu)
+    case S.Rest{}:
+      gv.keep(binds, up, ws, hb, hu)
+
+# a found argument, or an unknown flag
+def gv.arg(
+  found: Maybe<&2, S.Arg>,
+  +val: Maybe<&2, String>,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  +hm: {gv.mok(val, ws) == True{} : Bool},
+  hb: gv.B(binds, ws),
+  hu: gv.U(up, ws)
+) -> gv.G(S.parse.take_arg(found, val, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+  match found:
+    case None{}:
+      gv.keep(binds, up, ws, hb, hu)
+    case Some{aa}:
+      match aa:
+        case S.Arg{+name, _s, _l, kind, _h, _r, _d, _c}:
+          gv.akind(kind, name, val, orig, args, up, subs, path, binds, pos, raw, seen, ws, hm, hb, hu)
+
+# a long option with a name
+def gv.named(
+  empty: Bool,
+  +name: String,
+  +val: Maybe<&2, String>,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  +hm: {gv.mok(val, ws) == True{} : Bool},
+  hb: gv.B(binds, ws),
+  hu: gv.U(up, ws)
+) -> gv.G(S.parse.take_long.named(empty, name, val, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+  match empty:
+    case True{}:
+      gv.keep(binds, up, ws, hb, hu)
+    case False{}:
+      gv.arg(S.by_long(args, name), val, orig, args, up, subs, path, binds, pos, raw, seen, ws, hm, hb, hu)
+
+# a long option after the `=` cut
+def gv.cut(
+  nv: String & Maybe<&2, String>,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  +hp: {gv.pok(nv, ws) == True{} : Bool},
+  hb: gv.B(binds, ws),
+  hu: gv.U(up, ws)
+) -> gv.G(S.parse.take_long.cut(nv, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+  match nv:
+    case (+name, +val):
+      gv.named(String.is_empty(name), name, val, orig, args, up, subs, path, binds, pos, raw, seen, ws, hp, hb, hu)
+
+# the `=` cut's value, when the `=` is here
+def gv.cut_pick(
+  eq: Bool,
+  +acc: List<&2, Char>,
+  +tt: List<&2, Char>,
+  rest: String & Maybe<&2, String>,
+  +ws: List<&2, String>,
+  +hr: {gv.pok(rest, ws) == True{} : Bool},
+  +ht: {gv.ok(ws, String.from_list(tt)) == True{} : Bool}
+) -> {gv.pok(S.cut_eq.pick(eq, acc, tt, rest), ws) == True{} : Bool}:
+  match eq:
+    case True{}:
+      ht
+    case False{}:
+      hr
+
+# the `=` cut's value is within the words when the body is
+def gv.cut_go(
+  cs: List<&2, Char>,
+  +acc: List<&2, Char>,
+  +ws: List<&2, String>,
+  hh: gv.In(String.from_list(cs), ws)
+) -> {gv.pok(S.cut_eq.go(cs, acc), ws) == True{} : Bool}:
+  match cs:
+    case Nil{}:
+      {==}
+    case Con{+cc, +tt}:
+      +hi = {gv.in_tail(cc, String.from_list(tt), ws, hh) : {gv.sufs(String.from_list(tt), ws) == True{} : Bool}}
+      gv.cut_pick(Char.is_eq(cc, '='), acc, tt, S.cut_eq.go(tt, cc <> acc), ws, gv.cut_go(tt, cc <> acc, ws, hi),
+        gv.ok_in(ws, String.from_list(tt), hi))
+
+# a string read as chars and back is itself
+def gv.round(ss: String) -> {String.from_list(String.to_list(ss)) == ss : String}:
+  match ss:
+    case SNil{}:
+      {==}
+    case SCon{+hh, +tt}:
+      Equal.cong(String, String, xs => SCon{hh, xs}, String.from_list(String.to_list(tt)), tt, gv.round(tt))
+
+# a long option body within the words
+def gv.long(
+  +body: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  hh: gv.In(body, ws),
+  hb: gv.B(binds, ws),
+  hu: gv.U(up, ws)
+) -> gv.G(S.parse.take_long(body, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+  ee = Equal.sym(String, String.from_list(String.to_list(body)), body, gv.round(body))
+  hr = {%ee : gv.In(_, ws)
+    hh : gv.In(String.from_list(String.to_list(body)), ws)}
+  gv.cut(S.cut_eq(body), orig, args, up, subs, path, binds, pos, raw, seen, ws,
+    gv.cut_go(String.to_list(body), [], ws, hr), hb, hu)
+
+# a flag letter's value: the rest after `=`
+def gv.cflag(
+  eq: Bool,
+  +rest: String,
+  +ws: List<&2, String>,
+  hh: gv.In(rest, ws)
+) -> {gv.mok(S.cluster.val.flag(eq, rest), ws) == True{} : Bool}:
+  match eq:
+    case True{}:
+      gv.ok_in(ws, rest, hh)
+    case False{}:
+      {==}
+
+# the rest of the cluster, when there is any
+def gv.crest(
+  rest: String,
+  +ws: List<&2, String>,
+  hh: gv.In(rest, ws)
+) -> {gv.mok(Bool.pick(Maybe<&2, String>, String.is_empty(rest), None{}, Some{rest}), ws) == True{} : Bool}:
+  match rest:
+    case SNil{}:
+      {==}
+    case SCon{+cc, +tt}:
+      gv.ok_in(ws, SCon{cc, tt}, hh)
+
+# an option letter's value: after one `=`, or the rest
+def gv.sval(
+  eq: Bool,
+  +rest: String,
+  +ws: List<&2, String>,
+  +hh: {gv.sufs(rest, ws) == True{} : Bool}
+) -> {gv.mok(S.short_of.val(eq, rest), ws) == True{} : Bool}:
+  match eq:
+    case True{}:
+      gv.ok_in(ws, String.drop(rest, 1n), gv.in_drop(rest, 1n, ws, hh))
+    case False{}:
+      gv.crest(rest, ws, hh)
+
+# a letter's value is within the words when the rest of the cluster is
+def gv.cval(
+  found: Maybe<&2, S.Arg>,
+  +rest: String,
+  +ws: List<&2, String>,
+  +hh: {gv.sufs(rest, ws) == True{} : Bool}
+) -> {gv.mok(S.cluster.val(found, rest), ws) == True{} : Bool}:
+  match found:
+    case None{}:
+      {==}
+    case Some{aa}:
+      match aa:
+        case S.Arg{_n, _s, _l, kind, _h, _r, _d, _c}:
+          match kind:
+            case S.Flag{}:
+              gv.cflag(String.starts_with(rest, "="), rest, ws, hh)
+            case S.Opt{}:
+              gv.sval(String.starts_with(rest, "="), rest, ws, hh)
+            case S.Many{}:
+              gv.sval(String.starts_with(rest, "="), rest, ws, hh)
+            case S.Pos{}:
+              {==}
+            case S.Rest{}:
+              {==}
+
+# one letter, by the walker's mode
+def gv.capply_mode(
+  mode: S.Mode,
+  +cc: Char,
+  +rest: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  +hh: {gv.sufs(rest, ws) == True{} : Bool},
+  hb: gv.B(binds, ws),
+  hu: gv.U(up, ws)
+) -> gv.G(S.cluster.apply.mode(mode, cc, rest, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+  match mode:
+    case S.Dead{_e}:
+      gv.keep(binds, up, ws, hb, hu)
+    case S.Free{}:
+      gv.arg(S.by_short(args, SCon{cc, SNil{}}), S.cluster.val(S.by_short(args, SCon{cc, SNil{}}), rest), orig, args,
+        up, subs, path, binds, pos, raw, seen, ws, gv.cval(S.by_short(args, SCon{cc, SNil{}}), rest, ws, hh), hb, hu)
+    case S.Need{_n}:
+      gv.arg(S.by_short(args, SCon{cc, SNil{}}), S.cluster.val(S.by_short(args, SCon{cc, SNil{}}), rest), orig, args,
+        up, subs, path, binds, pos, raw, seen, ws, gv.cval(S.by_short(args, SCon{cc, SNil{}}), rest, ws, hh), hb, hu)
+    case S.Help{}:
+      gv.arg(S.by_short(args, SCon{cc, SNil{}}), S.cluster.val(S.by_short(args, SCon{cc, SNil{}}), rest), orig, args,
+        up, subs, path, binds, pos, raw, seen, ws, gv.cval(S.by_short(args, SCon{cc, SNil{}}), rest, ws, hh), hb, hu)
+
+# one letter against the walker
+def gv.capply(
+  st: S.St,
+  +cc: Char,
+  +rest: String,
+  +orig: String,
+  +ws: List<&2, String>,
+  +hh: {gv.sufs(rest, ws) == True{} : Bool},
+  +hg: {gv.good(st, ws) == True{} : Bool}
+) -> gv.G(S.cluster.apply(st, cc, rest, orig), ws):
+  match st:
+    case S.St{mode, +args, +up, +subs, +path, +binds, +pos, +raw, +seen}:
+      gv.capply_mode(mode, cc, rest, orig, args, up, subs, path, binds, pos, raw, seen, ws, hh,
+        gv.and_l(gv.all(binds, ws), gv.ups(up, ws), hg), gv.and_r(gv.all(binds, ws), gv.ups(up, ws), hg))
+
+# one letter, unless the cluster has ended
+def gv.letter(
+  done: Bool,
+  +cc: Char,
+  +rest: String,
+  +orig: String,
+  st: S.St,
+  +ws: List<&2, String>,
+  +hh: {gv.sufs(rest, ws) == True{} : Bool},
+  +hg: {gv.good(st, ws) == True{} : Bool}
+) -> gv.G(S.cluster.letter(done, cc, rest, orig, st), ws):
+  match done:
+    case True{}:
+      hg
+    case False{}:
+      gv.capply(st, cc, rest, orig, ws, hh, hg)
+
+# every letter of a cluster within the words
+def gv.cluster(
+  body: String,
+  +orig: String,
+  +st: S.St,
+  +done: Bool,
+  +ws: List<&2, String>,
+  +hh: {gv.sufs(body, ws) == True{} : Bool},
+  +hg: {gv.good(st, ws) == True{} : Bool}
+) -> gv.G(S.cluster(body, orig, st, done), ws):
+  match body:
+    case SNil{}:
+      hg
+    case SCon{+cc, +rest}:
+      +hr = {gv.in_tail(cc, rest, ws, hh) : {gv.sufs(rest, ws) == True{} : Bool}}
+      gv.cluster(rest, orig, S.cluster.letter(done, cc, rest, orig, st), S.cluster.done(done, cc, rest, st), ws, hr,
+        gv.letter(done, cc, rest, orig, st, ws, hr, hg))
+
+# a short option body within the words
+def gv.short(
+  +body: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  +hh: {gv.sufs(body, ws) == True{} : Bool},
+  hb: gv.B(binds, ws),
+  hu: gv.U(up, ws)
+) -> gv.G(S.parse.take_short(body, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+  gv.cluster(body, orig, S.St{S.Free{}, args, up, subs, path, binds, pos, raw, seen}, False{}, ws, hh,
+    gv.keep(binds, up, ws, hb, hu))
+
+# a positional binds the word
+def gv.take_pos(
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +ws: List<&2, String>,
+  +hh: {gv.sufs(tok, ws) == True{} : Bool},
+  hb: gv.B(binds, ws),
+  hu: gv.U(up, ws)
+) -> gv.G(S.parse.take_pos(tok, args, up, subs, path, binds, pos, raw), ws):
+  match pos:
+    case Nil{}:
+      gv.keep(binds, up, ws, hb, hu)
+    case Con{hp, +tt}:
+      match hp:
+        case S.Arg{+name, +sh, +lo, +kind, +hl, +req, +dd, +cs}:
+          gv.choice(S.allowed(cs, tok), name, tok, args, up, subs, path, binds,
+            S.parse.take_pos.keep(S.rest.is(S.Arg{name, sh, lo, kind, hl, req, dd, cs}),
+              S.Arg{name, sh, lo, kind, hl, req, dd, cs}, tt), raw, True{}, ws, gv.ok_in(ws, tok, hh), hb, hu)
+
+# entering a subcommand moves the bindings up a level
+def gv.enter(
+  ss: S.Sub,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +ws: List<&2, String>,
+  hb: gv.B(binds, ws),
+  hu: gv.U(up, ws)
+) -> gv.G(S.parse.enter(ss, args, up, path, binds), ws):
+  match ss:
+    case S.Sub{_n, _a, _g, _c}:
+      gv.keep(binds, up, ws, hb, hu)
+
+# a subcommand entered, or a missing positional
+def gv.enter_or(
+  miss: Maybe<&2, String>,
+  ss: S.Sub,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  hb: gv.B(binds, ws),
+  hu: gv.U(up, ws)
+) -> gv.G(S.parse.enter_or(miss, ss, args, up, subs, path, binds, pos, raw, seen), ws):
+  match miss:
+    case None{}:
+      gv.enter(ss, args, up, path, binds, ws, hb, hu)
+    case Some{_n}:
+      gv.keep(binds, up, ws, hb, hu)
+
+# a word: a subcommand, or a positional
+def gv.word_go(
+  found: Maybe<&2, S.Sub>,
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  +hh: {gv.sufs(tok, ws) == True{} : Bool},
+  hb: gv.B(binds, ws),
+  hu: gv.U(up, ws)
+) -> gv.G(S.parse.word.go(found, tok, args, up, subs, path, binds, pos, raw, seen), ws):
+  match found:
+    case None{}:
+      gv.take_pos(tok, args, up, subs, path, binds, pos, raw, ws, hh, hb, hu)
+    case Some{ss}:
+      gv.enter_or(S.parse.first_req(pos), ss, args, up, subs, path, binds, pos, raw, seen, ws, hb, hu)
+
+# a word
+def gv.word(
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  +hh: {gv.sufs(tok, ws) == True{} : Bool},
+  hb: gv.B(binds, ws),
+  hu: gv.U(up, ws)
+) -> gv.G(S.parse.word(tok, args, up, subs, path, binds, pos, raw, seen), ws):
+  gv.word_go(S.find_sub(subs, tok), tok, args, up, subs, path, binds, pos, raw, seen, ws, hh, hb, hu)
+
+# `-` alone is a word; otherwise a cluster
+def gv.short_go(
+  alone: Bool,
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  +hh: {gv.sufs(tok, ws) == True{} : Bool},
+  hb: gv.B(binds, ws),
+  hu: gv.U(up, ws)
+) -> gv.G(S.parse.step.short.go(alone, tok, args, up, subs, path, binds, pos, seen), ws):
+  match alone:
+    case True{}:
+      gv.word(tok, args, up, subs, path, binds, pos, False{}, seen, ws, hh, hb, hu)
+    case False{}:
+      gv.short(String.drop(tok, 1n), tok, args, up, subs, path, binds, pos, False{}, seen, ws,
+        gv.in_drop(tok, 1n, ws, hh), hb, hu)
+
+# a short option or a word
+def gv.step_short(
+  dash: Bool,
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  +hh: {gv.sufs(tok, ws) == True{} : Bool},
+  hb: gv.B(binds, ws),
+  hu: gv.U(up, ws)
+) -> gv.G(S.parse.step.short(dash, tok, args, up, subs, path, binds, pos, seen), ws):
+  match dash:
+    case True{}:
+      gv.short_go(String.eq(tok, "-"), tok, args, up, subs, path, binds, pos, seen, ws, hh, hb, hu)
+    case False{}:
+      gv.word(tok, args, up, subs, path, binds, pos, False{}, seen, ws, hh, hb, hu)
+
+# a long option, a short one, or a word
+def gv.kind_go(
+  long: Bool,
+  dash: Bool,
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  +hh: {gv.sufs(tok, ws) == True{} : Bool},
+  hb: gv.B(binds, ws),
+  hu: gv.U(up, ws)
+) -> gv.G(S.parse.step.kind.go(long, dash, tok, args, up, subs, path, binds, pos, seen), ws):
+  match long:
+    case True{}:
+      gv.long(String.drop(tok, 2n), tok, args, up, subs, path, binds, pos, False{}, seen, ws,
+        gv.in_drop(tok, 2n, ws, hh), hb, hu)
+    case False{}:
+      gv.step_short(dash, tok, args, up, subs, path, binds, pos, seen, ws, hh, hb, hu)
+
+# a word by its shape
+def gv.skind(
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  +hh: {gv.sufs(tok, ws) == True{} : Bool},
+  hb: gv.B(binds, ws),
+  hu: gv.U(up, ws)
+) -> gv.G(S.parse.step.kind(tok, args, up, subs, path, binds, pos, seen), ws):
+  gv.kind_go(String.starts_with(tok, "--"), String.starts_with(tok, "-"), tok, args, up, subs, path, binds, pos, seen, ws,
+    hh, hb, hu)
+
+# `help` starts a help path, keeping the bindings
+def gv.help(
+  hit: Bool,
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  +hh: {gv.sufs(tok, ws) == True{} : Bool},
+  hb: gv.B(binds, ws),
+  hu: gv.U(up, ws)
+) -> gv.G(S.parse.step.help(hit, tok, args, up, subs, path, binds, pos, seen), ws):
+  match hit:
+    case True{}:
+      gv.keep(binds, up, ws, hb, hu)
+    case False{}:
+      gv.skind(tok, args, up, subs, path, binds, pos, seen, ws, hh, hb, hu)
+
+# `--` switches to positionals, keeping the bindings
+def gv.end(
+  end: Bool,
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  +hh: {gv.sufs(tok, ws) == True{} : Bool},
+  hb: gv.B(binds, ws),
+  hu: gv.U(up, ws)
+) -> gv.G(S.parse.step.end(end, tok, args, up, subs, path, binds, pos, seen), ws):
+  match end:
+    case True{}:
+      gv.keep(binds, up, ws, hb, hu)
+    case False{}:
+      gv.help(Bool.and(String.eq(tok, "help"), Bool.not(seen)), tok, args, up, subs, path, binds, pos, seen, ws, hh,
+        hb, hu)
+
+# after `--` a word is a positional
+def gv.raw(
+  raw: Bool,
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  +hh: {gv.sufs(tok, ws) == True{} : Bool},
+  hb: gv.B(binds, ws),
+  hu: gv.U(up, ws)
+) -> gv.G(S.parse.step.raw(raw, tok, args, up, subs, path, binds, pos, seen), ws):
+  match raw:
+    case True{}:
+      gv.take_pos(tok, args, up, subs, path, binds, pos, True{}, ws, hh, hb, hu)
+    case False{}:
+      gv.end(String.eq(tok, "--"), tok, args, up, subs, path, binds, pos, seen, ws, hh, hb, hu)
+
+# a pending option binds the word
+def gv.need(
+  flag: Bool,
+  +name: String,
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  +hh: {gv.sufs(tok, ws) == True{} : Bool},
+  hb: gv.B(binds, ws),
+  hu: gv.U(up, ws)
+) -> gv.G(S.parse.step.need(flag, name, tok, args, up, subs, path, binds, pos, raw, seen), ws):
+  match flag:
+    case True{}:
+      gv.keep(binds, up, ws, hb, hu)
+    case False{}:
+      gv.opt_val(name, tok, args, up, subs, path, binds, pos, raw, seen, ws, gv.ok_in(ws, tok, hh), hb, hu)
+
+# a word of a help path keeps the bindings
+def gv.help_path(
+  found: Maybe<&2, S.Sub>,
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  _hh: {gv.sufs(tok, ws) == True{} : Bool},
+  hb: gv.B(binds, ws),
+  hu: gv.U(up, ws)
+) -> gv.G(S.parse.step.help_path(found, tok, args, up, subs, path, binds, pos, raw, seen), ws):
+  match found:
+    case None{}:
+      gv.keep(binds, up, ws, hb, hu)
+    case Some{ss}:
+      match ss:
+        case S.Sub{_n, _a, _g, _c}:
+          gv.keep(binds, up, ws, hb, hu)
+
+# one word, by the walker's mode
+def gv.mode(
+  mode: S.Mode,
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  +hh: {gv.sufs(tok, ws) == True{} : Bool},
+  hb: gv.B(binds, ws),
+  hu: gv.U(up, ws)
+) -> gv.G(S.parse.step.mode(mode, tok, args, up, subs, path, binds, pos, raw, seen), ws):
+  match mode:
+    case S.Dead{_e}:
+      gv.keep(binds, up, ws, hb, hu)
+    case S.Need{name}:
+      gv.need(S.looks_flag(tok), name, tok, args, up, subs, path, binds, pos, raw, seen, ws, hh, hb, hu)
+    case S.Help{}:
+      gv.help_path(S.find_sub(subs, tok), tok, args, up, subs, path, binds, pos, raw, seen, ws, hh, hb, hu)
+    case S.Free{}:
+      gv.raw(raw, tok, args, up, subs, path, binds, pos, seen, ws, hh, hb, hu)
+
+# one word within the words keeps every value a walker holds one
+def gv.step(
+  +tok: String,
+  st: S.St,
+  +ws: List<&2, String>,
+  +hh: {gv.sufs(tok, ws) == True{} : Bool},
+  +hg: {gv.good(st, ws) == True{} : Bool}
+) -> gv.G(S.parse.step(tok, st), ws):
+  match st:
+    case S.St{mode, +args, +up, +subs, +path, +binds, +pos, +raw, +seen}:
+      gv.mode(mode, tok, args, up, subs, path, binds, pos, raw, seen, ws, hh,
+        gv.and_l(gv.all(binds, ws), gv.ups(up, ws), hg), gv.and_r(gv.all(binds, ws), gv.ups(up, ws), hg))
+
+# a walker's values, from one list of words to an equal one
+def gv.tr(
+  st: S.St,
+  +aa: List<&2, String>,
+  +bb: List<&2, String>,
+  +ee: {aa == bb : List<&2, String>},
+  +hg: {gv.good(st, bb) == True{} : Bool}
+) -> {gv.good(st, aa) == True{} : Bool}:
+  e2 = Equal.sym(List<&2, String>, aa, bb, ee)
+  %e2 : {gv.good(st, _) == True{} : Bool}
+  hg
+
+# walking the words after `pre` keeps every value one of the words' pieces
+def gv.walk(
+  tt: List<&2, String>,
+  +pre: List<&2, String>,
+  +st: S.St,
+  +hg: {gv.good(st, List.append(&2, String, pre, tt)) == True{} : Bool}
+) -> {gv.good(S.parse.walk(tt, st), List.append(&2, String, pre, tt)) == True{} : Bool}:
+  match tt:
+    case Nil{}:
+      hg
+    case Con{+tok, +rest}:
+      +ll = List.append(&2, String, pre, tok <> rest)
+      +mm = List.append(&2, String, List.append(&2, String, pre, [tok]), rest)
+      +ee = {sc.app(pre, [tok], rest) : {mm == ll : List<&2, String>}}
+      g1 = gv.step(tok, st, ll, gv.in_mid(pre, tok, rest), hg)
+      gw = gv.walk(rest, List.append(&2, String, pre, [tok]), S.parse.step(tok, st),
+        gv.tr(S.parse.step(tok, st), mm, ll, ee, g1))
+      gv.tr(S.parse.walk(rest, S.parse.step(tok, st)), ll, mm, Equal.sym(List<&2, String>, mm, ll, ee), gw)
+
+# a fresh walker holds no values
+def gv.start(spec: Shake.Cli, +ws: List<&2, String>) -> {gv.good(S.parse.start(spec), ws) == True{} : Bool}:
+  match spec:
+    case S.Cli{_n, _a, _v, _g, _s}:
+      {==}
+
+# the values of a frame's levels
+def gv.fups(fr: Grow.Frame, +ws: List<&2, String>) -> Bool:
+  Grow.Frame{lvs, _p} = fr
+  gv.ups(lvs, ws)
+
+# a walker's frame holds its values
+def gv.frame(
+  st: S.St,
+  +ws: List<&2, String>,
+  hg: {gv.good(st, ws) == True{} : Bool}
+) -> {gv.fups(Grow.gw.frame(st), ws) == True{} : Bool}:
+  match st:
+    case S.St{_m, _a, _g, _s, _p, _b, _o, _r, _n}:
+      hg
+
+# a level in the middle of a list of levels whose values all are
+def gv.ups_mid(
+  qs: List<&2, S.Level>,
+  +args: List<&2, S.Arg>,
+  +bs: List<&2, S.Bind>,
+  +up: List<&2, S.Level>,
+  +ws: List<&2, String>,
+  +hh: {gv.ups(List.append(&2, S.Level, qs, S.Level{args, bs} <> up), ws) == True{} : Bool}
+) -> {gv.all(bs, ws) == True{} : Bool}:
+  match qs:
+    case Nil{}:
+      gv.and_l(gv.all(bs, ws), gv.ups(up, ws), hh)
+    case Con{qq, +qt}:
+      match qq:
+        case S.Level{_a, +qb}:
+          gv.ups_mid(qt, args, bs, up, ws,
+            gv.and_r(gv.all(qb, ws), gv.ups(List.append(&2, S.Level, qt, S.Level{args, bs} <> up), ws), hh))
+
+# `true` or a piece is given
+def gv.or3(
+  ee: Bool,
+  pp: Bool,
+  +dd: Bool,
+  +hh: {Bool.or(ee, pp) == True{} : Bool}
+) -> {Bool.or(ee, Bool.or(pp, dd)) == True{} : Bool}:
+  match ee:
+    case True{}:
+      {==}
+    case False{}:
+      match pp:
+        case True{}:
+          {==}
+        case False{}:
+          Empty.absurd({Bool.or(False{}, Bool.or(False{}, dd)) == True{} : Bool}, Walk.wk.false_true(hh))
+
+# a list of values that all are one is given
+def gv.all_given(
+  bs: List<&2, S.Bind>,
+  +ws: List<&2, String>,
+  +args: List<&2, S.Arg>,
+  +hh: {gv.all(bs, ws) == True{} : Bool}
+) -> {Laws.all_given(bs, ws, args) == True{} : Bool}:
+  match bs:
+    case Nil{}:
+      {==}
+    case Con{hd, +tt}:
+      match hd:
+        case S.Bind{+nn, +vv}:
+          gv.and_tt(Laws.given(ws, args, S.Bind{nn, vv}), Laws.all_given(tt, ws, args),
+            gv.or3(String.eq(vv, "true"), Laws.piece(ws, vv), Laws.is_default(args, nn, vv),
+              gv.and_l(gv.ok(ws, vv), gv.all(tt, ws), hh)),
+            gv.all_given(tt, ws, args, gv.and_r(gv.ok(ws, vv), gv.all(tt, ws), hh)))
+
+# a default of more arguments is still one
+def gv.dmono(
+  ee: Bool,
+  pp: Bool,
+  +xx: Bool,
+  dd: Bool,
+  +hh: {Bool.or(ee, Bool.or(pp, dd)) == True{} : Bool}
+) -> {Bool.or(ee, Bool.or(pp, Bool.or(xx, dd))) == True{} : Bool}:
+  match ee:
+    case True{}:
+      {==}
+    case False{}:
+      match pp:
+        case True{}:
+          {==}
+        case False{}:
+          e2 = Equal.sym(Bool, dd, True{}, hh)
+          %e2 : {Bool.or(xx, _) == True{} : Bool}
+          gv.or_t(xx)
+
+# bindings given against some arguments are given against more
+def gv.given_mono(
+  xs: List<&2, S.Bind>,
+  +ws: List<&2, String>,
+  +aa: S.Arg,
+  +tt: List<&2, S.Arg>,
+  +hh: {Laws.all_given(xs, ws, tt) == True{} : Bool}
+) -> {Laws.all_given(xs, ws, aa <> tt) == True{} : Bool}:
+  match xs:
+    case Nil{}:
+      {==}
+    case Con{hd, +xt}:
+      match hd:
+        case S.Bind{+nn, +vv}:
+          match aa:
+            case S.Arg{+an, +sh, +lo, +kind, +hp, +req, +ad, +cs}:
+              gv.and_tt(Laws.given(ws, S.Arg{an, sh, lo, kind, hp, req, ad, cs} <> tt, S.Bind{nn, vv}),
+                Laws.all_given(xt, ws, S.Arg{an, sh, lo, kind, hp, req, ad, cs} <> tt),
+                gv.dmono(String.eq(vv, "true"), Laws.piece(ws, vv),
+                  Bool.and(String.eq(an, nn), Laws.default_is(ad, vv)), Laws.is_default(tt, nn, vv),
+                  gv.and_l(Laws.given(ws, tt, S.Bind{nn, vv}), Laws.all_given(xt, ws, tt), hh)),
+                gv.given_mono(xt, ws, S.Arg{an, sh, lo, kind, hp, req, ad, cs}, tt,
+                  gv.and_r(Laws.given(ws, tt, S.Bind{nn, vv}), Laws.all_given(xt, ws, tt), hh)))
+
+# an argument's own default is given
+def gv.dself(
+  +ee: Bool,
+  +pp: Bool,
+  +nn: String,
+  +vv: String,
+  dd: Bool
+) -> {Bool.or(ee, Bool.or(pp, Bool.or(Bool.and(String.eq(nn, nn), String.eq(vv, vv)), dd))) == True{} : Bool}:
+  e1 = Equal.sym(Bool, String.eq(nn, nn), True{}, Eq.string_eq_self(nn))
+  e2 = Equal.sym(Bool, String.eq(vv, vv), True{}, Eq.string_eq_self(vv))
+  e3 = Equal.sym(Bool, Bool.or(pp, True{}), True{}, gv.or_t(pp))
+  %e1 : {Bool.or(ee, Bool.or(pp, Bool.or(Bool.and(_, String.eq(vv, vv)), dd))) == True{} : Bool}
+  %e2 : {Bool.or(ee, Bool.or(pp, Bool.or(Bool.and(True{}, _), dd))) == True{} : Bool}
+  %e3 : {Bool.or(ee, _) == True{} : Bool}
+  gv.or_t(ee)
+
+# a default goes in front when its name is unbound
+def gv.fone(
+  skip: Bool,
+  +nn: String,
+  +vv: String,
+  +rr: List<&2, S.Bind>,
+  +ws: List<&2, String>,
+  +args: List<&2, S.Arg>,
+  +hr: {Laws.all_given(rr, ws, args) == True{} : Bool},
+  +hd: {Laws.given(ws, args, S.Bind{nn, vv}) == True{} : Bool}
+) -> {Laws.all_given(S.fill.one(skip, nn, vv, rr), ws, args) == True{} : Bool}:
+  match skip:
+    case True{}:
+      hr
+    case False{}:
+      gv.and_tt(Laws.given(ws, args, S.Bind{nn, vv}), Laws.all_given(rr, ws, args), hd, hr)
+
+# the defaults filled in are the arguments' own
+def gv.fill(
+  args: List<&2, S.Arg>,
+  +bs: List<&2, S.Bind>,
+  +ws: List<&2, String>,
+  +hh: {gv.all(bs, ws) == True{} : Bool}
+) -> {Laws.all_given(S.fill.args(args, bs), ws, args) == True{} : Bool}:
+  match args:
+    case Nil{}:
+      gv.all_given(bs, ws, [], hh)
+    case Con{aa, +tt}:
+      match aa:
+        case S.Arg{+an, +sh, +lo, +kind, +hp, +req, ad, +cs}:
+          match ad:
+            case None{}:
+              gv.given_mono(S.fill.args(tt, bs), ws, S.Arg{an, sh, lo, kind, hp, req, None{}, cs}, tt,
+                gv.fill(tt, bs, ws, hh))
+            case Some{+dv}:
+              gv.fone(S.bound(S.fill.args(tt, bs), an), an, dv, S.fill.args(tt, bs), ws,
+                S.Arg{an, sh, lo, kind, hp, req, Some{dv}, cs} <> tt,
+                gv.given_mono(S.fill.args(tt, bs), ws, S.Arg{an, sh, lo, kind, hp, req, Some{dv}, cs}, tt,
+                  gv.fill(tt, bs, ws, hh)),
+                gv.dself(String.eq(dv, "true"), Laws.piece(ws, dv), an, dv, Laws.is_default(tt, an, dv)))
+
+# reversed bindings are given when they are
+def gv.rev_given(
+  xs: List<&2, S.Bind>,
+  +acc: List<&2, S.Bind>,
+  +ws: List<&2, String>,
+  +args: List<&2, S.Arg>,
+  +hx: {Laws.all_given(xs, ws, args) == True{} : Bool},
+  +ha: {Laws.all_given(acc, ws, args) == True{} : Bool}
+) -> {Laws.all_given(List.reverse.go(&2, S.Bind, xs, acc), ws, args) == True{} : Bool}:
+  match xs:
+    case Nil{}:
+      ha
+    case Con{+hd, +tt}:
+      gv.rev_given(tt, hd <> acc, ws, args,
+        gv.and_r(Laws.given(ws, args, hd), Laws.all_given(tt, ws, args), hx),
+        gv.and_tt(Laws.given(ws, args, hd), Laws.all_given(acc, ws, args),
+          gv.and_l(Laws.given(ws, args, hd), Laws.all_given(tt, ws, args), hx), ha))
+
+# the bindings of a finished walker's level at `path` all are one
+def gv.level(
+  +spec: Shake.Cli,
+  +ws: List<&2, String>,
+  +qs: List<&2, S.Level>,
+  +args: List<&2, S.Arg>,
+  +bs: List<&2, S.Bind>,
+  +up: List<&2, S.Level>,
+  +path: List<&2, String>,
+  +ms: List<&2, String>,
+  h_fr: fin.Framed(spec, ws, qs, args, bs, up, path, ms)
+) -> {gv.all(bs, ws) == True{} : Bool}:
+  +fs = S.parse.walk(ws, S.parse.start(spec))
+  +fr = {Grow.Frame{List.append(&2, S.Level, qs, S.Level{args, bs} <> up), List.append(&2, String, path, ms)}
+    : Grow.Frame}
+  fg = gv.frame(fs, ws, gv.walk(ws, [], S.parse.start(spec), gv.start(spec, ws)))
+  gv.ups_mid(qs, args, bs, up, ws,
+    Equal.trans(Bool, gv.fups(fr, ws), gv.fups(Grow.gw.frame(fs), ws), True{},
+      Equal.cong(Grow.Frame, Bool, ff => gv.fups(ff, ws), fr, Grow.gw.frame(fs),
+        Equal.sym(Grow.Frame, Grow.gw.frame(fs), fr, h_fr)),
+      fg))
+
+def Laws.values_given(spec, ws, found, qs, args, bs, up, path, ms, h_done, h_fr, h_len):
+  +f0 = {S.Level{args, S.fill.args(args, bs)} : S.Level}
+  +rq = List.reverse(&2, S.Level, S.fill.levels(qs))
+  ea = Equal.sym(Maybe<&2, S.Matched>, S.at(found, path), Some{S.matched.build(f0 <> rq, ms)},
+    fin.at(spec, ws, found, qs, args, bs, up, path, ms, h_done, h_fr, h_len))
+  eo = Equal.sym(List<&2, S.Bind>, S.own(S.matched.build(f0 <> rq, ms)),
+    List.reverse(&2, S.Bind, S.fill.args(args, bs)), Grow.gw.own_build(f0, rq, ms))
+  %ea : {Laws.given_at.go(_, ws, args) == Some{True{}} : Maybe<&2, Bool>}
+  %eo : {Some{Laws.all_given(_, ws, args)} == Some{True{}} : Maybe<&2, Bool>}
+  Equal.cong(Bool, Maybe<&2, Bool>, bb => Some{bb},
+    Laws.all_given(List.reverse(&2, S.Bind, S.fill.args(args, bs)), ws, args), True{},
+    gv.rev_given(S.fill.args(args, bs), [], ws, args,
+      gv.fill(args, bs, ws, gv.level(spec, ws, qs, args, bs, up, path, ms, h_fr)), {==}))
