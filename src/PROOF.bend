@@ -1979,3 +1979,103 @@ def Laws.long_refused(
     S.BadValue{path, nn, vv}, h_at,
     long_refused.step(body, name, vv, args, up, subs, path, bs, pos, seen, nn, sh, lo, kind, hp, req, dflt, cs,
       h_dd, h_cut, h_name, h_found, h_kind, h_bad))
+
+# a string read back from its chars is itself
+def cut.from_to(ss: String) -> {String.from_list(String.to_list(ss)) == ss : String}:
+  match ss:
+    case SNil{}:
+      {==}
+    case SCon{+hh, tt}:
+      Equal.cong(String, String, xx => SCon{hh, xx}, String.from_list(String.to_list(tt)), tt, cut.from_to(tt))
+
+# reversing chars onto a list, then reversing that, puts the list back in
+# front of the chars
+def cut.rev_rev(
+  xs: List<&2, Char>,
+  +acc: List<&2, Char>
+) -> {List.reverse.go(&2, Char, List.reverse.go(&2, Char, xs, acc), []) == List.reverse.go(&2, Char, acc, xs)
+    : List<&2, Char>}:
+  match xs:
+    case Nil{}:
+      {==}
+    case Con{+hh, tt}:
+      cut.rev_rev(tt, hh <> acc)
+
+# a char a string with no `=` starts with is not `=`
+def cut.head(
+  +cc: Char,
+  +tt: String,
+  h_name: {Laws.no_eq(SCon{cc, tt}) == True{} : Bool}
+) -> {Char.is_eq(cc, '=') == False{} : Bool}:
+  Walk.wk.not_true(Char.is_eq(cc, '='), Walk.wk.and_l(Bool.not(Char.is_eq(cc, '=')), Laws.no_eq(tt), h_name))
+
+# the rest of a string with no `=` has none either
+def cut.tail(
+  +cc: Char,
+  +tt: String,
+  h_name: {Laws.no_eq(SCon{cc, tt}) == True{} : Bool}
+) -> {Laws.no_eq(tt) == True{} : Bool}:
+  Walk.wk.and_r(Bool.not(Char.is_eq(cc, '=')), Laws.no_eq(tt), h_name)
+
+# the cut, char by char: every char before the first `=` goes onto the
+# accumulator, and the `=` ends the name
+def cut.go_eq(
+  name: String,
+  +vv: String,
+  +acc: List<&2, Char>,
+  +h_name: {Laws.no_eq(name) == True{} : Bool}
+) -> {S.cut_eq.go(String.to_list(name ++ ("=" ++ vv)), acc)
+    == (S.from.rev(List.reverse.go(&2, Char, String.to_list(name), acc)), Some{String.from_list(String.to_list(vv))})
+    : String & Maybe<&2, String>}:
+  match name:
+    case SNil{}:
+      {==}
+    case SCon{+cc, +tt}:
+      +rest = String.to_list(tt ++ ("=" ++ vv))
+      ee = Equal.sym(Bool, Char.is_eq(cc, '='), False{}, cut.head(cc, tt, h_name))
+      %ee : {S.cut_eq.pick(_, acc, rest, S.cut_eq.go(rest, cc <> acc))
+        == (S.from.rev(List.reverse.go(&2, Char, String.to_list(tt), cc <> acc)),
+          Some{String.from_list(String.to_list(vv))}) : String & Maybe<&2, String>}
+      cut.go_eq(tt, vv, cc <> acc, cut.tail(cc, tt, h_name))
+
+# the cut, char by char, of a string with no `=`
+def cut.go_none(
+  name: String,
+  +acc: List<&2, Char>,
+  +h_name: {Laws.no_eq(name) == True{} : Bool}
+) -> {S.cut_eq.go(String.to_list(name), acc)
+    == (S.from.rev(List.reverse.go(&2, Char, String.to_list(name), acc)), None{}) : String & Maybe<&2, String>}:
+  match name:
+    case SNil{}:
+      {==}
+    case SCon{+cc, +tt}:
+      +rest = String.to_list(tt)
+      ee = Equal.sym(Bool, Char.is_eq(cc, '='), False{}, cut.head(cc, tt, h_name))
+      %ee : {S.cut_eq.pick(_, acc, rest, S.cut_eq.go(rest, cc <> acc))
+        == (S.from.rev(List.reverse.go(&2, Char, String.to_list(tt), cc <> acc)), None{})
+        : String & Maybe<&2, String>}
+      cut.go_none(tt, cc <> acc, cut.tail(cc, tt, h_name))
+
+# the name the cut reads back, reversed twice, is the name
+def cut.name(+name: String) -> {S.from.rev(List.reverse.go(&2, Char, String.to_list(name), [])) == name : String}:
+  Equal.trans(String, S.from.rev(List.reverse.go(&2, Char, String.to_list(name), [])),
+    String.from_list(String.to_list(name)), name,
+    Equal.cong(List<&2, Char>, String, cs => String.from_list(cs),
+      List.reverse.go(&2, Char, List.reverse.go(&2, Char, String.to_list(name), []), []), String.to_list(name),
+      cut.rev_rev(String.to_list(name), [])),
+    cut.from_to(name))
+
+def Laws.cut_first_eq(name, vv, h_name):
+  +nm = S.from.rev(List.reverse.go(&2, Char, String.to_list(name), []))
+  +vl = String.from_list(String.to_list(vv))
+  Equal.trans(String & Maybe<&2, String>, S.cut_eq(name ++ ("=" ++ vv)), (nm, Some{vl}), (name, Some{vv}),
+    cut.go_eq(name, vv, [], h_name),
+    Equal.trans(String & Maybe<&2, String>, (nm, Some{vl}), (name, Some{vl}), (name, Some{vv}),
+      Equal.cong(String, String & Maybe<&2, String>, xx => (xx, Some{vl}), nm, name, cut.name(name)),
+      Equal.cong(String, String & Maybe<&2, String>, xx => (name, Some{xx}), vl, vv, cut.from_to(vv))))
+
+def Laws.cut_no_eq(name, h_name):
+  +nm = S.from.rev(List.reverse.go(&2, Char, String.to_list(name), []))
+  Equal.trans(String & Maybe<&2, String>, S.cut_eq(name), (nm, None{}), (name, None{}),
+    cut.go_none(name, [], h_name),
+    Equal.cong(String, String & Maybe<&2, String>, xx => (xx, None{}), nm, name, cut.name(name)))

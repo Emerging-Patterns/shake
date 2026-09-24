@@ -1187,3 +1187,28 @@ law long_refused:
   for h_bad: {S.allowed(S.parse.choices(S.by_name(args, nn)), vv) == False{} : Bool}
   {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, ["--" ++ body]), more))
     == Fail{S.BadValue{path, nn, vv}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+
+# whether a string has no `=`
+def no_eq(ss: String) -> Bool:
+  match ss:
+    case SNil{}:
+      True{}
+    case SCon{+cc, tt}:
+      Bool.and(Bool.not(Char.is_eq(cc, '=')), no_eq(tt))
+
+# LAW: the `=` cut of a long option's body splits it at its first `=`: the
+# chars before it are the spelling, and everything after it, verbatim and
+# possibly empty, is the value
+# SHAKE-TOK-1
+law cut_first_eq:
+  for +name: String
+  for +vv: String
+  for h_name: {no_eq(name) == True{} : Bool}
+  {S.cut_eq(name ++ ("=" ++ vv)) == (name, Some{vv}) : String & Maybe<&2, String>}
+
+# LAW: a long option's body with no `=` is all spelling, with no value
+# SHAKE-TOK-1
+law cut_no_eq:
+  for +name: String
+  for h_name: {no_eq(name) == True{} : Bool}
+  {S.cut_eq(name) == (name, None{}) : String & Maybe<&2, String>}
