@@ -1,6 +1,5 @@
 # bolt.bend: how bolt lints this repo. Every rule is an error except
-# `coverage`, which warns until the laws exist, and `trace`, which waits for
-# SPEC.md: the gate must see no errors.
+# `coverage`, which warns until the laws exist: the gate must see no errors.
 # See bolt/config.bend for the groups and levels.
 import Base
 
@@ -30,7 +29,6 @@ def closed() -> String:
 def unsafe() -> String:
   "error"
 
-# SPEC.md's rows and the laws' tags agree: off until SPEC.md lands (rollout
-# phase one in docs/rfc/shake-spec.md), then an error
+# SPEC.md's rows and the laws' tags agree
 def trace() -> String:
-  "off"
+  "error"
