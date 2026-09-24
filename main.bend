@@ -92,7 +92,7 @@ def rest(
 def parse(spec: S.Cli, words: List<&2, String>) -> Result<&2, &2, S.ParseErr, S.Matched>:
   S.parse(spec, words)
 
-# the value bound to `name`, or ""
+# the value bound to `name` last, or "" when there is none
 def get(found: S.Matched, +name: String) -> String:
   S.get(found, name)
 

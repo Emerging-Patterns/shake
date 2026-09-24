@@ -408,24 +408,6 @@ def bound(bs: List<&2, Bind>, +name: String) -> Bool:
       bound.at(bound.hit(h, name), bound(t, name))
 
 # this bind's value when the name matches, else the rest
-def get.bind.at(bb: Bind, rest: String, +name: String) -> String:
-  Bind{+n, v} = bb
-  Bool.pick(String, String.eq(n, name), v, rest)
-
-# the value bound to `name`, or ""
-def get.bind(bs: List<&2, Bind>, +name: String) -> String:
-  match bs:
-    case Nil{}:
-      ""
-    case Con{+h, t}:
-      get.bind.at(h, get.bind(t, name), name)
-
-# the value bound to `name`, or ""
-def get(mm: Matched, +name: String) -> String:
-  Matched{_p, binds} = mm
-  get.bind(binds, name)
-
-# this bind's value when the name matches, else the rest
 def get_all.bind.hit(
   hit: Bool,
   +vv: String,
@@ -458,6 +440,18 @@ def get_all.bind(bs: List<&2, Bind>, +name: String) -> List<&2, String>:
 def get_all(mm: Matched, +name: String) -> List<&2, String>:
   Matched{_p, binds} = mm
   get_all.bind(binds, name)
+
+# the last of a list of values, or `dflt` when it is empty
+def get.last(vs: List<&2, String>, dflt: String) -> String:
+  match vs:
+    case Nil{}:
+      dflt
+    case Con{hh, tt}:
+      get.last(tt, hh)
+
+# the value bound to `name` last, or "" when there is none
+def get(mm: Matched, +name: String) -> String:
+  get.last(get_all(mm, name), "")
 
 # whether a flag named `name` was set
 def on(mm: Matched, +name: String) -> Bool:
