@@ -86,10 +86,11 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 
 ## Left to prove
 
-Every pending row is unproved in full, except the one below; the RFC's Rollout says in which phase each row's laws land.
+Every pending row is unproved in full, except those below; the RFC's Rollout says in which phase each row's laws land.
 
 | ID | Proved so far | Missing |
 | :---- | :---- | :---- |
+| SHAKE-TOK-7 | `unknown_long`, `unknown_short`: wherever the words before it leave the walker free, a long or short option that no argument of the walker's current argument list spells fails the parse with `UnknownFlag` of the word, whatever follows. | That the walker's current argument list, after a subcommand is selected, is that subcommand's own, so a parent's arguments are not matched; it is part of SHAKE-PARSE-4. |
 | SHAKE-PARSE-10 | `get_last`: `get` reads the value of the last binding of a name, whatever comes before it. | That `parse` records bindings in the order the words give them, which is part of SHAKE-PARSE-1. |
 
 ## Trust boundary

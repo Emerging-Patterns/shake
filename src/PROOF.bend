@@ -188,3 +188,203 @@ def Laws.fail_stays(spec, ws, more, err, died):
     Laws.walk_append(ws, more, S.parse.start(spec)))
   %e1 : {S.parse.finish(_) == Fail{err} : Result<&2, &2, S.ParseErr, S.Matched>}
   Laws.fail_from(S.parse.walk(ws, S.parse.start(spec)), more, err, died)
+
+def Laws.prefix_empty(ss):
+  match ss:
+    case SNil{}:
+      {==}
+    case SCon{_h, _t}:
+      {==}
+
+def Laws.drop_zero(ss):
+  match ss:
+    case SNil{}:
+      {==}
+    case SCon{_h, _t}:
+      {==}
+
+def Laws.unknown_long_step(body, name, val, args, specs, subs, path, bs, pos, seen, h_dd, h_cut, h_name, h_none):
+  e1 = Equal.sym(Bool, String.eq("--" ++ body, "--"), False{}, h_dd)
+  %e1 : {S.parse.step.end(_, "--" ++ body, args, specs, subs, path, bs, pos, seen)
+    == S.St{S.Dead{S.UnknownFlag{"--" ++ body}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+  e0 = Equal.sym(Bool, String.starts_with(body, ""), True{}, Laws.prefix_empty(body))
+  %e0 : {S.parse.step.kind.go(_, True{}, "--" ++ body, args, specs, subs, path, bs, pos, seen)
+    == S.St{S.Dead{S.UnknownFlag{"--" ++ body}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+  ed = Equal.sym(String, String.drop(body, 0n), body, Laws.drop_zero(body))
+  %ed : {S.parse.take_long(_, "--" ++ body, args, specs, subs, path, bs, pos, False{}, seen)
+    == S.St{S.Dead{S.UnknownFlag{"--" ++ body}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+  e2 = Equal.sym(String & Maybe<&2, String>, S.cut_eq(body), (name, val), h_cut)
+  %e2 : {S.parse.take_long.cut(_, "--" ++ body, args, specs, subs, path, bs, pos, False{}, seen)
+    == S.St{S.Dead{S.UnknownFlag{"--" ++ body}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+  e3 = Equal.sym(Bool, String.is_empty(name), False{}, h_name)
+  %e3 : {S.parse.take_long.named(_, name, val, "--" ++ body, args, specs, subs, path, bs, pos, False{}, seen)
+    == S.St{S.Dead{S.UnknownFlag{"--" ++ body}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+  e4 = Equal.sym(Maybe<&2, S.Arg>, S.by_long(args, name), None{}, h_none)
+  %e4 : {S.parse.take_arg(_, val, "--" ++ body, args, specs, subs, path, bs, pos, False{}, seen)
+    == S.St{S.Dead{S.UnknownFlag{"--" ++ body}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+  {==}
+
+def Laws.unknown_long_dies(
+  spec,
+  pre,
+  body,
+  name,
+  val,
+  args,
+  specs,
+  subs,
+  path,
+  bs,
+  pos,
+  seen,
+  h_at,
+  h_dd,
+  h_cut,
+  h_name,
+  h_none
+):
+  e1 = Equal.sym(S.St,
+    S.parse.walk(List.append(&2, String, pre, ["--" ++ body]), S.parse.start(spec)),
+    S.parse.walk(["--" ++ body], S.parse.walk(pre, S.parse.start(spec))),
+    Laws.walk_append(pre, ["--" ++ body], S.parse.start(spec)))
+  %e1 : {Laws.dead_of(_) == Some{S.UnknownFlag{"--" ++ body}} : Maybe<&2, S.ParseErr>}
+  e2 = Equal.sym(S.St,
+    S.parse.walk(pre, S.parse.start(spec)),
+    S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen},
+    h_at)
+  %e2 : {Laws.dead_of(S.parse.walk(["--" ++ body], _)) == Some{S.UnknownFlag{"--" ++ body}}
+    : Maybe<&2, S.ParseErr>}
+  e3 = Equal.sym(S.St, S.parse.step("--" ++ body, S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen}),
+    S.St{S.Dead{S.UnknownFlag{"--" ++ body}}, args, specs, subs, path, bs, pos, False{}, seen},
+    Laws.unknown_long_step(body, name, val, args, specs, subs, path, bs, pos, seen,
+      h_dd, h_cut, h_name, h_none))
+  %e3 : {Laws.dead_of(_) == Some{S.UnknownFlag{"--" ++ body}} : Maybe<&2, S.ParseErr>}
+  {==}
+
+def Laws.unknown_long(
+  spec,
+  pre,
+  more,
+  body,
+  name,
+  val,
+  args,
+  specs,
+  subs,
+  path,
+  bs,
+  pos,
+  seen,
+  h_at,
+  h_dd,
+  h_cut,
+  h_name,
+  h_none
+):
+  Laws.fail_stays(spec, List.append(&2, String, pre, ["--" ++ body]), more, S.UnknownFlag{"--" ++ body},
+    Laws.unknown_long_dies(spec, pre, body, name, val, args, specs, subs, path, bs, pos, seen,
+      h_at, h_dd, h_cut, h_name, h_none))
+
+def Laws.unknown_short_step(
+  body,
+  name,
+  val,
+  args,
+  specs,
+  subs,
+  path,
+  bs,
+  pos,
+  seen,
+  h_dd,
+  h_alone,
+  h_dash,
+  h_cut,
+  h_none
+):
+  e1 = Equal.sym(Bool, String.eq("-" ++ body, "--"), False{}, h_dd)
+  %e1 : {S.parse.step.end(_, "-" ++ body, args, specs, subs, path, bs, pos, seen)
+    == S.St{S.Dead{S.UnknownFlag{"-" ++ body}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+  e0 = Equal.sym(Bool, String.starts_with(body, ""), True{}, Laws.prefix_empty(body))
+  %e0 : {S.parse.step.kind.go(String.starts_with(body, "-"), _, "-" ++ body, args, specs, subs, path, bs, pos, seen)
+    == S.St{S.Dead{S.UnknownFlag{"-" ++ body}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+  e2 = Equal.sym(Bool, String.starts_with(body, "-"), False{}, h_dash)
+  %e2 : {S.parse.step.kind.go(_, True{}, "-" ++ body, args, specs, subs, path, bs, pos, seen)
+    == S.St{S.Dead{S.UnknownFlag{"-" ++ body}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+  e3 = Equal.sym(Bool, String.eq("-" ++ body, "-"), False{}, h_alone)
+  %e3 : {S.parse.step.short.go(_, "-" ++ body, args, specs, subs, path, bs, pos, seen)
+    == S.St{S.Dead{S.UnknownFlag{"-" ++ body}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+  ed = Equal.sym(String, String.drop(body, 0n), body, Laws.drop_zero(body))
+  %ed : {S.parse.take_short(_, "-" ++ body, args, specs, subs, path, bs, pos, False{}, seen)
+    == S.St{S.Dead{S.UnknownFlag{"-" ++ body}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+  e4 = Equal.sym(String & Maybe<&2, String>, S.short_of(body), (name, val), h_cut)
+  %e4 : {S.parse.take_short.cut(_, "-" ++ body, args, specs, subs, path, bs, pos, False{}, seen)
+    == S.St{S.Dead{S.UnknownFlag{"-" ++ body}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+  e5 = Equal.sym(Maybe<&2, S.Arg>, S.by_short(args, name), None{}, h_none)
+  %e5 : {S.parse.take_arg(_, val, "-" ++ body, args, specs, subs, path, bs, pos, False{}, seen)
+    == S.St{S.Dead{S.UnknownFlag{"-" ++ body}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+  {==}
+
+def Laws.unknown_short_dies(
+  spec,
+  pre,
+  body,
+  name,
+  val,
+  args,
+  specs,
+  subs,
+  path,
+  bs,
+  pos,
+  seen,
+  h_at,
+  h_dd,
+  h_alone,
+  h_dash,
+  h_cut,
+  h_none
+):
+  e1 = Equal.sym(S.St,
+    S.parse.walk(List.append(&2, String, pre, ["-" ++ body]), S.parse.start(spec)),
+    S.parse.walk(["-" ++ body], S.parse.walk(pre, S.parse.start(spec))),
+    Laws.walk_append(pre, ["-" ++ body], S.parse.start(spec)))
+  %e1 : {Laws.dead_of(_) == Some{S.UnknownFlag{"-" ++ body}} : Maybe<&2, S.ParseErr>}
+  e2 = Equal.sym(S.St,
+    S.parse.walk(pre, S.parse.start(spec)),
+    S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen},
+    h_at)
+  %e2 : {Laws.dead_of(S.parse.walk(["-" ++ body], _)) == Some{S.UnknownFlag{"-" ++ body}}
+    : Maybe<&2, S.ParseErr>}
+  e3 = Equal.sym(S.St,
+    S.parse.step("-" ++ body, S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen}),
+    S.St{S.Dead{S.UnknownFlag{"-" ++ body}}, args, specs, subs, path, bs, pos, False{}, seen},
+    Laws.unknown_short_step(body, name, val, args, specs, subs, path, bs, pos, seen,
+      h_dd, h_alone, h_dash, h_cut, h_none))
+  %e3 : {Laws.dead_of(_) == Some{S.UnknownFlag{"-" ++ body}} : Maybe<&2, S.ParseErr>}
+  {==}
+
+def Laws.unknown_short(
+  spec,
+  pre,
+  more,
+  body,
+  name,
+  val,
+  args,
+  specs,
+  subs,
+  path,
+  bs,
+  pos,
+  seen,
+  h_at,
+  h_dd,
+  h_alone,
+  h_dash,
+  h_cut,
+  h_none
+):
+  Laws.fail_stays(spec, List.append(&2, String, pre, ["-" ++ body]), more, S.UnknownFlag{"-" ++ body},
+    Laws.unknown_short_dies(spec, pre, body, name, val, args, specs, subs, path, bs, pos, seen,
+      h_at, h_dd, h_alone, h_dash, h_cut, h_none))
