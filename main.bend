@@ -2,11 +2,13 @@
 # `flag`, `opt`, `pos` and `rest`; `parse` binds argv against it, and `get`,
 # `get_all`, `on` and `path_of` read the result. `help` writes the usage page
 # for a command path, `err_text` the message for a failed parse, and
-# `help_path` tells a request for help from an error. `argv` is the process's
-# arguments. This file is the interface: everything under src/ is internal.
+# `help_path` tells a request for help from an error. `check` reports a spec
+# that contradicts itself. `argv` is the process's arguments. This file is
+# the interface: everything under src/ is internal.
 import Base
 import ./src/cli.bend as S
 import ./src/args.bend as Args
+import ./src/check.bend as K
 
 # a program spec
 def Cli() -> Data:
@@ -27,6 +29,10 @@ def Matched() -> Data:
 # a failed parse
 def ParseErr() -> Data:
   S.ParseErr
+
+# one way a spec contradicts itself
+def SpecErr() -> Data:
+  K.SpecErr
 
 # a program: name, about, optional version, top-level args and commands
 def app(
@@ -87,6 +93,18 @@ def rest(
   choices: List<&2, String>
 ) -> S.Arg:
   S.rest(name, help, required, default, choices)
+
+# every way a spec contradicts itself: a rest positional that is not the
+# last, a repeated argument name or spelling, a repeated subcommand name, a
+# subcommand named `help`, a default outside its choices, a required
+# positional after an optional one. Empty for a well-formed spec, which is
+# what SPEC.md's parse guarantees are about; `parse` does not call it
+def check(spec: S.Cli) -> List<&2, K.SpecErr>:
+  K.check(spec)
+
+# a report of `check` as one line
+def spec_err_text(err: K.SpecErr) -> String:
+  K.text(err)
 
 # argv against a program spec
 def parse(spec: S.Cli, words: List<&2, String>) -> Result<&2, &2, S.ParseErr, S.Matched>:
