@@ -2637,3 +2637,76 @@ law values_given:
     : Grow.Frame}
   for h_len: {List.length(&2, S.Level, up) == List.length(&2, String, path) : Nat}
   {given_at(found, path, ws, args) == Some{True{}} : Maybe<&2, Bool>}
+
+# whether one of `args` is named `name`
+def has_arg(args: List<&2, S.Arg>, +name: String) -> Bool:
+  match args:
+    case Nil{}:
+      False{}
+    case Con{hh, tt}:
+      S.Arg{nn, _s, _l, _k, _h, _r, _d, _c} = hh
+      Bool.or(String.eq(nn, name), has_arg(tt, name))
+
+# whether a binding is named after one of `args` and is given: `true`, a
+# piece of one of the words, or the default of one of `args` of its name
+def named_given(+ws: List<&2, String>, +args: List<&2, S.Arg>, bb: S.Bind) -> Bool:
+  S.Bind{+name, +vv} = bb
+  Bool.and(has_arg(args, name), given(ws, args, S.Bind{name, vv}))
+
+# whether every binding is named and given
+def all_named(bs: List<&2, S.Bind>, +ws: List<&2, String>, +args: List<&2, S.Arg>) -> Bool:
+  match bs:
+    case Nil{}:
+      True{}
+    case Con{hh, tt}:
+      Bool.and(named_given(ws, args, hh), all_named(tt, ws, args))
+
+# whether every binding of a command's own Matched is named and given, when
+# there is one
+def named_at.go(mm: Maybe<&2, Shake.Matched>, +ws: List<&2, String>, +args: List<&2, S.Arg>) -> Maybe<&2, Bool>:
+  match mm:
+    case None{}:
+      None{}
+    case Some{found}:
+      Some{all_named(S.own(found), ws, args)}
+
+# whether every binding of the command at `path` in a Matched is named and
+# given
+def named_at(
+  found: Shake.Matched,
+  path: List<&2, String>,
+  +ws: List<&2, String>,
+  +args: List<&2, S.Arg>
+) -> Maybe<&2, Bool>:
+  named_at.go(Shake.at(found, path), ws, args)
+
+# LAW: when the parse succeeds, every binding in the Matched of a command on
+# the selected path is named after one of that command's arguments, and is
+# `true`, which a flag binds, a piece of the words read while that command
+# was current (`mid`: from the word that selected it, or the start, to the
+# word that selects a subcommand under it, or the end), verbatim, or the
+# default of one of its arguments
+# SHAKE-PARSE-1
+law values_here:
+  for +spec: Shake.Cli
+  for +pre: List<&2, String>
+  for +mid: List<&2, String>
+  for +post: List<&2, String>
+  for +found: Shake.Matched
+  for +qs: List<&2, S.Level>
+  for +args: List<&2, S.Arg>
+  for +bs: List<&2, S.Bind>
+  for +up: List<&2, S.Level>
+  for +path: List<&2, String>
+  for +ms: List<&2, String>
+  for h_done: {Shake.parse(spec, List.append(&2, String, pre, List.append(&2, String, mid, post))) == Done{found}
+    : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+  for h_pre: {Grow.view(S.parse.walk(pre, S.parse.start(spec))) == Grow.View{args, up, path, []} : Grow.View}
+  for h_mid: {Grow.view(S.parse.walk(List.append(&2, String, pre, mid), S.parse.start(spec)))
+    == Grow.View{args, up, path, bs} : Grow.View}
+  for +h_fr: {Grow.gw.frame(S.parse.walk(List.append(&2, String, pre, List.append(&2, String, mid, post)),
+      S.parse.start(spec)))
+    == Grow.Frame{List.append(&2, S.Level, qs, S.Level{args, bs} <> up), List.append(&2, String, path, ms)}
+    : Grow.Frame}
+  for h_len: {List.length(&2, S.Level, up) == List.length(&2, String, path) : Nat}
+  {named_at(found, path, mid, args) == Some{True{}} : Maybe<&2, Bool>}
