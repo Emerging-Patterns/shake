@@ -49,9 +49,17 @@ type Cli is Data:
 type Bind is Data:
   Bind{name: String, value: String}
 
-# a successful parse: selected command path and the bindings
+# one command above the current one: its arguments and the bindings made
+# while it was current
+type Level is Data:
+  Level{args: List<&2, Arg>, binds: List<&2, Bind>}
+
+# a successful parse, read one command at a time, as clap's ArgMatches: the
+# bindings the command made, in binding order, and, when a subcommand was
+# selected under it, that subcommand's name and Matched
 type Matched is Data:
-  Matched{+path: List<&2, String>, +binds: List<&2, Bind>}
+  Leaf{+binds: List<&2, Bind>}
+  Node{+binds: List<&2, Bind>, +name: String, +sub: Matched}
 
 # a failed parse. NeedHelp is `help` / `help <path>`; NoValue is an option
 # whose value never came, Missing a required argument nothing bound. Every
@@ -72,12 +80,14 @@ type Mode is Data:
   Help{}
   Dead{err: ParseErr}
 
-# the walker: current spec, accumulated specs, selected path, bindings
+# the walker: the current command's arguments, the commands above it (the
+# nearest first, one per name of the selected path), its subcommands, the
+# selected path, and the current command's own bindings
 type St is Data:
   St{
     mode: Mode,
     args: List<&2, Arg>,
-    specs: List<&2, Arg>,
+    up: List<&2, Level>,
     subs: List<&2, Sub>,
     path: List<&2, String>,
     binds: List<&2, Bind>,
@@ -444,10 +454,17 @@ def get_all.bind(bs: List<&2, Bind>, +name: String) -> List<&2, String>:
     case Con{+h, t}:
       get_all.bind.at(h, get_all.bind(t, name), name)
 
-# every value bound to `name`
+# the bindings this command made, in binding order
+def own(mm: Matched) -> List<&2, Bind>:
+  match mm:
+    case Leaf{bs}:
+      bs
+    case Node{bs, _n, _s}:
+      bs
+
+# every value this command bound to `name`
 def get_all(mm: Matched, +name: String) -> List<&2, String>:
-  Matched{_p, binds} = mm
-  get_all.bind(binds, name)
+  get_all.bind(own(mm), name)
 
 # the last of a list of values, or `dflt` when it is empty
 def get.last(vs: List<&2, String>, dflt: Maybe<&2, String>) -> Maybe<&2, String>:
@@ -473,21 +490,69 @@ def on.of(mv: Maybe<&2, String>) -> Bool:
 def on(mm: Matched, +name: String) -> Bool:
   on.of(get(mm, name))
 
-# the selected command path
+# the names of the subcommands selected below this command, in order
 def path_of(mm: Matched) -> List<&2, String>:
-  Matched{path, _b} = mm
-  path
+  match mm:
+    case Leaf{_b}:
+      []
+    case Node{_b, +name, next}:
+      name <> path_of(next)
+
+# the name of the subcommand selected under this command
+def sub_name(mm: Matched) -> Maybe<&2, String>:
+  match mm:
+    case Leaf{_b}:
+      None{}
+    case Node{_b, name, _s}:
+      Some{name}
+
+# a subcommand's Matched when it is the one asked for
+def sub_of.pick(hit: Bool, next: Matched) -> Maybe<&2, Matched>:
+  match hit:
+    case True{}:
+      Some{next}
+    case False{}:
+      None{}
+
+# the Matched of subcommand `name`, when it is the one selected
+def sub_of(mm: Matched, +name: String) -> Maybe<&2, Matched>:
+  match mm:
+    case Leaf{_b}:
+      None{}
+    case Node{_b, nn, next}:
+      sub_of.pick(String.eq(nn, name), next)
+
+# one name further down, when there is still a Matched to go down from
+def at.step(cur: Maybe<&2, Matched>, +name: String) -> Maybe<&2, Matched>:
+  match cur:
+    case None{}:
+      None{}
+    case Some{mm}:
+      sub_of(mm, name)
+
+# the rest of a path, followed from where the walk down stands
+def at.go(path: List<&2, String>, cur: Maybe<&2, Matched>) -> Maybe<&2, Matched>:
+  match path:
+    case Nil{}:
+      cur
+    case Con{+hh, tt}:
+      at.go(tt, at.step(cur, hh))
+
+# the Matched of the command `path` names below this one, name by name, or
+# None where a name is not the subcommand selected
+def at(mm: Matched, path: List<&2, String>) -> Maybe<&2, Matched>:
+  at.go(path, Some{mm})
 
 # the starting walker for a Cli
 def parse.start(app: Cli) -> St:
   Cli{_n, _a, _v, +args, subs} = app
-  St{Free{}, args, args, subs, [], [], pos_of(args), False{}, False{}}
+  St{Free{}, args, [], subs, [], [], pos_of(args), False{}, False{}}
 
 # a failed walker that keeps the rest of the state
 def parse.dead(
   ee: ParseErr,
   +args: List<&2, Arg>,
-  +specs: List<&2, Arg>,
+  +up: List<&2, Level>,
   +subs: List<&2, Sub>,
   +path: List<&2, String>,
   +binds: List<&2, Bind>,
@@ -495,14 +560,14 @@ def parse.dead(
   +raw: Bool,
   +seen: Bool
 ) -> St:
-  St{Dead{ee}, args, specs, subs, path, binds, pos, raw, seen}
+  St{Dead{ee}, args, up, subs, path, binds, pos, raw, seen}
 
 # a successful bind of `name` to `val`
 def parse.put(
   +name: String,
   +val: String,
   +args: List<&2, Arg>,
-  +specs: List<&2, Arg>,
+  +up: List<&2, Level>,
   +subs: List<&2, Sub>,
   +path: List<&2, String>,
   +binds: List<&2, Bind>,
@@ -510,7 +575,7 @@ def parse.put(
   +raw: Bool,
   +seen: Bool
 ) -> St:
-  St{Free{}, args, specs, subs, path, Bind{name, val} <> binds, pos, raw, seen}
+  St{Free{}, args, up, subs, path, Bind{name, val} <> binds, pos, raw, seen}
 
 # the choices of a found Arg, or none
 def parse.choices(mm: Maybe<&2, Arg>) -> List<&2, String>:
@@ -527,7 +592,7 @@ def parse.take_choice(
   +name: String,
   +val: String,
   +args: List<&2, Arg>,
-  +specs: List<&2, Arg>,
+  +up: List<&2, Level>,
   +subs: List<&2, Sub>,
   +path: List<&2, String>,
   +binds: List<&2, Bind>,
@@ -537,9 +602,9 @@ def parse.take_choice(
 ) -> St:
   match ok:
     case True{}:
-      parse.put(name, val, args, specs, subs, path, binds, pos, raw, seen)
+      parse.put(name, val, args, up, subs, path, binds, pos, raw, seen)
     case False{}:
-      parse.dead(BadValue{path, name, val}, args, specs, subs, path, binds, pos, raw, seen)
+      parse.dead(BadValue{path, name, val}, args, up, subs, path, binds, pos, raw, seen)
 
 # bind an option that already has its value, checked against the choices of
 # the current command's argument of that name: a parent's argument of the same
@@ -548,7 +613,7 @@ def parse.take_opt_val(
   +name: String,
   +val: String,
   +args: List<&2, Arg>,
-  +specs: List<&2, Arg>,
+  +up: List<&2, Level>,
   +subs: List<&2, Sub>,
   +path: List<&2, String>,
   +binds: List<&2, Bind>,
@@ -557,7 +622,7 @@ def parse.take_opt_val(
   +seen: Bool
 ) -> St:
   parse.take_choice(allowed(parse.choices(by_name(args, name)), val), name, val,
-    args, specs, subs, path, binds, pos, raw, seen)
+    args, up, subs, path, binds, pos, raw, seen)
 
 # a flag with no glued value is set; a glued value is unexpected
 def parse.take_flag(
@@ -565,7 +630,7 @@ def parse.take_flag(
   +name: String,
   +orig: String,
   +args: List<&2, Arg>,
-  +specs: List<&2, Arg>,
+  +up: List<&2, Level>,
   +subs: List<&2, Sub>,
   +path: List<&2, String>,
   +binds: List<&2, Bind>,
@@ -575,16 +640,16 @@ def parse.take_flag(
 ) -> St:
   match val:
     case None{}:
-      parse.put(name, "true", args, specs, subs, path, binds, pos, raw, seen)
+      parse.put(name, "true", args, up, subs, path, binds, pos, raw, seen)
     case Some{_v}:
-      parse.dead(Unexpected{path, orig}, args, specs, subs, path, binds, pos, raw, seen)
+      parse.dead(Unexpected{path, orig}, args, up, subs, path, binds, pos, raw, seen)
 
 # an option: glued value now, or the next token
 def parse.take_opt(
   val: Maybe<&2, String>,
   +name: String,
   +args: List<&2, Arg>,
-  +specs: List<&2, Arg>,
+  +up: List<&2, Level>,
   +subs: List<&2, Sub>,
   +path: List<&2, String>,
   +binds: List<&2, Bind>,
@@ -594,17 +659,17 @@ def parse.take_opt(
 ) -> St:
   match val:
     case None{}:
-      St{Need{name}, args, specs, subs, path, binds, pos, raw, seen}
+      St{Need{name}, args, up, subs, path, binds, pos, raw, seen}
     case Some{v}:
-      parse.take_opt_val(name, v, args, specs, subs, path, binds, pos, raw, seen)
+      parse.take_opt_val(name, v, args, up, subs, path, binds, pos, raw, seen)
 
 # a flag or single-valued option given again is refused, whatever the walk
 # would have done with it; the walker keeps the rest of its state
 def parse.once(again: Bool, st: St, +name: String, +path: List<&2, String>) -> St:
   match again:
     case True{}:
-      St{_m, +args, +specs, +subs, _p, +binds, +pos, +raw, +seen} = st
-      St{Dead{Repeated{path, name}}, args, specs, subs, path, binds, pos, raw, seen}
+      St{_m, +args, +up, +subs, _p, +binds, +pos, +raw, +seen} = st
+      St{Dead{Repeated{path, name}}, args, up, subs, path, binds, pos, raw, seen}
     case False{}:
       st
 
@@ -615,7 +680,7 @@ def parse.take_arg.kind(
   val: Maybe<&2, String>,
   +orig: String,
   +args: List<&2, Arg>,
-  +specs: List<&2, Arg>,
+  +up: List<&2, Level>,
   +subs: List<&2, Sub>,
   +path: List<&2, String>,
   +binds: List<&2, Bind>,
@@ -625,17 +690,17 @@ def parse.take_arg.kind(
 ) -> St:
   match kk:
     case Flag{}:
-      parse.once(bound(binds, name), parse.take_flag(val, name, orig, args, specs, subs, path,
+      parse.once(bound(binds, name), parse.take_flag(val, name, orig, args, up, subs, path,
         binds, pos, raw, seen), name, path)
     case Opt{}:
-      parse.once(bound(binds, name), parse.take_opt(val, name, args, specs, subs, path, binds, pos,
+      parse.once(bound(binds, name), parse.take_opt(val, name, args, up, subs, path, binds, pos,
         raw, seen), name, path)
     case Many{}:
-      parse.take_opt(val, name, args, specs, subs, path, binds, pos, raw, seen)
+      parse.take_opt(val, name, args, up, subs, path, binds, pos, raw, seen)
     case Pos{}:
-      parse.dead(UnknownFlag{path, orig}, args, specs, subs, path, binds, pos, raw, seen)
+      parse.dead(UnknownFlag{path, orig}, args, up, subs, path, binds, pos, raw, seen)
     case Rest{}:
-      parse.dead(UnknownFlag{path, orig}, args, specs, subs, path, binds, pos, raw, seen)
+      parse.dead(UnknownFlag{path, orig}, args, up, subs, path, binds, pos, raw, seen)
 
 # a found Arg, or an unknown flag
 def parse.take_arg(
@@ -643,7 +708,7 @@ def parse.take_arg(
   val: Maybe<&2, String>,
   +orig: String,
   +args: List<&2, Arg>,
-  +specs: List<&2, Arg>,
+  +up: List<&2, Level>,
   +subs: List<&2, Sub>,
   +path: List<&2, String>,
   +binds: List<&2, Bind>,
@@ -653,10 +718,10 @@ def parse.take_arg(
 ) -> St:
   match found:
     case None{}:
-      parse.dead(UnknownFlag{path, orig}, args, specs, subs, path, binds, pos, raw, seen)
+      parse.dead(UnknownFlag{path, orig}, args, up, subs, path, binds, pos, raw, seen)
     case Some{a}:
       Arg{+name, _s, _l, kind, _h, _r, _d, _c} = a
-      parse.take_arg.kind(kind, name, val, orig, args, specs, subs, path, binds, pos,
+      parse.take_arg.kind(kind, name, val, orig, args, up, subs, path, binds, pos,
         raw, seen)
 
 # a long option with a name, or `--=...`
@@ -666,7 +731,7 @@ def parse.take_long.named(
   val: Maybe<&2, String>,
   +orig: String,
   +args: List<&2, Arg>,
-  +specs: List<&2, Arg>,
+  +up: List<&2, Level>,
   +subs: List<&2, Sub>,
   +path: List<&2, String>,
   +binds: List<&2, Bind>,
@@ -676,9 +741,9 @@ def parse.take_long.named(
 ) -> St:
   match empty:
     case True{}:
-      parse.dead(UnknownFlag{path, orig}, args, specs, subs, path, binds, pos, raw, seen)
+      parse.dead(UnknownFlag{path, orig}, args, up, subs, path, binds, pos, raw, seen)
     case False{}:
-      parse.take_arg(by_long(args, name), val, orig, args, specs, subs, path, binds,
+      parse.take_arg(by_long(args, name), val, orig, args, up, subs, path, binds,
         pos, raw, seen)
 
 # a long option after the `=` cut
@@ -686,7 +751,7 @@ def parse.take_long.cut(
   nv: String & Maybe<&2, String>,
   +orig: String,
   +args: List<&2, Arg>,
-  +specs: List<&2, Arg>,
+  +up: List<&2, Level>,
   +subs: List<&2, Sub>,
   +path: List<&2, String>,
   +binds: List<&2, Bind>,
@@ -695,7 +760,7 @@ def parse.take_long.cut(
   +seen: Bool
 ) -> St:
   (+name, val) = nv
-  parse.take_long.named(String.is_empty(name), name, val, orig, args, specs, subs,
+  parse.take_long.named(String.is_empty(name), name, val, orig, args, up, subs,
     path, binds, pos, raw, seen)
 
 # a long option body after `--`
@@ -703,7 +768,7 @@ def parse.take_long(
   body: String,
   +orig: String,
   +args: List<&2, Arg>,
-  +specs: List<&2, Arg>,
+  +up: List<&2, Level>,
   +subs: List<&2, Sub>,
   +path: List<&2, String>,
   +binds: List<&2, Bind>,
@@ -711,7 +776,7 @@ def parse.take_long(
   +raw: Bool,
   +seen: Bool
 ) -> St:
-  parse.take_long.cut(cut_eq(body), orig, args, specs, subs, path, binds, pos, raw,
+  parse.take_long.cut(cut_eq(body), orig, args, up, subs, path, binds, pos, raw,
     seen)
 
 # a flag's value in a cluster: the rest when it starts with `=` (which
@@ -774,9 +839,9 @@ def cluster.ends(found: Maybe<&2, Arg>, +rest: String) -> Bool:
 
 # one letter against the walker, through `take_arg`
 def cluster.apply(st: St, +cc: Char, +rest: String, +orig: String) -> St:
-  St{_mode, +args, +specs, +subs, +path, +binds, +pos, +raw, +seen} = st
+  St{_mode, +args, +up, +subs, +path, +binds, +pos, +raw, +seen} = st
   +found = by_short(args, SCon{cc, SNil{}})
-  parse.take_arg(found, cluster.val(found, rest), orig, args, specs, subs, path, binds, pos,
+  parse.take_arg(found, cluster.val(found, rest), orig, args, up, subs, path, binds, pos,
     raw, seen)
 
 # one letter of a cluster, unless an earlier one ended it
@@ -812,7 +877,7 @@ def parse.take_short(
   body: String,
   +orig: String,
   +args: List<&2, Arg>,
-  +specs: List<&2, Arg>,
+  +up: List<&2, Level>,
   +subs: List<&2, Sub>,
   +path: List<&2, String>,
   +binds: List<&2, Bind>,
@@ -820,7 +885,7 @@ def parse.take_short(
   +raw: Bool,
   +seen: Bool
 ) -> St:
-  cluster(body, orig, St{Free{}, args, specs, subs, path, binds, pos, raw, seen}, False{})
+  cluster(body, orig, St{Free{}, args, up, subs, path, binds, pos, raw, seen}, False{})
 
 # a rest positional stays; a plain one is consumed
 def parse.take_pos.keep(keep: Bool, hh: Arg, tt: List<&2, Arg>) -> List<&2, Arg>:
@@ -834,7 +899,7 @@ def parse.take_pos.keep(keep: Bool, hh: Arg, tt: List<&2, Arg>) -> List<&2, Arg>
 def parse.take_pos(
   +tok: String,
   +args: List<&2, Arg>,
-  +specs: List<&2, Arg>,
+  +up: List<&2, Level>,
   subs: List<&2, Sub>,
   +path: List<&2, String>,
   +binds: List<&2, Bind>,
@@ -843,22 +908,24 @@ def parse.take_pos(
 ) -> St:
   match pos:
     case Nil{}:
-      parse.dead(Unexpected{path, tok}, args, specs, subs, path, binds, pos, raw, True{})
+      parse.dead(Unexpected{path, tok}, args, up, subs, path, binds, pos, raw, True{})
     case Con{+h, t}:
       Arg{+name, _s, _l, _k, _h, _r, _d, +cs} = h
-      parse.take_choice(allowed(cs, tok), name, tok, args, specs, subs, path, binds,
+      parse.take_choice(allowed(cs, tok), name, tok, args, up, subs, path, binds,
         parse.take_pos.keep(rest.is(h), h, t), raw, True{})
 
-# this Sub's spec becomes current; parent bindings stay
+# this Sub's arguments become current, with no bindings of its own; the
+# command it leaves keeps its arguments and bindings above it
 def parse.enter(
   ss: Sub,
-  +specs: List<&2, Arg>,
+  +args: List<&2, Arg>,
+  +up: List<&2, Level>,
   +path: List<&2, String>,
   binds: List<&2, Bind>
 ) -> St:
   Sub{+name, _a, +next, next_subs} = ss
-  St{Free{}, next, List.append(&2, Arg, specs, next), next_subs,
-    List.append(&2, String, path, [name]), binds, pos_of(next), False{},
+  St{Free{}, next, Level{args, binds} <> up, next_subs,
+    List.append(&2, String, path, [name]), [], pos_of(next), False{},
     False{}}
 
 # required and no default → Some{name}
@@ -902,7 +969,7 @@ def parse.enter_or(
   miss: Maybe<&2, String>,
   ss: Sub,
   +args: List<&2, Arg>,
-  +specs: List<&2, Arg>,
+  +up: List<&2, Level>,
   +subs: List<&2, Sub>,
   +path: List<&2, String>,
   +binds: List<&2, Bind>,
@@ -912,16 +979,16 @@ def parse.enter_or(
 ) -> St:
   match miss:
     case None{}:
-      parse.enter(ss, specs, path, binds)
+      parse.enter(ss, args, up, path, binds)
     case Some{n}:
-      parse.dead(Missing{path, n}, args, specs, subs, path, binds, pos, raw, seen)
+      parse.dead(Missing{path, n}, args, up, subs, path, binds, pos, raw, seen)
 
 # a found subcommand, or a positional
 def parse.word.go(
   found: Maybe<&2, Sub>,
   +tok: String,
   +args: List<&2, Arg>,
-  +specs: List<&2, Arg>,
+  +up: List<&2, Level>,
   +subs: List<&2, Sub>,
   +path: List<&2, String>,
   +binds: List<&2, Bind>,
@@ -931,16 +998,16 @@ def parse.word.go(
 ) -> St:
   match found:
     case None{}:
-      parse.take_pos(tok, args, specs, subs, path, binds, pos, raw)
+      parse.take_pos(tok, args, up, subs, path, binds, pos, raw)
     case Some{s}:
-      parse.enter_or(parse.first_req(pos), s, args, specs, subs, path, binds, pos, raw,
+      parse.enter_or(parse.first_req(pos), s, args, up, subs, path, binds, pos, raw,
         seen)
 
 # a word: a subcommand, or a positional
 def parse.word(
   +tok: String,
   +args: List<&2, Arg>,
-  +specs: List<&2, Arg>,
+  +up: List<&2, Level>,
   +subs: List<&2, Sub>,
   +path: List<&2, String>,
   +binds: List<&2, Bind>,
@@ -948,7 +1015,7 @@ def parse.word(
   +raw: Bool,
   +seen: Bool
 ) -> St:
-  parse.word.go(find_sub(subs, tok), tok, args, specs, subs, path, binds, pos,
+  parse.word.go(find_sub(subs, tok), tok, args, up, subs, path, binds, pos,
     raw, seen)
 
 # `-` as a word, or a short option
@@ -956,7 +1023,7 @@ def parse.step.short.go(
   alone: Bool,
   +tok: String,
   +args: List<&2, Arg>,
-  +specs: List<&2, Arg>,
+  +up: List<&2, Level>,
   +subs: List<&2, Sub>,
   +path: List<&2, String>,
   +binds: List<&2, Bind>,
@@ -965,9 +1032,9 @@ def parse.step.short.go(
 ) -> St:
   match alone:
     case True{}:
-      parse.word(tok, args, specs, subs, path, binds, pos, False{}, seen)
+      parse.word(tok, args, up, subs, path, binds, pos, False{}, seen)
     case False{}:
-      parse.take_short(String.drop(tok, 1n), tok, args, specs, subs, path, binds, pos,
+      parse.take_short(String.drop(tok, 1n), tok, args, up, subs, path, binds, pos,
         False{}, seen)
 
 # `-` alone is a positional; otherwise a short option
@@ -975,7 +1042,7 @@ def parse.step.short(
   dash: Bool,
   +tok: String,
   +args: List<&2, Arg>,
-  +specs: List<&2, Arg>,
+  +up: List<&2, Level>,
   +subs: List<&2, Sub>,
   +path: List<&2, String>,
   +binds: List<&2, Bind>,
@@ -984,10 +1051,10 @@ def parse.step.short(
 ) -> St:
   match dash:
     case True{}:
-      parse.step.short.go(String.eq(tok, "-"), tok, args, specs, subs, path, binds,
+      parse.step.short.go(String.eq(tok, "-"), tok, args, up, subs, path, binds,
         pos, seen)
     case False{}:
-      parse.word(tok, args, specs, subs, path, binds, pos, False{}, seen)
+      parse.word(tok, args, up, subs, path, binds, pos, False{}, seen)
 
 # `--long` first, then `-s`, then a word
 def parse.step.kind.go(
@@ -995,7 +1062,7 @@ def parse.step.kind.go(
   dash: Bool,
   +tok: String,
   +args: List<&2, Arg>,
-  +specs: List<&2, Arg>,
+  +up: List<&2, Level>,
   +subs: List<&2, Sub>,
   +path: List<&2, String>,
   +binds: List<&2, Bind>,
@@ -1004,16 +1071,16 @@ def parse.step.kind.go(
 ) -> St:
   match long:
     case True{}:
-      parse.take_long(String.drop(tok, 2n), tok, args, specs, subs, path, binds, pos,
+      parse.take_long(String.drop(tok, 2n), tok, args, up, subs, path, binds, pos,
         False{}, seen)
     case False{}:
-      parse.step.short(dash, tok, args, specs, subs, path, binds, pos, seen)
+      parse.step.short(dash, tok, args, up, subs, path, binds, pos, seen)
 
 # a long option, a short option, or a word
 def parse.step.kind(
   +tok: String,
   +args: List<&2, Arg>,
-  +specs: List<&2, Arg>,
+  +up: List<&2, Level>,
   subs: List<&2, Sub>,
   +path: List<&2, String>,
   +binds: List<&2, Bind>,
@@ -1021,14 +1088,14 @@ def parse.step.kind(
   +seen: Bool
 ) -> St:
   parse.step.kind.go(String.starts_with(tok, "--"), String.starts_with(tok, "-"), tok,
-    args, specs, subs, path, binds, pos, seen)
+    args, up, subs, path, binds, pos, seen)
 
 # `help` in command position collects the rest of argv as a path
 def parse.step.help(
   hit: Bool,
   +tok: String,
   +args: List<&2, Arg>,
-  +specs: List<&2, Arg>,
+  +up: List<&2, Level>,
   +subs: List<&2, Sub>,
   +path: List<&2, String>,
   +binds: List<&2, Bind>,
@@ -1037,16 +1104,16 @@ def parse.step.help(
 ) -> St:
   match hit:
     case True{}:
-      St{Help{}, args, specs, subs, path, binds, pos, False{}, seen}
+      St{Help{}, args, up, subs, path, binds, pos, False{}, seen}
     case False{}:
-      parse.step.kind(tok, args, specs, subs, path, binds, pos, seen)
+      parse.step.kind(tok, args, up, subs, path, binds, pos, seen)
 
 # `--` ends option parsing
 def parse.step.end(
   end: Bool,
   +tok: String,
   +args: List<&2, Arg>,
-  +specs: List<&2, Arg>,
+  +up: List<&2, Level>,
   +subs: List<&2, Sub>,
   +path: List<&2, String>,
   +binds: List<&2, Bind>,
@@ -1055,17 +1122,17 @@ def parse.step.end(
 ) -> St:
   match end:
     case True{}:
-      St{Free{}, args, specs, subs, path, binds, pos, True{}, seen}
+      St{Free{}, args, up, subs, path, binds, pos, True{}, seen}
     case False{}:
       parse.step.help(Bool.and(String.eq(tok, "help"), Bool.not(seen)), tok, args,
-        specs, subs, path, binds, pos, seen)
+        up, subs, path, binds, pos, seen)
 
 # after `--`, every token is a positional
 def parse.step.raw(
   raw: Bool,
   +tok: String,
   +args: List<&2, Arg>,
-  +specs: List<&2, Arg>,
+  +up: List<&2, Level>,
   +subs: List<&2, Sub>,
   +path: List<&2, String>,
   +binds: List<&2, Bind>,
@@ -1074,9 +1141,9 @@ def parse.step.raw(
 ) -> St:
   match raw:
     case True{}:
-      parse.take_pos(tok, args, specs, subs, path, binds, pos, True{})
+      parse.take_pos(tok, args, up, subs, path, binds, pos, True{})
     case False{}:
-      parse.step.end(String.eq(tok, "--"), tok, args, specs, subs, path, binds, pos,
+      parse.step.end(String.eq(tok, "--"), tok, args, up, subs, path, binds, pos,
         seen)
 
 # a pending option value: a flag-shaped token is a missing value
@@ -1085,7 +1152,7 @@ def parse.step.need(
   +name: String,
   +tok: String,
   +args: List<&2, Arg>,
-  +specs: List<&2, Arg>,
+  +up: List<&2, Level>,
   +subs: List<&2, Sub>,
   +path: List<&2, String>,
   +binds: List<&2, Bind>,
@@ -1095,9 +1162,9 @@ def parse.step.need(
 ) -> St:
   match flag:
     case True{}:
-      parse.dead(NoValue{path, name}, args, specs, subs, path, binds, pos, raw, seen)
+      parse.dead(NoValue{path, name}, args, up, subs, path, binds, pos, raw, seen)
     case False{}:
-      parse.take_opt_val(name, tok, args, specs, subs, path, binds, pos, raw, seen)
+      parse.take_opt_val(name, tok, args, up, subs, path, binds, pos, raw, seen)
 
 # a word after `help`: the subcommand it names, whose own subcommands the
 # next word is looked up in, or an unexpected word
@@ -1105,7 +1172,7 @@ def parse.step.help_path(
   found: Maybe<&2, Sub>,
   +tok: String,
   +args: List<&2, Arg>,
-  +specs: List<&2, Arg>,
+  +up: List<&2, Level>,
   +subs: List<&2, Sub>,
   +path: List<&2, String>,
   +binds: List<&2, Bind>,
@@ -1115,10 +1182,10 @@ def parse.step.help_path(
 ) -> St:
   match found:
     case None{}:
-      parse.dead(Unexpected{path, tok}, args, specs, subs, path, binds, pos, raw, seen)
+      parse.dead(Unexpected{path, tok}, args, up, subs, path, binds, pos, raw, seen)
     case Some{ss}:
       Sub{_n, _a, _g, next_subs} = ss
-      St{Help{}, args, specs, next_subs, List.append(&2, String, path, [tok]), binds,
+      St{Help{}, args, up, next_subs, List.append(&2, String, path, [tok]), binds,
         pos, raw, seen}
 
 # one token against the walker
@@ -1126,7 +1193,7 @@ def parse.step.mode(
   mode: Mode,
   +tok: String,
   +args: List<&2, Arg>,
-  +specs: List<&2, Arg>,
+  +up: List<&2, Level>,
   +subs: List<&2, Sub>,
   +path: List<&2, String>,
   +binds: List<&2, Bind>,
@@ -1136,20 +1203,20 @@ def parse.step.mode(
 ) -> St:
   match mode:
     case Dead{e}:
-      St{Dead{e}, args, specs, subs, path, binds, pos, raw, seen}
+      St{Dead{e}, args, up, subs, path, binds, pos, raw, seen}
     case Need{name}:
-      parse.step.need(looks_flag(tok), name, tok, args, specs, subs, path, binds, pos,
+      parse.step.need(looks_flag(tok), name, tok, args, up, subs, path, binds, pos,
         raw, seen)
     case Help{}:
-      parse.step.help_path(find_sub(subs, tok), tok, args, specs, subs, path, binds, pos, raw,
+      parse.step.help_path(find_sub(subs, tok), tok, args, up, subs, path, binds, pos, raw,
         seen)
     case Free{}:
-      parse.step.raw(raw, tok, args, specs, subs, path, binds, pos, seen)
+      parse.step.raw(raw, tok, args, up, subs, path, binds, pos, seen)
 
 # one token
 def parse.step(+tok: String, st: St) -> St:
-  St{mode, args, specs, subs, path, binds, pending, raw, seen} = st
-  parse.step.mode(mode, tok, args, specs, subs, path, binds, pending, raw, seen)
+  St{mode, args, up, subs, path, binds, pending, raw, seen} = st
+  parse.step.mode(mode, tok, args, up, subs, path, binds, pending, raw, seen)
 
 # every token, in order
 def parse.walk(argv: List<&2, String>, st: St) -> St:
@@ -1226,31 +1293,63 @@ def miss.args(args: List<&2, Arg>, +binds: List<&2, Bind>) -> Maybe<&2, String>:
     case Con{+h, t}:
       miss.arg(h, binds, miss.args(t, binds))
 
+# each command's defaults, filled in among its own bindings
+def fill.levels(lvs: List<&2, Level>) -> List<&2, Level>:
+  match lvs:
+    case Nil{}:
+      []
+    case Con{hh, tt}:
+      Level{+args, binds} = hh
+      Level{args, fill.args(args, binds)} <> fill.levels(tt)
+
+# the first required argument a command left unbound, in list order
+def miss.levels(lvs: List<&2, Level>) -> Maybe<&2, String>:
+  match lvs:
+    case Nil{}:
+      None{}
+    case Con{hh, tt}:
+      Level{+args, +binds} = hh
+      parse.first_req.at(miss.args(args, binds), miss.levels(tt))
+
+# the bindings a command made
+def level.binds(lv: Level) -> List<&2, Bind>:
+  Level{_a, binds} = lv
+  binds
+
+# each command's Matched, root first, with the name selected under it
+def matched.build(lvs: List<&2, Level>, names: List<&2, String>) -> Matched:
+  match lvs:
+    case Nil{}:
+      Leaf{[]}
+    case Con{hh, tt}:
+      match names:
+        case Nil{}:
+          Leaf{List.reverse(&2, Bind, level.binds(hh))}
+        case Con{nn, ns}:
+          Node{List.reverse(&2, Bind, level.binds(hh)), nn, matched.build(tt, ns)}
+
 # a missing required name, or the matched result
 def parse.finish.miss(
   mm: Maybe<&2, String>,
   path: List<&2, String>,
-  binds: List<&2, Bind>
+  +lvs: List<&2, Level>
 ) -> Result<&2, &2, ParseErr, Matched>:
   match mm:
     case Some{n}:
       Fail{Missing{path, n}}
     case None{}:
-      Done{Matched{path, List.reverse(&2, Bind, binds)}}
+      Done{matched.build(lvs, path)}
 
-# required names after defaults
-def parse.finish.ok(
-  specs: List<&2, Arg>,
-  path: List<&2, String>,
-  +binds: List<&2, Bind>
-) -> Result<&2, &2, ParseErr, Matched>:
-  parse.finish.miss(miss.args(specs, binds), path, binds)
+# every command's defaults, then its required arguments, root first
+def parse.finish.ok(+path: List<&2, String>, +lvs: List<&2, Level>) -> Result<&2, &2, ParseErr, Matched>:
+  parse.finish.miss(miss.levels(lvs), path, lvs)
 
 # a finished walker: help, a pending value, an error, or defaults + required
 def parse.finish.mode(
   mode: Mode,
-  +specs: List<&2, Arg>,
-  path: List<&2, String>,
+  +args: List<&2, Arg>,
+  +up: List<&2, Level>,
+  +path: List<&2, String>,
   +binds: List<&2, Bind>
 ) -> Result<&2, &2, ParseErr, Matched>:
   match mode:
@@ -1261,12 +1360,12 @@ def parse.finish.mode(
     case Help{}:
       Fail{NeedHelp{path}}
     case Free{}:
-      parse.finish.ok(specs, path, fill.args(specs, binds))
+      parse.finish.ok(path, List.reverse(&2, Level, fill.levels(Level{args, binds} <> up)))
 
 # the walker, finished
 def parse.finish(st: St) -> Result<&2, &2, ParseErr, Matched>:
-  St{mode, _a, specs, _s, path, binds, _p, _r, _n} = st
-  parse.finish.mode(mode, specs, path, binds)
+  St{mode, args, up, _s, path, binds, _p, _r, _n} = st
+  parse.finish.mode(mode, args, up, path, binds)
 
 # argv against a Cli
 def parse(app: Cli, argv: List<&2, String>) -> Result<&2, &2, ParseErr, Matched>:
@@ -1303,10 +1402,17 @@ def show.binds(bs: List<&2, Bind>) -> String:
     case Con{+h, t}:
       show.bind(h, show.binds(t))
 
+# each command's bindings, root first, `; ` between commands
+def show.levels(mm: Matched) -> String:
+  match mm:
+    case Leaf{bs}:
+      show.binds(bs)
+    case Node{bs, _n, next}:
+      show.binds(bs) ++ "; " ++ show.levels(next)
+
 # a Matched as `path | binds`
-def show.matched(mm: Matched) -> String:
-  Matched{path, binds} = mm
-  String.join(path, "/") ++ " | " ++ show.binds(binds)
+def show.matched(+mm: Matched) -> String:
+  String.join(path_of(mm), "/") ++ " | " ++ show.levels(mm)
 
 # a parse result as a single line
 def show(rr: Result<&2, &2, ParseErr, Matched>) -> String:

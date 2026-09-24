@@ -1,7 +1,9 @@
 # shake: CLI argument parser for Bend 2. Describe a program with `app`, `sub`,
-# `flag`, `opt`, `many`, `pos` and `rest`; `parse` binds argv against it, and `get`,
-# `get_all`, `on` and `path_of` read the result. `help` writes the usage page
-# for a command path. For a failed parse, `help_path` tells a request for help
+# `flag`, `opt`, `many`, `pos` and `rest`; `parse` binds argv against it, and
+# the result is read one command at a time, as clap's: `get`, `get_all` and
+# `on` read a command's own bindings, and `sub_name`, `sub_of`, `at` and
+# `path_of` reach the subcommands selected under it. `help` writes the usage
+# page for a command path. For a failed parse, `help_path` tells a request for help
 # from an error, `err_text` writes the message and `err_path` names the command
 # it failed in. `check` reports a spec that contradicts itself. `argv` is the
 # process's arguments. This file is the interface: everything under src/ is
@@ -23,7 +25,8 @@ def Sub() -> Data:
 def Arg() -> Data:
   S.Arg
 
-# a successful parse: the selected command path and the bindings
+# a successful parse, one command at a time: the bindings the command made,
+# and the subcommand selected under it with its own Matched
 def Matched() -> Data:
   S.Matched
 
@@ -124,21 +127,35 @@ def spec_err_text(err: K.SpecErr) -> String:
 def parse(spec: S.Cli, words: List<&2, String>) -> Result<&2, &2, S.ParseErr, S.Matched>:
   S.parse(spec, words)
 
-# the value bound to `name` last, or None when nothing bound it
+# the value this command bound to `name` last, or None when it bound none
 def get(found: S.Matched, +name: String) -> Maybe<&2, String>:
   S.get(found, name)
 
-# every value bound to `name`, in argv order
+# every value this command bound to `name`, in argv order
 def get_all(found: S.Matched, +name: String) -> List<&2, String>:
   S.get_all(found, name)
 
-# whether a flag named `name` was set
+# whether this command's flag named `name` was set
 def on(found: S.Matched, +name: String) -> Bool:
   S.on(found, name)
 
-# the selected command path
+# the names of the subcommands selected below this command, in order: the
+# whole selected path for the Matched `parse` answers
 def path_of(found: S.Matched) -> List<&2, String>:
   S.path_of(found)
+
+# the name of the subcommand selected under this command, or None
+def sub_name(found: S.Matched) -> Maybe<&2, String>:
+  S.sub_name(found)
+
+# the Matched of subcommand `name` when it is the one selected, else None
+def sub_of(found: S.Matched, +name: String) -> Maybe<&2, S.Matched>:
+  S.sub_of(found, name)
+
+# the Matched of the command `path` names below this one, following `sub_of`
+# name by name, or None where a name is not the one selected
+def at(found: S.Matched, path: List<&2, String>) -> Maybe<&2, S.Matched>:
+  S.at(found, path)
 
 # the usage page for `path` under `spec`; an unknown name in the path is
 # skipped
