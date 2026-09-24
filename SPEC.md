@@ -63,7 +63,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
-| SHAKE-GET-1 | For every Matched and name: `get` is the value of the last binding with that name, or `""` when there is none; `get_all` is the values of every binding with that name, in binding order; `on` is true exactly when `get` is `"true"`; `path_of` is the selected path. | Proved | pending |  |
+| SHAKE-GET-1 | For every Matched and name: `get` is the value of the last binding with that name, or `""` when there is none; `get_all` is the values of every binding with that name, in binding order; `on` is true exactly when `get` is `"true"`; `path_of` is the selected path. | Proved | proved | src/LAWS.bend get_all_append; src/LAWS.bend get_all_hit; src/LAWS.bend get_all_miss; src/LAWS.bend get_last; src/LAWS.bend get_none; src/LAWS.bend on_get; src/LAWS.bend path_of_path |
 
 ### Help pages (SHAKE-HELP)
 
@@ -86,7 +86,11 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 
 ## Left to prove
 
-Every pending row is unproved in full; the RFC's Rollout says in which phase each row's laws land. No pending row has partial laws.
+Every pending row is unproved in full, except the one below; the RFC's Rollout says in which phase each row's laws land.
+
+| ID | Proved so far | Missing |
+| :---- | :---- | :---- |
+| SHAKE-PARSE-10 | `get_last`: `get` reads the value of the last binding of a name, whatever comes before it. | That `parse` records bindings in the order the words give them, which is part of SHAKE-PARSE-1. |
 
 ## Trust boundary
 
