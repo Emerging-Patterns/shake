@@ -111,3 +111,79 @@ def Laws.copy_keeps(xs):
       ih = Equal.sym(List<&1, String>, Laws.down(Args.copy(tt)), tt, Laws.copy_keeps(tt))
       %ih : {hh <> _ == hh <> tt : List<&1, String>}
       {==}
+
+def Laws.walk_append(xs, ys, st):
+  match xs:
+    case Nil{}:
+      {==}
+    case Con{+hh, tt}:
+      Laws.walk_append(tt, ys, S.parse.step(hh, st))
+
+def Laws.dead_walk(ys, err, args, specs, subs, path, binds, pos, raw, seen):
+  match ys:
+    case Nil{}:
+      {==}
+    case Con{_hh, tt}:
+      Laws.dead_walk(tt, err, args, specs, subs, path, binds, pos, raw, seen)
+
+# the type that is empty exactly where a Maybe is Some
+def some.emp(mm: Maybe<&2, S.ParseErr>) -> Type:
+  match mm:
+    case None{}:
+      Unit
+    case Some{_e}:
+      Empty
+
+# the clash itself: None is not Some
+def none.clash(+err: S.ParseErr, eq: {None{} == Some{err} : Maybe<&2, S.ParseErr>}) -> Empty:
+  %eq : some.emp(_)
+  Unit{}
+
+# nothing is in Empty, so it is any type
+def gone(a, -A: Kind(a), never: Empty) -> A:
+  match never:
+
+# None is never Some, so such an equation proves anything
+def none.absurd(
+  a,
+  -A: Kind(a),
+  +err: S.ParseErr,
+  eq: {None{} == Some{err} : Maybe<&2, S.ParseErr>}
+) -> A:
+  gone(a, A, none.clash(err, eq))
+
+# a Some read back as a failed parse
+def some.fail(mm: Maybe<&2, S.ParseErr>) -> Result<&2, &2, S.ParseErr, S.Matched>:
+  match mm:
+    case None{}:
+      Fail{S.Missing{""}}
+    case Some{ee}:
+      Fail{ee}
+
+def Laws.fail_from(st, more, err, died):
+  match st:
+    case S.St{S.Dead{+ee}, +aa, +gg, +ss, +pp, +bb, +oo, +rr, +nn}:
+      e1 = Equal.sym(S.St,
+        S.parse.walk(more, S.St{S.Dead{ee}, aa, gg, ss, pp, bb, oo, rr, nn}),
+        S.St{S.Dead{ee}, aa, gg, ss, pp, bb, oo, rr, nn},
+        Laws.dead_walk(more, ee, aa, gg, ss, pp, bb, oo, rr, nn))
+      %e1 : {S.parse.finish(_) == Fail{err} : Result<&2, &2, S.ParseErr, S.Matched>}
+      Equal.cong(Maybe<&2, S.ParseErr>, Result<&2, &2, S.ParseErr, S.Matched>,
+        mm => some.fail(mm), Some{ee}, Some{err}, died)
+    case S.St{S.Free{}, _a, _g, _s, _p, _b, _o, _r, _n}:
+      none.absurd(&1, {S.parse.finish(S.parse.walk(more, S.St{S.Free{}, _a, _g, _s, _p, _b, _o, _r, _n}))
+        == Fail{err} : Result<&2, &2, S.ParseErr, S.Matched>}, err, died)
+    case S.St{S.Need{_name}, _a, _g, _s, _p, _b, _o, _r, _n}:
+      none.absurd(&1, {S.parse.finish(S.parse.walk(more, S.St{S.Need{_name}, _a, _g, _s, _p, _b, _o, _r, _n}))
+        == Fail{err} : Result<&2, &2, S.ParseErr, S.Matched>}, err, died)
+    case S.St{S.Help{}, _a, _g, _s, _p, _b, _o, _r, _n}:
+      none.absurd(&1, {S.parse.finish(S.parse.walk(more, S.St{S.Help{}, _a, _g, _s, _p, _b, _o, _r, _n}))
+        == Fail{err} : Result<&2, &2, S.ParseErr, S.Matched>}, err, died)
+
+def Laws.fail_stays(spec, ws, more, err, died):
+  e1 = Equal.sym(S.St,
+    S.parse.walk(List.append(&2, String, ws, more), S.parse.start(spec)),
+    S.parse.walk(more, S.parse.walk(ws, S.parse.start(spec))),
+    Laws.walk_append(ws, more, S.parse.start(spec)))
+  %e1 : {S.parse.finish(_) == Fail{err} : Result<&2, &2, S.ParseErr, S.Matched>}
+  Laws.fail_from(S.parse.walk(ws, S.parse.start(spec)), more, err, died)
