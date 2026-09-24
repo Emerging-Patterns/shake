@@ -1673,3 +1673,84 @@ law enter_missing:
   for h_req: {S.parse.first_req(pos) == Some{nm} : Maybe<&2, String>}
   {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, [tok]), more))
     == Fail{S.Missing{path, nm}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+
+# the subcommands under a found one, or none
+def kids_of(mm: Maybe<&2, S.Sub>) -> List<&2, S.Sub>:
+  match mm:
+    case None{}:
+      []
+    case Some{ss}:
+      S.Sub{_n, _a, _g, kids} = ss
+      kids
+
+# whether each word names a subcommand under the one before, starting from
+# `subs`
+def help_names(ns: List<&2, String>, +subs: List<&2, S.Sub>) -> Bool:
+  match ns:
+    case Nil{}:
+      True{}
+    case Con{+nn, tt}:
+      Bool.and(Maybe.is_some(&2, S.Sub, S.find_sub(subs, nn)), help_names(tt, kids_of(S.find_sub(subs, nn))))
+
+# LAW: wherever the words before it leave the walker free, before `--` and
+# before any positional of the current command is bound, a word `help` starts
+# a help path at the selected path
+# SHAKE-PARSE-8
+law help_step:
+  for +spec: Shake.Cli
+  for +pre: List<&2, String>
+  for +args: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +pos: List<&2, S.Arg>
+  for h_at: {S.parse.walk(pre, S.parse.start(spec))
+    == S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, False{}} : S.St}
+  {S.parse.walk(List.append(&2, String, pre, ["help"]), S.parse.start(spec))
+    == S.St{S.Help{}, args, up, subs, path, bs, pos, False{}, False{}} : S.St}
+
+# LAW: wherever the words before them leave the walker reading a help path,
+# words that each name a subcommand under the one before extend the path, in
+# order
+# SHAKE-PARSE-8
+law help_walk:
+  for +spec: Shake.Cli
+  for +pre: List<&2, String>
+  for +ns: List<&2, String>
+  for +args: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +pos: List<&2, S.Arg>
+  for +raw: Bool
+  for +seen: Bool
+  for h_at: {S.parse.walk(pre, S.parse.start(spec))
+    == S.St{S.Help{}, args, up, subs, path, bs, pos, raw, seen} : S.St}
+  for h_ns: {help_names(ns, subs) == True{} : Bool}
+  exs kids: List<&2, S.Sub>
+  {S.parse.walk(List.append(&2, String, pre, ns), S.parse.start(spec))
+    == S.St{S.Help{}, args, up, kids, List.append(&2, String, path, ns), bs, pos, raw, seen} : S.St}
+
+# LAW: wherever the words before it leave the walker free, before `--` and
+# before any positional of the current command is bound, a word `help`
+# followed by words that each name a subcommand under the one before, until
+# the words end, fails the parse with NeedHelp of the selected path followed
+# by those words
+# SHAKE-PARSE-8
+law help_path:
+  for +spec: Shake.Cli
+  for +pre: List<&2, String>
+  for +ns: List<&2, String>
+  for +args: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +pos: List<&2, S.Arg>
+  for h_at: {S.parse.walk(pre, S.parse.start(spec))
+    == S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, False{}} : S.St}
+  for h_ns: {help_names(ns, subs) == True{} : Bool}
+  {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, ["help"]), ns))
+    == Fail{S.NeedHelp{List.append(&2, String, path, ns)}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
