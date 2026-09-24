@@ -287,52 +287,47 @@ def Laws.unknown_long(
     Laws.unknown_long_dies(spec, pre, body, name, val, args, specs, subs, path, bs, pos, seen,
       h_at, h_dd, h_cut, h_name, h_none))
 
-def Laws.unknown_short_step(
-  body,
-  name,
-  val,
-  args,
-  specs,
-  subs,
-  path,
-  bs,
-  pos,
-  seen,
-  h_dd,
-  h_alone,
-  h_dash,
-  h_cut,
-  h_none
-):
-  e1 = Equal.sym(Bool, String.eq("-" ++ body, "--"), False{}, h_dd)
-  %e1 : {S.parse.step.end(_, "-" ++ body, args, specs, subs, path, bs, pos, seen)
-    == S.St{S.Dead{S.UnknownFlag{path, "-" ++ body}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
-  e0 = Equal.sym(Bool, String.starts_with(body, ""), True{}, Laws.prefix_empty(body))
-  %e0 : {S.parse.step.kind.go(String.starts_with(body, "-"), _, "-" ++ body, args, specs, subs, path, bs, pos, seen)
-    == S.St{S.Dead{S.UnknownFlag{path, "-" ++ body}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
-  e2 = Equal.sym(Bool, String.starts_with(body, "-"), False{}, h_dash)
-  %e2 : {S.parse.step.kind.go(_, True{}, "-" ++ body, args, specs, subs, path, bs, pos, seen)
-    == S.St{S.Dead{S.UnknownFlag{path, "-" ++ body}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
-  e3 = Equal.sym(Bool, String.eq("-" ++ body, "-"), False{}, h_alone)
-  %e3 : {S.parse.step.short.go(_, "-" ++ body, args, specs, subs, path, bs, pos, seen)
-    == S.St{S.Dead{S.UnknownFlag{path, "-" ++ body}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
-  ed = Equal.sym(String, String.drop(body, 0n), body, Laws.drop_zero(body))
-  %ed : {S.parse.take_short(_, "-" ++ body, args, specs, subs, path, bs, pos, False{}, seen)
-    == S.St{S.Dead{S.UnknownFlag{path, "-" ++ body}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
-  e4 = Equal.sym(String & Maybe<&2, String>, S.short_of(body), (name, val), h_cut)
-  %e4 : {S.parse.take_short.cut(_, "-" ++ body, args, specs, subs, path, bs, pos, False{}, seen)
-    == S.St{S.Dead{S.UnknownFlag{path, "-" ++ body}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
-  e5 = Equal.sym(Maybe<&2, S.Arg>, S.by_short(args, name), None{}, h_none)
-  %e5 : {S.parse.take_arg(_, val, "-" ++ body, args, specs, subs, path, bs, pos, False{}, seen)
-    == S.St{S.Dead{S.UnknownFlag{path, "-" ++ body}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
-  {==}
-
-def Laws.unknown_short_dies(
+def Laws.step_dies(
   spec,
   pre,
-  body,
-  name,
-  val,
+  tok,
+  st,
+  err,
+  h_at,
+  h_step
+):
+  e1 = Equal.sym(S.St,
+    S.parse.walk(List.append(&2, String, pre, [tok]), S.parse.start(spec)),
+    S.parse.walk([tok], S.parse.walk(pre, S.parse.start(spec))),
+    Laws.walk_append(pre, [tok], S.parse.start(spec)))
+  %e1 : {Laws.dead_of(_) == Some{err} : Maybe<&2, S.ParseErr>}
+  e2 = Equal.sym(S.St, S.parse.walk(pre, S.parse.start(spec)), st, h_at)
+  %e2 : {Laws.dead_of(S.parse.walk([tok], _)) == Some{err} : Maybe<&2, S.ParseErr>}
+  h_step
+
+def Laws.refused(
+  spec,
+  pre,
+  more,
+  tok,
+  st,
+  err,
+  h_at,
+  h_step
+):
+  Laws.fail_stays(spec, List.append(&2, String, pre, [tok]), more, err,
+    Laws.step_dies(spec, pre, tok, st, err, h_at, h_step))
+
+def Laws.cluster_done(body, orig, st):
+  match body:
+    case SNil{}:
+      {==}
+    case SCon{_cc, rest}:
+      Laws.cluster_done(rest, orig, st)
+
+def Laws.unknown_short_step(
+  cc,
+  rest,
   args,
   specs,
   subs,
@@ -340,39 +335,58 @@ def Laws.unknown_short_dies(
   bs,
   pos,
   seen,
-  h_at,
   h_dd,
-  h_alone,
   h_dash,
-  h_cut,
   h_none
 ):
-  e1 = Equal.sym(S.St,
-    S.parse.walk(List.append(&2, String, pre, ["-" ++ body]), S.parse.start(spec)),
-    S.parse.walk(["-" ++ body], S.parse.walk(pre, S.parse.start(spec))),
-    Laws.walk_append(pre, ["-" ++ body], S.parse.start(spec)))
-  %e1 : {Laws.dead_of(_) == Some{S.UnknownFlag{path, "-" ++ body}} : Maybe<&2, S.ParseErr>}
-  e2 = Equal.sym(S.St,
-    S.parse.walk(pre, S.parse.start(spec)),
-    S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen},
-    h_at)
-  %e2 : {Laws.dead_of(S.parse.walk(["-" ++ body], _)) == Some{S.UnknownFlag{path, "-" ++ body}}
-    : Maybe<&2, S.ParseErr>}
-  e3 = Equal.sym(S.St,
-    S.parse.step("-" ++ body, S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen}),
-    S.St{S.Dead{S.UnknownFlag{path, "-" ++ body}}, args, specs, subs, path, bs, pos, False{}, seen},
-    Laws.unknown_short_step(body, name, val, args, specs, subs, path, bs, pos, seen,
-      h_dd, h_alone, h_dash, h_cut, h_none))
-  %e3 : {Laws.dead_of(_) == Some{S.UnknownFlag{path, "-" ++ body}} : Maybe<&2, S.ParseErr>}
+  e1 = Equal.sym(Bool, String.eq("-" ++ SCon{cc, rest}, "--"), False{}, h_dd)
+  %e1 : {S.parse.step.end(_, "-" ++ SCon{cc, rest}, args, specs, subs, path, bs, pos,
+      seen) == S.St{S.Dead{S.UnknownFlag{path, "-" ++ SCon{cc,
+          rest}}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+  e3 = Equal.sym(Bool, Char.is_eq(cc, '-'), False{}, h_dash)
+  %e3 : {S.parse.step.kind.go(String.starts_with.if(rest, "", _), True{}, "-" ++ SCon{cc, rest}, args, specs,
+      subs, path, bs, pos,
+      seen) == S.St{S.Dead{S.UnknownFlag{path, "-" ++ SCon{cc,
+          rest}}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+  e2 = Equal.sym(Maybe<&2, S.Arg>, S.by_short(args, SCon{cc, SNil{}}), None{}, h_none)
+  %e2 : {S.cluster(rest, "-" ++ SCon{cc, rest},
+      S.parse.take_arg(_, S.cluster.val(_, rest), "-" ++ SCon{cc, rest}, args, specs, subs, path, bs, pos,
+          False{}, seen),
+      S.cluster.ends(_, rest))
+    == S.St{S.Dead{S.UnknownFlag{path, "-" ++ SCon{cc, rest}}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+  Laws.cluster_done(rest, "-" ++ SCon{cc, rest}, S.St{S.Dead{S.UnknownFlag{path, "-" ++ SCon{cc, rest}}}, args,
+      specs, subs, path, bs, pos, False{}, seen})
+
+# the first letter of a short cluster that no argument has fails the step
+def unknown_short.step(
+  +cc: Char,
+  +rest: String,
+  +args: List<&2, S.Arg>,
+  +specs: List<&2, S.Arg>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +bs: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool,
+  h_dd: {String.eq("-" ++ SCon{cc, rest}, "--") == False{} : Bool},
+  h_dash: {Char.is_eq(cc, '-') == False{} : Bool},
+  h_none: {S.by_short(args, SCon{cc, SNil{}}) == None{} : Maybe<&2, S.Arg>}
+) -> {Laws.dead_of(S.parse.step("-" ++ SCon{cc, rest}, S.St{S.Free{}, args, specs, subs, path, bs, pos, False{},
+    seen})) == Some{S.UnknownFlag{path, "-" ++ SCon{cc, rest}}}
+    : Maybe<&2, S.ParseErr>}:
+  ee = Equal.sym(S.St, S.parse.step("-" ++ SCon{cc, rest}, S.St{S.Free{}, args, specs, subs, path, bs, pos,
+      False{}, seen}), S.St{S.Dead{S.UnknownFlag{path, "-" ++ SCon{cc,
+          rest}}}, args, specs, subs, path, bs, pos, False{}, seen},
+    Laws.unknown_short_step(cc, rest, args, specs, subs, path, bs, pos, seen, h_dd, h_dash, h_none))
+  %ee : {Laws.dead_of(_) == Some{S.UnknownFlag{path, "-" ++ SCon{cc, rest}}} : Maybe<&2, S.ParseErr>}
   {==}
 
 def Laws.unknown_short(
   spec,
   pre,
   more,
-  body,
-  name,
-  val,
+  cc,
+  rest,
   args,
   specs,
   subs,
@@ -382,11 +396,9 @@ def Laws.unknown_short(
   seen,
   h_at,
   h_dd,
-  h_alone,
   h_dash,
-  h_cut,
   h_none
 ):
-  Laws.fail_stays(spec, List.append(&2, String, pre, ["-" ++ body]), more, S.UnknownFlag{path, "-" ++ body},
-    Laws.unknown_short_dies(spec, pre, body, name, val, args, specs, subs, path, bs, pos, seen,
-      h_at, h_dd, h_alone, h_dash, h_cut, h_none))
+  Laws.refused(spec, pre, more, "-" ++ SCon{cc, rest}, S.St{S.Free{}, args, specs, subs, path, bs, pos, False{},
+      seen}, S.UnknownFlag{path, "-" ++ SCon{cc, rest}}, h_at,
+    unknown_short.step(cc, rest, args, specs, subs, path, bs, pos, seen, h_dd, h_dash, h_none))

@@ -109,10 +109,10 @@ The Law cells below are sketches. Names that exist today are real; `check`, `Spe
 | ID | Requirement | Level |
 | :---- | :---- | :---- |
 | SHAKE-TOK-1 | A word that starts with `--`, is not exactly `--`, and has at least one char before its first `=` is a long option: the chars between `--` and the first `=` (or the end) are its spelling, and when there is an `=` everything after it, verbatim and possibly empty, is its value. A word `--=...` is refused as `UnknownFlag{word}`. | Proved |
-| SHAKE-TOK-2 | A word that starts with `-`, is not `-` and does not start with `--` is a short option: its second char is the spelling. When the rest of the word starts with `=`, everything after that one `=`, verbatim and possibly empty, is its value; otherwise the rest, verbatim, is its value when it is not empty. | Proved |
+| SHAKE-TOK-2 | A word that starts with `-`, is not `-` and does not start with `--` is a cluster of short options, read letter by letter: a letter that spells a flag binds it and the next letter goes on; a letter that spells an option takes the rest of the word as its value, after one `=` when the rest starts with it (verbatim, and possibly empty), or the next word when nothing is left; a letter no argument of the current command spells refuses the whole word as `UnknownFlag{word}`. | Proved |
 | SHAKE-TOK-3 | `-` alone, and every word that does not start with `-`, is a plain word. | Proved |
 | SHAKE-TOK-4 | When a word exactly `--` reaches `parse` in option position, it binds nothing and every later word is read as a plain word bound to a positional, whatever its shape. | Proved |
-| SHAKE-TOK-5 | A flag given a value (`--verbose=x`, `-vx`) is refused as `Unexpected{word}`. | Proved |
+| SHAKE-TOK-5 | A flag given a value (`--verbose=x`, or `-v=x` in a cluster) is refused as `Unexpected{word}`. | Proved |
 | SHAKE-TOK-6 | An option given no value in its own word takes the next word as its value, unless that word is flag-shaped (starts with `-` and is not `-`) or there is none; then the parse fails with `NoValue{name}`. | Proved |
 | SHAKE-TOK-7 | A long or short spelling that no argument of the current command has is refused as `UnknownFlag{word}`. Arguments of a parent command are not matched after a subcommand is selected. | Proved |
 

@@ -229,14 +229,6 @@ def short_of.val(eq: Bool, +rest: String) -> Maybe<&2, String>:
     case False{}:
       Bool.pick(Maybe<&2, String>, String.is_empty(rest), None{}, Some{rest})
 
-# a short spelling and a glued value
-def short_of.go(+name: String, +rest: String) -> String & Maybe<&2, String>:
-  (name, short_of.val(String.starts_with(rest, "="), rest))
-
-# the short name and optional glued value of the body after `-`
-def short_of(+ss: String) -> String & Maybe<&2, String>:
-  short_of.go(String.take(ss, 1n), String.drop(ss, 1n))
-
 # whether this Arg's long spelling is `name`
 def by_long.hit(aa: Arg, +name: String) -> Bool:
   Arg{_n, _s, long, _k, _h, _r, _d, _c} = aa
@@ -679,22 +671,94 @@ def parse.take_long(
   parse.take_long.cut(cut_eq(body), orig, args, specs, subs, path, binds, pos, raw,
     seen)
 
-# a short option after the glued-value cut
-def parse.take_short.cut(
-  nv: String & Maybe<&2, String>,
-  +orig: String,
-  +args: List<&2, Arg>,
-  +specs: List<&2, Arg>,
-  +subs: List<&2, Sub>,
-  +path: List<&2, String>,
-  +binds: List<&2, Bind>,
-  pos: List<&2, Arg>,
-  +raw: Bool,
-  +seen: Bool
-) -> St:
-  (name, val) = nv
-  parse.take_arg(by_short(args, name), val, orig, args, specs, subs, path, binds, pos,
+# a flag's value in a cluster: the rest when it starts with `=` (which
+# `take_arg` refuses), else none, so the next letter goes on
+def cluster.val.flag(eq: Bool, +rest: String) -> Maybe<&2, String>:
+  match eq:
+    case True{}:
+      Some{rest}
+    case False{}:
+      None{}
+
+# the value a letter of this kind gives its argument: an option takes the
+# rest of the word, after one `=`
+def cluster.val.kind(kk: ArgKind, +rest: String) -> Maybe<&2, String>:
+  match kk:
+    case Flag{}:
+      cluster.val.flag(String.starts_with(rest, "="), rest)
+    case Opt{}:
+      short_of.val(String.starts_with(rest, "="), rest)
+    case Pos{}:
+      None{}
+    case Rest{}:
+      None{}
+
+# the value the letter's argument gets, or none when no argument has it
+def cluster.val(found: Maybe<&2, Arg>, +rest: String) -> Maybe<&2, String>:
+  match found:
+    case None{}:
+      None{}
+    case Some{aa}:
+      Arg{_n, _s, _l, kind, _h, _r, _d, _c} = aa
+      cluster.val.kind(kind, rest)
+
+# whether a letter of this kind ends the cluster: every kind but a flag that
+# is not followed by `=`
+def cluster.ends.kind(kk: ArgKind, +rest: String) -> Bool:
+  match kk:
+    case Flag{}:
+      String.starts_with(rest, "=")
+    case Opt{}:
+      True{}
+    case Pos{}:
+      True{}
+    case Rest{}:
+      True{}
+
+# whether the letters after this one are no longer read as letters: an
+# unknown letter, an option (they are its value) or a flag given `=`
+def cluster.ends(found: Maybe<&2, Arg>, +rest: String) -> Bool:
+  match found:
+    case None{}:
+      True{}
+    case Some{aa}:
+      Arg{_n, _s, _l, kind, _h, _r, _d, _c} = aa
+      cluster.ends.kind(kind, rest)
+
+# one letter against the walker, through `take_arg`
+def cluster.apply(st: St, +cc: Char, +rest: String, +orig: String) -> St:
+  St{_mode, +args, +specs, +subs, +path, +binds, +pos, +raw, +seen} = st
+  +found = by_short(args, SCon{cc, SNil{}})
+  parse.take_arg(found, cluster.val(found, rest), orig, args, specs, subs, path, binds, pos,
     raw, seen)
+
+# one letter of a cluster, unless an earlier one ended it
+def cluster.letter(done: Bool, +cc: Char, +rest: String, +orig: String, st: St) -> St:
+  match done:
+    case True{}:
+      st
+    case False{}:
+      cluster.apply(st, cc, rest, orig)
+
+# whether the cluster has ended after this letter
+def cluster.done(done: Bool, +cc: Char, +rest: String, st: St) -> Bool:
+  match done:
+    case True{}:
+      True{}
+    case False{}:
+      St{_m, +args, _g, _s, _p, _b, _o, _r, _n} = st
+      cluster.ends(by_short(args, SCon{cc, SNil{}}), rest)
+
+# every letter of a short cluster `-abc`, in order: a flag binds and the next
+# letter goes on; an option takes the rest of the word, after one `=`, or the
+# next word when nothing is left; an unknown letter, or a flag given `=`,
+# refuses the whole word
+def cluster(body: String, +orig: String, +st: St, +done: Bool) -> St:
+  match body:
+    case SNil{}:
+      st
+    case SCon{+cc, +rest}:
+      cluster(rest, orig, cluster.letter(done, cc, rest, orig, st), cluster.done(done, cc, rest, st))
 
 # a short option body after `-`
 def parse.take_short(
@@ -709,8 +773,7 @@ def parse.take_short(
   +raw: Bool,
   +seen: Bool
 ) -> St:
-  parse.take_short.cut(short_of(body), orig, args, specs, subs, path, binds, pos, raw,
-    seen)
+  cluster(body, orig, St{Free{}, args, specs, subs, path, binds, pos, raw, seen}, False{})
 
 # a rest positional stays; a plain one is consumed
 def parse.take_pos.keep(keep: Bool, hh: Arg, tt: List<&2, Arg>) -> List<&2, Arg>:
