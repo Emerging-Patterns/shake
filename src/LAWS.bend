@@ -6,6 +6,14 @@ import ../main.bend as Shake
 import ../src/cli.bend as S
 import ../src/args.bend as Args
 
+# a `&2` word list read back as the `&1` list IO.args answers
+def down(ys: List<&2, String>) -> List<&1, String>:
+  match ys:
+    case Nil{}:
+      Nil{}
+    case Con{+hh, tt}:
+      hh <> down(tt)
+
 # LAW: a word that starts `--` is flag-shaped
 law looks_flag_long:
   for ss: String
@@ -25,11 +33,6 @@ law get_nil:
 law on_nil:
   for name: String
   {S.on(S.Matched{[], []}, name) == False{} : Bool}
-
-# LAW: copying a list of one word keeps the word
-law copy_one:
-  for +hh: String
-  {Args.copy(hh <> Nil{}) == hh <> Nil{} : List<&2, String>}
 
 # LAW: a request for help has no error text, for every spec and path
 # SHAKE-ERR-1
@@ -137,3 +140,10 @@ law path_of_path:
   for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
   {Shake.path_of(S.Matched{path, bs}) == path : List<&2, String>}
+
+# LAW: `copy` keeps every word IO.args gives, all of them, in order and
+# unchanged: read back, the copy is the list it was made from
+# SHAKE-ARGS-1
+law copy_keeps:
+  for xs: List<&1, String>
+  {down(Args.copy(xs)) == xs : List<&1, String>}

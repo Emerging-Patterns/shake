@@ -82,7 +82,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
-| SHAKE-ARGS-1 | `argv` passes on the words `IO.args` gives it, all of them, in order and unchanged. | Proved | pending |  |
+| SHAKE-ARGS-1 | The copy `argv` makes of the words `IO.args` gives keeps all of them, in order and unchanged: for every list, reading the copy back gives the list. | Proved | proved | src/LAWS.bend copy_keeps |
 
 ## Left to prove
 
@@ -101,3 +101,4 @@ These assumptions sit outside the proofs. They are the complete list of Trusted 
 | SHAKE-TRUST-1 | The Bend checker is sound: a proof it accepts proves its law. | It cannot be checked from inside Bend; this is EZ-TRUST-1. shake pins bend 2.0.26 through the flake. |
 | SHAKE-TRUST-2 | A program compiled by bend 2.0.26 hands `IO.args` the process's words after the program name, except that it stops examining words at the first `--`, drops that `--` and passes every later word through unchanged; before that `--` it removes `--threads` and `--gpu` with the word after each, and ends the process before `main` on `--help` and on `--gpu-build`. | It is the C `main` bend emits, read from bend 2.0.26's own source (in its binary) and confirmed against the demo. It changes when bend does, so every bend bump rechecks it. |
 | SHAKE-TRUST-3 | The proof-gate runner fails the build unless the first line of `bend src/PROOF.bend` is `All terms check.` | It is ez's `mkProofs` running `ez prove`, run by `nix flake check` in CI; this is EZ-TRUST-4. |
+| SHAKE-TRUST-4 | `argv` hands on exactly the list `IO.args` answers, through the copy SHAKE-ARGS-1 is about. | It is IO, which no law can reach: `argv` in `src/args.bend` is one `IO.bind` of `IO.args` into `copy`, short enough to check by reading, and marked `# noqa: L001` for that reason. |

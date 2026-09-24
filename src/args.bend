@@ -12,6 +12,6 @@ def copy(xs: List<&1, String>) -> List<&2, String>:
       h <> copy(t)
 
 # the process argv
-def argv() -> IO(List<&2, String>):
+def argv() -> IO(List<&2, String>):  # noqa: L001 IO: reads argv (SHAKE-TRUST-4)
   IO.bind(List<&1, String>, List<&2, String>, IO.args(),
     xs => IO.pure(List<&2, String>, copy(xs)))

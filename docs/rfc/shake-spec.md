@@ -199,6 +199,8 @@ The `&1` and `&2` lists are different types, so the law compares them through `S
 | SHAKE-TRUST-2 | A program compiled by bend 2.0.26 hands `IO.args` the process's words after the program name, except that it stops examining words at the first `--`, drops that `--` and passes every later word through unchanged; before that `--` it removes `--threads` and `--gpu` with the word after each; and it ends the process before `main` on `--help` and on `--gpu-build`. | It is the runtime bend emits, read from bend 2.0.26's own source (in its binary) and confirmed against the demo. It changes when bend changes, so every bend bump rechecks it. |
 | SHAKE-TRUST-3 | The proof-gate runner fails any PROOF.bend whose first line is not exactly `All terms check.` | ez's `ez test` at the pinned revision; it is another project's code. |
 
+Update: when ARGS-1 was proved, it was split in two. The Proved row is about `copy`, over every list (`copy_keeps`); that `argv` passes `IO.args` through `copy` is one line of IO with no binder a law could have, so it became SHAKE-TRUST-4, like ez's and bolt's interpreter rows.
+
 The trust boundary is small because shake has almost no IO. TRUST-2 is the row a user of a compiled program most needs to read, and the README should point to it.
 
 ### Retiring laws
