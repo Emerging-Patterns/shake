@@ -415,6 +415,37 @@ law gw.long:
 def gw.long(body, orig, args, up, subs, path, binds, pos, raw, seen):
   gw.cut(Shake.cut_eq(body), orig, args, up, subs, path, binds, pos, raw, seen)
 
+# one letter of a cluster, read, in whatever mode the walker is
+law gw.apply_mode:
+  for mode: Shake.Mode
+  for +cc: Char
+  for +rest: String
+  for +orig: String
+  for +args: List<&2, Shake.Arg>
+  for +up: List<&2, Shake.Level>
+  for +subs: List<&2, Shake.Sub>
+  for +path: List<&2, String>
+  for +binds: List<&2, Shake.Bind>
+  for +pos: List<&2, Shake.Arg>
+  for +raw: Bool
+  for +seen: Bool
+  gw.Stay(Shake.cluster.apply.mode(mode, cc, rest, orig, args, up, subs, path, binds, pos, raw, seen),
+    View{args, up, path, binds})
+
+def gw.apply_mode(mode, cc, rest, orig, args, up, subs, path, binds, pos, raw, seen):
+  match mode:
+    case Shake.Dead{_e}:
+      ([], {==})
+    case Shake.Free{}:
+      gw.arg(Shake.by_short(args, SCon{cc, SNil{}}), Shake.cluster.val(Shake.by_short(args, SCon{cc, SNil{}}), rest),
+        orig, args, up, subs, path, binds, pos, raw, seen)
+    case Shake.Need{_n}:
+      gw.arg(Shake.by_short(args, SCon{cc, SNil{}}), Shake.cluster.val(Shake.by_short(args, SCon{cc, SNil{}}), rest),
+        orig, args, up, subs, path, binds, pos, raw, seen)
+    case Shake.Help{}:
+      gw.arg(Shake.by_short(args, SCon{cc, SNil{}}), Shake.cluster.val(Shake.by_short(args, SCon{cc, SNil{}}), rest),
+        orig, args, up, subs, path, binds, pos, raw, seen)
+
 # one letter of a cluster, read
 law gw.apply:
   for st: Shake.St
@@ -425,9 +456,8 @@ law gw.apply:
 
 def gw.apply(st, cc, rest, orig):
   match st:
-    case Shake.St{_m, +args, +up, +subs, +path, +binds, +pos, +raw, +seen}:
-      gw.arg(Shake.by_short(args, SCon{cc, SNil{}}), Shake.cluster.val(Shake.by_short(args, SCon{cc, SNil{}}), rest),
-        orig, args, up, subs, path, binds, pos, raw, seen)
+    case Shake.St{mode, +args, +up, +subs, +path, +binds, +pos, +raw, +seen}:
+      gw.apply_mode(mode, cc, rest, orig, args, up, subs, path, binds, pos, raw, seen)
 
 # one letter of a cluster, unless an earlier one ended it
 law gw.letter:
