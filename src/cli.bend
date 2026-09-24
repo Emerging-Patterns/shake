@@ -1,7 +1,7 @@
-# shake: CLI argument parser for Bend 2. `parse` reads argv against a Cli;
-# `help` writes usage for a command path. A compiled binary's runtime keeps
-# `--help` (and `--threads`, `--gpu`, `--gpu-build`) and strips them; `help`
-# is the subcommand that prints usage. A `--` ends option parsing.
+# shake/cli: the parser behind main.bend, internal. `parse` reads argv
+# against a Cli; `help` writes usage for a command path, and `help` is the
+# subcommand that asks for it. A `--` that reaches `parse` ends option
+# parsing; in a compiled program the runtime takes the first `--` itself.
 import Base
 
 # a flag, a valued option, a positional, or a rest positional
