@@ -8,7 +8,7 @@ A spec is **well-formed** when `check` reports nothing for it (SHAKE-SPEC-1). Th
 
 The words `parse` receives are what the program passes it. In a compiled program they come from `argv`, after the runtime has taken its own flags and the first `--` (SHAKE-TRUST-2).
 
-The reasoning behind each requirement, the verdict of each against the code at `b93357a`, and the decisions that shaped them are in [docs/rfc/shake-spec.md](docs/rfc/shake-spec.md). Every law as it stood then, and the progress of the rollout, is in [docs/rfc/shake-law-inventory.md](docs/rfc/shake-law-inventory.md).
+The reasoning behind each requirement, the verdict of each against the code at `b93357a`, and the decisions that shaped them are in [docs/rfc/shake-spec.md](docs/rfc/shake-spec.md). The RFC also records the audit behind them and the rollout that proved every row.
 
 ## Format
 

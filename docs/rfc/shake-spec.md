@@ -4,15 +4,15 @@ Read at `b93357a` on `main` ("chore: bump Bend to 2.0.26 (#13)"), bend 2.0.26, b
 
 ## Draft Status
 
-**State:** Accepted. Every review item below is resolved: the maintainer accepted each recommendation.
+**State:** Accepted and implemented. Every review item below is resolved, and every row of SPEC.md is proved (see [Rollout](#rollout)).
 
-This draft was written from the code at `b93357a`, from the evidence in [shake-law-inventory.md](shake-law-inventory.md), and from the positions reached by the specifications of ez ([ez-spec.md](https://github.com/Emerging-Patterns/ez/blob/master/docs/rfc/ez-spec.md)) and bolt ([bolt-spec.md](https://github.com/Emerging-Patterns/bolt/blob/v1.6.2/docs/rfc/bolt-spec.md)). Every verdict was checked against the code, and most were confirmed by running the demo binary built from a fresh copy of this tree. The items below are decisions this draft makes and asks a maintainer to confirm. Each one also appears inline where the decision lives. The first two come first because the rest depend on them. REVIEW-2, REVIEW-9 and REVIEW-10 were resolved by the change that moved the code into `src/` behind `main.bend`; the paths below that say `shake/main.bend` are as read at `b93357a` and now live in `src/cli.bend`.
+This draft was written from the code at `b93357a`, from the audit in [Appendix: the audit](#appendix-the-audit) (its law-by-law tables were `docs/rfc/shake-law-inventory.md`, folded into this RFC and deleted once the rollout finished; they are in git at `72fd9a5`), and from the positions reached by the specifications of ez ([ez-spec.md](https://github.com/Emerging-Patterns/ez/blob/master/docs/rfc/ez-spec.md)) and bolt ([bolt-spec.md](https://github.com/Emerging-Patterns/bolt/blob/v1.6.2/docs/rfc/bolt-spec.md)). Every verdict was checked against the code, and most were confirmed by running the demo binary built from a fresh copy of this tree. The items below are decisions this draft makes and asks a maintainer to confirm. Each one also appears inline where the decision lives. The first two come first because the rest depend on them. REVIEW-2, REVIEW-9 and REVIEW-10 were resolved by the change that moved the code into `src/` behind `main.bend`; the paths below that say `shake/main.bend` are as read at `b93357a` and now live in `src/cli.bend`.
 
 **Items for review:**
 
 - [x] <!-- REVIEW-1 (resolved): The headline guarantee. We propose SHAKE-PARSE-1, value fidelity: in every successful parse of a well-formed spec, each bound value is either a word of argv (or the part of one after `=` or after a short spelling) copied verbatim to the argument that word was given for, or the default of an argument argv did not bind. It is the row whose failure makes shake pointless, and the planted truncation bug in the inventory is exactly what it rules out. The alternatives were a round trip through a new renderer (stronger, but it adds API nobody asked for) and proving only the positional lemmas bolt already needs (too narrow to name the tool's purpose). Decision: the headline guarantee is SHAKE-PARSE-1, value fidelity, as proposed. -->
 - [x] <!-- REVIEW-2 (resolved): shake's interface is `main.bend` at the repository root, following ez's project layout and ezjson's rule that consumers import only the entry and trust the internals. `main.bend` names the types as `Data` aliases (`def Cli() -> Data: S.Cli`, so a consumer writes `Shake.Cli`), wraps the builders, `parse`, `get`, `get_all`, `on`, `path_of`, `help`, `err_text` and `argv`, and adds `help_path(err) -> Maybe<List<String>>`, because Bend resolves a constructor only through the module that declares it, so a consumer importing `main.bend` alone cannot match `NeedHelp`. Everything under `src/` (the walker, `St`, `Mode`, `Bind`, `show`, the constructors) carries no promise. Every SHAKE row is stated over `main.bend`'s defs, and its laws import `../main.bend`. Decided in the change that moved the code to `src/`. Update: the first resolution also froze the walker's names until bolt stopped unfolding them; the maintainer's direction is to design for shake alone, so `src/` changes freely and bolt adapts when it bumps (REVIEW-15). -->
-- [x] <!-- REVIEW-3 (resolved): `--` in a compiled binary (inventory F1). bend 2.0.26's runtime consumes the first `--` and passes the rest unexamined, so `parse` only ever sees a second one. We propose no code change: SHAKE-TOK-4 states what `parse` does with a `--` it is given, SHAKE-TRUST-2 states what the runtime does before that, and the README and `main.bend`'s header say plainly that a compiled program's users type `--` twice (`tool add -- -- -5 3`). The alternative, treating the runtime's `--` as ending options by guessing from the words, cannot work: after the runtime has removed it, `tool greet -- --name` and `tool greet --name` are the same list. Asking bend to pass `--` through is a change to another program, and we record it under Future Steps rather than depend on it. Docs-only behavior change. Decision: no code change for `--`; SHAKE-TOK-4 is about what `parse` is given, SHAKE-TRUST-2 states the runtime, and the README and `main.bend` say that users of a compiled program type `--` twice. -->
+- [x] <!-- REVIEW-3 (resolved): `--` in a compiled binary (audit F1). bend 2.0.26's runtime consumes the first `--` and passes the rest unexamined, so `parse` only ever sees a second one. We propose no code change: SHAKE-TOK-4 states what `parse` does with a `--` it is given, SHAKE-TRUST-2 states what the runtime does before that, and the README and `main.bend`'s header say plainly that a compiled program's users type `--` twice (`tool add -- -- -5 3`). The alternative, treating the runtime's `--` as ending options by guessing from the words, cannot work: after the runtime has removed it, `tool greet -- --name` and `tool greet --name` are the same list. Asking bend to pass `--` through is a change to another program, and we record it under Future Steps rather than depend on it. Docs-only behavior change. Decision: no code change for `--`; SHAKE-TOK-4 is about what `parse` is given, SHAKE-TRUST-2 states the runtime, and the README and `main.bend` say that users of a compiled program type `--` twice. -->
 - [x] <!-- REVIEW-4 (resolved, then reversed): A repeated option (F4). Today the first value wins for `get`, and `get_all` returns all. We propose the last value wins for `get`, as getopt-style tools do, with `get_all` unchanged, and SHAKE-PARSE-10 states it. clap 4 refuses a repeated single-valued option instead; we do not follow it here because a refusal needs a new `ParseErr` constructor, which REVIEW-2 makes a breaking change for every consumer. Behavior change. Decision: the last value of a repeated option wins for `get`, `get_all` is unchanged; SHAKE-PARSE-10 and SHAKE-GET-1 state it. Reversed: the reason given, that a new constructor breaks consumers, does not hold once `main.bend` is the interface (consumers cannot match constructors) and the design serves shake rather than existing callers. On the merits clap 4's default is better: a flag or single-valued option given twice is refused with `Repeated{at, name}`, since a silent winner hides a mistake, and an option meant to repeat says so with a new builder `many`, whose values `get_all` reads in order. SHAKE-PARSE-10 is reworded; the last-value change it replaces stays in history. -->
 - [x] <!-- REVIEW-5 (resolved, then reversed): `-n=Ada` (F7). Today it binds `=Ada`. We propose no change and SHAKE-TOK-2 states the verbatim rule: POSIX getopt binds `=Ada` too, and stripping would make `-n=` ambiguous with an empty value. clap strips the `=`; if the maintainer prefers clap's reading, TOK-2 changes wording and the change lands as its own PR. Decision: no change: `-n=Ada` binds `=Ada`, and SHAKE-TOK-2 states the verbatim rule. Reversed: clap and Go's pflag both bind `Ada`, which is what users of a modern CLI expect, and `-n=` binding `""` is then exactly `--name=`, so the ambiguity the first decision feared is the long form's own rule. After a short option's letter one `=` is dropped; SHAKE-TOK-2 is reworded. -->
 - [x] <!-- REVIEW-6 (resolved): `help` with an unknown name (F5). Today `help nope` shows the root page and exits 0, and `help nope greet` shows `greet`'s. We propose `parse` resolves the words after `help` against the subcommand tree and fails with `Unexpected{word}` on the first name that is not a subcommand at that point, as clap does; SHAKE-PARSE-8 and SHAKE-HELP-1 state it. `help` itself keeps its current behavior for a path it is handed, since it is also called by programs with paths they built. Behavior change. Decision: `parse` refuses an unknown name after `help` with `Unexpected{word}`; `help` itself keeps skipping for paths a program builds. -->
@@ -60,7 +60,7 @@ shake is a command-line argument parser for Bend 2, about 1100 lines in `shake/m
 
 ### How shake proves things today
 
-shake has one LAWS.bend with 79 laws and one PROOF.bend in which every proof is `{==}`. The gate passes in about a second, and the pinned bolt reports `clean`. The inventory shows why neither means much. 53 laws state one fixed call: 25 parse a fixed command line against the fixtures in `shake/sample.bend` (21 of them through `show`'s one-line rendering), 6 compare help or error pages byte for byte, and the other 22 pin one helper on one input. Each carries `for u: Unit`, a binder its statement never uses, and that is enough for the `closed` rule of both the pinned bolt and the current one to accept it. Of the 26 laws that really quantify, 20 say that a definition unfolds to its body or how two defs are wired, and the other 6 are small true lemmas. None quantifies over an argv and a spec together.
+shake has one LAWS.bend with 79 laws and one PROOF.bend in which every proof is `{==}`. The gate passes in about a second, and the pinned bolt reports `clean`. The audit showed why neither meant much. 53 laws state one fixed call: 25 parse a fixed command line against the fixtures in `shake/sample.bend` (21 of them through `show`'s one-line rendering), 6 compare help or error pages byte for byte, and the other 22 pin one helper on one input. Each carries `for u: Unit`, a binder its statement never uses, and that is enough for the `closed` rule of both the pinned bolt and the current one to accept it. Of the 26 laws that really quantify, 20 say that a definition unfolds to its body or how two defs are wired, and the other 6 are small true lemmas. None quantifies over an argv and a spec together.
 
 The consequence is measurable. We changed `parse.put` to keep only the first six characters of every value. The gate printed `All terms check.`, bolt printed `clean`, and the demo printed `hello Alexan` for `greet --name Alexandra`.
 
@@ -246,15 +246,15 @@ Not changed: the wording of each message, which no row promises.
 
 ### How we will know it worked
 
-The gate passing will mean something: the truncation bug from the inventory, and any bug that binds a value the user did not type or to a name it was not given for, fails PARSE-1's proof. bolt's `trace` reports nothing at error, and `closed` reports nothing because no closed law is left. bolt's BOLT-TRUST-8 names SHAKE rows, and bolt's CLI proofs cite shake's laws instead of shake's walker.
+The gate passing will mean something: the truncation bug from the audit, and any bug that binds a value the user did not type or to a name it was not given for, fails PARSE-1's proof. bolt's `trace` reports nothing at error, and `closed` reports nothing because no closed law is left. bolt's BOLT-TRUST-8 names SHAKE rows, and bolt's CLI proofs cite shake's laws instead of shake's walker.
 
 ## Abandoned Ideas
 
-**Keep the closed laws as `# toward` trails.** ez did this for a while under bolt v0.9.0. It kept ez on an old bolt, and ez deleted the trails once the replacing laws were written down. shake's closed laws encode one accident each (the fixture parse through `show`, pages byte for byte), and the inventory keeps the map, so the trails would tell nobody anything.
+**Keep the closed laws as `# toward` trails.** ez did this for a while under bolt v0.9.0. It kept ez on an old bolt, and ez deleted the trails once the replacing laws were written down. shake's closed laws encode one accident each (the fixture parse through `show`, pages byte for byte), and the audit kept the map, so the trails would tell nobody anything.
 
 **Prove each fixture command line.** Stating `parse(Sample.spec(), ["greet", "--name", "Ada"])` for more command lines is the same closed law at a larger count. It is what we have, and the planted bug shows what it misses.
 
-**Prove shake equal to a reference parser.** A second implementation shares the first's reading of the corner cases, which is where every accident in the inventory lives. bolt and ez both deleted their refactor-equivalence laws for this reason.
+**Prove shake equal to a reference parser.** A second implementation shares the first's reading of the corner cases, which is where every accident the audit found lives. bolt and ez both deleted their refactor-equivalence laws for this reason.
 
 **Make help and error wording contractual.** It is what users see, which argues for it. But no program depends on the bytes, a wording change would break every such law, and the six page laws show the cost. The rows state structure (every subcommand listed once, in order) instead.
 
@@ -280,14 +280,24 @@ Each phase leaves the gate green, bolt clean at the pinned version, and SPEC.md 
 
 | Phase | What lands | What is true after |
 | :---- | :---- | :---- |
-| Preliminary | this RFC and the inventory (no code change); the two docs changes | the README builds from a fresh clone and describes `--` as users meet it |
+| Preliminary (done) | this RFC and the audit (no code change); the two docs changes | the README builds from a fresh clone and describes `--` as users meet it |
 | Zero (done) | the code moved to `src/` behind `main.bend`; ez at `df6d616`; bolt at `ada294e` as a `[tools.bolt]` pin, its style findings fixed, `coverage` at warn with `# noqa: L001` on IO | the tree is clean under a bolt that has `trace` and `noqa` |
-| One | SPEC.md from this RFC; 73 laws, `sample.bend` and `show` deleted; `err_text_help` tagged; `trace` at error; `closed` at error | every row is pending or trusted, and the gate stops pretending |
-| Two | the cheap rows: PARSE-9 (frame), ERR-1, GET-1 (after REVIEW-4's change), ARGS-1, PARSE-5, TOK-3, TOK-5, TOK-7 | the first proved rows |
-| Three | the spike, then PARSE-2 and PARSE-3; bolt bumps shake and cites them; then TOK-1, TOK-2, TOK-4, TOK-6, PARSE-4, PARSE-6, PARSE-7, PARSE-8 | BOLT-TRUST-8 names SHAKE rows |
-| Four | `check` and SPEC-1; then PARSE-1; then HELP-1 and HELP-2; `coverage` back at error | no pending rows; the inventory is folded into this RFC and deleted |
+| One (done) | SPEC.md from this RFC; 73 laws, `sample.bend` and `show` deleted; `err_text_help` tagged; `trace` at error; `closed` at error | every row is pending or trusted, and the gate stops pretending |
+| Two (done) | the cheap rows: PARSE-9 (frame), ERR-1, GET-1 (after REVIEW-4's change), ARGS-1, PARSE-5, TOK-3, TOK-5, TOK-7 | the first proved rows |
+| Three (done) | the spike, then PARSE-2 and PARSE-3; bolt bumps shake and cites them; then TOK-1, TOK-2, TOK-4, TOK-6, PARSE-4, PARSE-6, PARSE-7, PARSE-8 | BOLT-TRUST-8 names SHAKE rows |
+| Four (done) | `check` and SPEC-1; then PARSE-1; then HELP-1 and HELP-2; `coverage` back at error | no pending rows; the inventory is folded into this RFC and deleted |
 
-The finish line: no pending rows, every closed law deleted, `trace`, `closed` and `coverage` at error, and bolt citing shake's laws rather than its walker.
+The finish line: no pending rows, every closed law deleted, `trace`, `closed` and `coverage` at error, and bolt citing shake's laws rather than its walker. All of it but the last holds; bolt's side is bolt#193 and bolt#194.
+
+### Rollout record
+
+- **Preliminary and Zero.** The README builds from a fresh clone (`mkdir -p bin`) and says what the runtime takes before shake (F1, F2). The code moved to `src/` behind `main.bend`; ez and bolt are pinned in the lock (`[tools.bolt]`); IO is marked `# noqa: L001`.
+- **One.** SPEC.md. 73 laws, `src/sample.bend` deleted; `trace` and `closed` at error.
+- **Two.** SHAKE-ERR-1, GET-1 (after REVIEW-4 made `get` read the last value), ARGS-1, PARSE-9 (a failed walk stays failed). The decided changes of REVIEW-6 (`help` refuses an unknown name) and REVIEW-7 (`check`) landed on their own.
+- **Three.** The walker proofs of [shake-walker-proofs.md](shake-walker-proofs.md): refusals through one `refused` lemma; bindings through `kept_all` and `kept` over the invariant `gw.reach`; per-command readers after REVIEW-16 (clap's model: each command keeps its own bindings). SHAKE-TOK-1 to TOK-7, PARSE-2 to PARSE-8 and PARSE-10, GET-2. Stating PARSE-5 found an option's value checked against a parent's choices, and stating PARSE-10 found a failed cluster letter revived by the next one; both were fixed first.
+- **Four.** SHAKE-HELP-1, HELP-2, ERR-2, SPEC-1 (`check`'s whole report list as one law), then PARSE-1 in four laws: `values_given` (every value is `true`, a verbatim piece of a word, or a default), `values_here` (named after the command's own arguments, from its own words), and, replacing the count sentence by the maintainer's decision, `one_value_per_word` and `word_used` (a word binds at most one value and is never ignored). `-` alone is recognized by what follows the dash, unchanged in behavior. `show` was deleted (nothing used it), and `coverage` is at error: each def no law applies to (IO, the builders, type aliases, proof machinery, the example) says why with `# noqa: L001`, and `spec_err_where` covers the report texts of `check`.
+
+Each proof in phases Two to Four was checked by planting the bug it is meant to catch; the PRs name each mutant and where the gate failed.
 
 ## Future Steps
 
@@ -296,3 +306,31 @@ The finish line: no pending rows, every closed law deleted, `trace`, `closed` an
 **Ask bend to pass `--` through.** If the runtime left `--` in the list when it follows the program's own words, shake's `--` would work with one dash-dash. That is a change to bend's runtime and to every compiled Bend program, so we record it rather than depend on it.
 
 **Siblings.** ez's CLI would gain the same guarantees by citing SHAKE rows in its own spec, and a strict `closed` that sees through unused binders (REVIEW-9) protects every repository in the family from shake's pattern.
+
+## Appendix: the audit
+
+Read at `b93357a` with bend 2.0.26, bolt v0.4.0 (pinned) and bolt v1.6.2 (current). The proof gate was `bend shake/PROOF.bend`; the linter the pinned bolt over the whole tree; the demo binary was built from a fresh copy of the tracked files, following the README.
+
+| File | Laws | Quantified | Closed | Quantified proved by `{==}` |
+| :---- | :---- | :---- | :---- | :---- |
+| `shake/LAWS.bend` | 79 | 26 | 53 | 26 |
+
+Each closed law carried `for u: Unit`, a binder its statement never used, which let both bolts' `closed` rule accept it. Of the quantified laws, 20 restated a definition's unfolding, wiring or `show`'s format; 5 were small true lemmas (`looks_flag_long`, `allowed_any`, `get_nil`, `on_nil`, `err_text_help`) and one was a step of `copy`. No law quantified over an argv and a spec together. Planting a bug that truncated every value to six characters left the gate green.
+
+### Findings and what became of them
+
+| | Finding | Outcome |
+| :-- | :-- | :-- |
+| F1 | `--` never reaches `parse` in a compiled binary: the runtime takes the first one | SHAKE-TRUST-2; the README's `-- --` note |
+| F2 | the README build failed on a fresh clone (`bin/` untracked) | `mkdir -p bin` in the README |
+| F3 | the gate did not protect parsing: a truncating parser passed | caught by the value laws of phase Three and by `values_given` |
+| F4 | a repeated option kept its first value | REVIEW-4: `get` reads the last value; a flag or single-valued option given twice is refused (PARSE-10) |
+| F5 | `help` skipped unknown names | REVIEW-6: refused (PARSE-8) |
+| F6 | no spec was ever checked | REVIEW-7: `check` (SPEC-1) |
+| F7 | `-n=Ada` bound `=Ada` | REVIEW-5: binds `Ada` (TOK-2) |
+| F8 | error text always showed the root's usage | REVIEW-13: errors carry their path (ERR-2) |
+| F9 | a missing option value and a missing argument were one error | `NoValue` (TOK-6) |
+| F10 | an empty value and no value read the same | unchanged; [Future Steps](#future-steps) |
+| F11 | a subcommand's name always selects it | kept, as clap reads it ([Risks](#risks)) |
+| F12 | bolt proves its CLI by unfolding shake's private walker, and trusts a spec that did not exist | SPEC.md now exists; bolt#193 (the proofs bolt can delete) and bolt#194 (citing shake's rows) |
+| F13 | the pinned bolt could not enforce the model (no `trace`; `closed` accepted unused binders) | bolt pinned at `ada294e`, which has `trace`; every closed law is deleted, so `closed` has none left to miss |

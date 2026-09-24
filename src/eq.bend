@@ -10,7 +10,7 @@ law bool_cmp_self:
   {Bool.cmp(bb, bb) == EQ{} : Cmp}
 
 # the two bits, each compared with itself
-def bool_cmp_self(bb):
+def bool_cmp_self(bb):  # noqa: L001 a proof of this file's law
   match bb:
     case False{}:
       {==}
@@ -24,7 +24,7 @@ law word_cmp_self:
   {Word.cmp(nn, ww, ww) == EQ{} : Cmp}
 
 # by induction on the width: a word of no bits and a bit carried over one
-def word_cmp_self(nn, ww):
+def word_cmp_self(nn, ww):  # noqa: L001 a proof of this file's law
   match nn:
     case 0n:
       match ww:
@@ -45,7 +45,7 @@ law u32_cmp_self:
   {U32.cmp(uu, uu) == EQ{} : Cmp}
 
 # a number is a word of thirty-two bits, so the word's law answers for it
-def u32_cmp_self(uu):
+def u32_cmp_self(uu):  # noqa: L001 a proof of this file's law
   match uu:
     case U32{+ww}:
       word_cmp_self(32n, ww)
@@ -56,7 +56,7 @@ law char_cmp_self:
   {Char.cmp(cc, cc) == ((cc, cc), EQ{}) : (Char & Char) & Cmp}
 
 # a char is a code point, and the pair it is compared inside rides along
-def char_cmp_self(cc):
+def char_cmp_self(cc):  # noqa: L001 a proof of this file's law
   match cc:
     case Chr{+xx}:
       Equal.cong(Cmp, (Char & Char) & Cmp, rr => ((Chr{xx}, Chr{xx}), rr),
@@ -69,7 +69,7 @@ law string_cmp_self:
 
 # by induction on the string: the head's law and the tail's, composed the
 # way String.cmp composes them
-def string_cmp_self(ss):
+def string_cmp_self(ss):  # noqa: L001 a proof of this file's law
   match ss:
     case SNil{}:
       {==}
@@ -91,6 +91,6 @@ law string_eq_self:
   {String.eq(ss, ss) == True{} : Bool}
 
 # equality is the comparison read as a bit, so the comparison's law answers
-def string_eq_self(ss):
+def string_eq_self(ss):  # noqa: L001 a proof of this file's law
   Equal.cong((String & String) & Cmp, Bool, rr => String.eq.fin(rr),
     String.cmp(ss, ss), ((ss, ss), EQ{}), string_cmp_self(ss))

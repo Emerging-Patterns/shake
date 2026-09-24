@@ -3,7 +3,7 @@ import Base
 import ../../main.bend as Shake
 
 # the program spec
-def spec() -> Shake.Cli:
+def spec() -> Shake.Cli:  # noqa: L001 the example program, not the library
   Shake.app("demo", "A tiny command-line program.", Some{"0.1.0"},
     [Shake.flag("verbose", Some{"v"}, Some{"verbose"}, "More output")],
     [
@@ -44,7 +44,7 @@ def greet.tags(tags: List<&2, String>) -> IO(Unit):
       IO.print("tags: " ++ String.join(hh <> tt, " "))
 
 # the value bound to `name`, or "" when nothing bound it
-def text(+mm: Shake.Matched, +name: String) -> String:
+def text(+mm: Shake.Matched, +name: String) -> String:  # noqa: L001 the example program, not the library
   Maybe.default(&2, String, Shake.get(mm, name), "")
 
 # a successful greet: `who` when given, else `--name`, which has a default;

@@ -18,11 +18,11 @@ def Cli() -> Data:
   S.Cli
 
 # a nested command
-def Sub() -> Data:
+def Sub() -> Data:  # noqa: L001 a type alias of the interface
   S.Sub
 
 # one argument: a flag, an option, a positional or a rest positional
-def Arg() -> Data:
+def Arg() -> Data:  # noqa: L001 a type alias of the interface
   S.Arg
 
 # a successful parse, one command at a time: the bindings the command made,
@@ -35,7 +35,7 @@ def ParseErr() -> Data:
   S.ParseErr
 
 # one way a spec contradicts itself
-def SpecErr() -> Data:
+def SpecErr() -> Data:  # noqa: L001 a type alias of the interface
   K.SpecErr
 
 # a program: name, about, optional version, top-level args and commands
@@ -49,7 +49,7 @@ def app(
   S.app(name, about, version, args, subs)
 
 # a nested command
-def sub(
+def sub(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothing to state
   +name: String,
   +about: String,
   args: List<&2, S.Arg>,
@@ -58,7 +58,7 @@ def sub(
   S.sub(name, about, args, subs)
 
 # a boolean flag
-def flag(
+def flag(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothing to state
   +name: String,
   short: Maybe<&2, String>,
   long: Maybe<&2, String>,
@@ -67,7 +67,7 @@ def flag(
   S.flag(name, short, long, help)
 
 # a valued option
-def opt(
+def opt(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothing to state
   +name: String,
   short: Maybe<&2, String>,
   long: Maybe<&2, String>,
@@ -80,7 +80,7 @@ def opt(
 
 # an option that may be given more than once; `get_all` reads every value, in
 # order, and `get` the last
-def many(
+def many(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothing to state
   +name: String,
   short: Maybe<&2, String>,
   long: Maybe<&2, String>,
@@ -92,7 +92,7 @@ def many(
   S.many(name, short, long, help, required, default, choices)
 
 # a positional
-def pos(
+def pos(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothing to state
   +name: String,
   +help: String,
   required: Bool,
@@ -102,7 +102,7 @@ def pos(
   S.pos(name, help, required, default, choices)
 
 # a rest positional: every leftover word, as one name
-def rest(
+def rest(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothing to state
   +name: String,
   +help: String,
   required: Bool,
