@@ -541,7 +541,9 @@ def parse.take_choice(
     case False{}:
       parse.dead(BadValue{path, name, val}, args, specs, subs, path, binds, pos, raw, seen)
 
-# bind an option that already has its value
+# bind an option that already has its value, checked against the choices of
+# the current command's argument of that name: a parent's argument of the same
+# name has its own
 def parse.take_opt_val(
   +name: String,
   +val: String,
@@ -554,7 +556,7 @@ def parse.take_opt_val(
   +raw: Bool,
   +seen: Bool
 ) -> St:
-  parse.take_choice(allowed(parse.choices(by_name(specs, name)), val), name, val,
+  parse.take_choice(allowed(parse.choices(by_name(args, name)), val), name, val,
     args, specs, subs, path, binds, pos, raw, seen)
 
 # a flag with no glued value is set; a glued value is unexpected
