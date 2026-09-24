@@ -51,7 +51,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | SHAKE-PARSE-7 | A successful parse binds every required argument of every command on the selected path. Otherwise the parse fails with `Missing{name}`. | Proved | pending |  |
 | SHAKE-PARSE-8 | Before `--` and before any positional of the current command is bound, a plain word `help` makes the parse fail with `NeedHelp{path}`, where `path` is the selected path followed by the remaining words, as long as each names a subcommand under the one before; the first remaining word that does not makes the parse fail with `Unexpected{word}`. | Proved | pending |  |
 | SHAKE-PARSE-9 | Once a word makes the parse fail, the words after it do not change the error. | Proved | proved | src/LAWS.bend fail_stays |
-| SHAKE-PARSE-10 | When an option or flag is given more than once, `get` reads the last value given and `get_all` every value, in the order given. | Proved | pending | src/LAWS.bend get_last |
+| SHAKE-PARSE-10 | When an option or flag is given more than once, `get` reads `Some` of the last value given and `get_all` every value, in the order given. | Proved | pending | src/LAWS.bend get_last |
 
 ### Checking a spec (SHAKE-SPEC)
 
@@ -63,7 +63,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
-| SHAKE-GET-1 | For every Matched and name: `get` is the value of the last binding with that name, or `""` when there is none; `get_all` is the values of every binding with that name, in binding order; `on` is true exactly when `get` is `"true"`; `path_of` is the selected path. | Proved | proved | src/LAWS.bend get_all_append; src/LAWS.bend get_all_hit; src/LAWS.bend get_all_miss; src/LAWS.bend get_last; src/LAWS.bend get_none; src/LAWS.bend on_get; src/LAWS.bend path_of_path |
+| SHAKE-GET-1 | For every Matched and name: `get` is `Some` of the value of the last binding with that name, or `None` when there is none; `get_all` is the values of every binding with that name, in binding order; `on` is true exactly when `get` is `Some{"true"}`; `path_of` is the selected path. | Proved | proved | src/LAWS.bend get_all_append; src/LAWS.bend get_all_hit; src/LAWS.bend get_all_miss; src/LAWS.bend get_last; src/LAWS.bend get_none; src/LAWS.bend on_some; src/LAWS.bend on_none; src/LAWS.bend path_of_path |
 
 ### Help pages (SHAKE-HELP)
 

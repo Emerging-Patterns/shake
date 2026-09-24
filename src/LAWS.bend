@@ -32,10 +32,10 @@ law allowed_any:
   for vv: String
   {S.allowed([], vv) == True{} : Bool}
 
-# LAW: `get` on a Matched with no bindings is ""
+# LAW: `get` on a Matched with no bindings is None
 law get_nil:
   for name: String
-  {S.get(S.Matched{[], []}, name) == "" : String}
+  {S.get(S.Matched{[], []}, name) == None{} : Maybe<&2, String>}
 
 # LAW: no flag is on in a Matched with no bindings
 law on_nil:
@@ -80,8 +80,8 @@ law bind_values_append:
 law last_snoc:
   for xs: List<&2, String>
   for +vv: String
-  for dflt: String
-  {S.get.last(List.append(&2, String, xs, [vv]), dflt) == vv : String}
+  for dflt: Maybe<&2, String>
+  {S.get.last(List.append(&2, String, xs, [vv]), dflt) == Some{vv} : Maybe<&2, String>}
 
 # LAW: `get_all` of two lists of bindings is the first's values, then the
 # second's
@@ -124,23 +124,33 @@ law get_last:
   for +vv: String
   for after: {Shake.get_all(S.Matched{path, cs}, name) == [] : List<&2, String>}
   {Shake.get(S.Matched{path, List.append(&2, S.Bind, bs, S.Bind{name, vv} <> cs)}, name)
-    == vv : String}
+    == Some{vv} : Maybe<&2, String>}
 
-# LAW: `get` is "" when nothing binds the name
+# LAW: `get` is None when nothing binds the name
 # SHAKE-GET-1
 law get_none:
   for +path: List<&2, String>
   for +bs: List<&2, S.Bind>
   for +name: String
   for none: {Shake.get_all(S.Matched{path, bs}, name) == [] : List<&2, String>}
-  {Shake.get(S.Matched{path, bs}, name) == "" : String}
+  {Shake.get(S.Matched{path, bs}, name) == None{} : Maybe<&2, String>}
 
-# LAW: a flag is on exactly when `get` reads "true"
+# LAW: a flag is on exactly when `get` reads Some "true"
 # SHAKE-GET-1
-law on_get:
+law on_some:
   for +found: Shake.Matched
   for +name: String
-  {Shake.on(found, name) == String.eq(Shake.get(found, name), "true") : Bool}
+  for +vv: String
+  for h_get: {Shake.get(found, name) == Some{vv} : Maybe<&2, String>}
+  {Shake.on(found, name) == String.eq(vv, "true") : Bool}
+
+# LAW: nothing is on that nothing bound
+# SHAKE-GET-1
+law on_none:
+  for +found: Shake.Matched
+  for +name: String
+  for h_get: {Shake.get(found, name) == None{} : Maybe<&2, String>}
+  {Shake.on(found, name) == False{} : Bool}
 
 # LAW: `path_of` is the selected path
 # SHAKE-GET-1
