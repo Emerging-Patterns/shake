@@ -37,3 +37,11 @@ law err_text_help:
   for spec: Shake.Cli
   for path: List<&2, String>
   {Shake.err_text(spec, S.NeedHelp{path}) == "" : String}
+
+# LAW: the error text is empty exactly when the parse asked for help
+# SHAKE-ERR-1
+law err_text_iff:
+  for +spec: Shake.Cli
+  for +err: Shake.ParseErr
+  {String.is_empty(Shake.err_text(spec, err))
+    == Maybe.is_some(&2, List<&2, String>, Shake.help_path(err)) : Bool}
