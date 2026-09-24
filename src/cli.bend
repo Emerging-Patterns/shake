@@ -51,10 +51,12 @@ type Bind is Data:
 type Matched is Data:
   Matched{+path: List<&2, String>, +binds: List<&2, Bind>}
 
-# a failed parse. NeedHelp is `help` / `help <path>`
+# a failed parse. NeedHelp is `help` / `help <path>`; NoValue is an option
+# whose value never came, Missing a required argument nothing bound
 type ParseErr is Data:
   UnknownFlag{flag: String}
   Missing{name: String}
+  NoValue{name: String}
   BadValue{name: String, value: String}
   NeedHelp{path: List<&2, String>}
   Unexpected{arg: String}
@@ -972,7 +974,7 @@ def parse.step.need(
 ) -> St:
   match flag:
     case True{}:
-      parse.dead(Missing{name}, args, specs, subs, path, binds, pos, raw, seen)
+      parse.dead(NoValue{name}, args, specs, subs, path, binds, pos, raw, seen)
     case False{}:
       parse.take_opt_val(name, tok, args, specs, subs, path, binds, pos, raw, seen)
 
@@ -1134,7 +1136,7 @@ def parse.finish.mode(
     case Dead{e}:
       Fail{e}
     case Need{name}:
-      Fail{Missing{name}}
+      Fail{NoValue{name}}
     case Help{}:
       Fail{NeedHelp{path}}
     case Free{}:
@@ -1156,6 +1158,8 @@ def show.err(ee: ParseErr) -> String:
       "unknown " ++ word
     case Missing{name}:
       "missing " ++ name
+    case NoValue{name}:
+      "novalue " ++ name
     case BadValue{name, value}:
       "bad " ++ name ++ " " ++ value
     case NeedHelp{path}:
@@ -1437,6 +1441,8 @@ def err_text(+app: Cli, ee: ParseErr) -> String:
     case Missing{name}:
       err.wrap(app, "error: the following required argument was not provided:\n  " ++
         name)
+    case NoValue{name}:
+      err.wrap(app, "error: a value is required for '" ++ name ++ "' but none was supplied")
     case BadValue{name, value}:
       err.wrap(app, "error: invalid value '" ++ value ++ "' for '" ++ name ++ "'")
     case NeedHelp{_path}:

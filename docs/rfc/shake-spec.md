@@ -113,7 +113,7 @@ The Law cells below are sketches. Names that exist today are real; `check`, `Spe
 | SHAKE-TOK-3 | `-` alone, and every word that does not start with `-`, is a plain word. | Proved |
 | SHAKE-TOK-4 | When a word exactly `--` reaches `parse` in option position, it binds nothing and every later word is read as a plain word bound to a positional, whatever its shape. | Proved |
 | SHAKE-TOK-5 | A flag given a value (`--verbose=x`, `-vx`) is refused as `Unexpected{word}`. | Proved |
-| SHAKE-TOK-6 | An option given no value in its own word takes the next word as its value, unless that word is flag-shaped (starts with `-` and is not `-`) or there is none; then the parse fails with `Missing{name}`. | Proved |
+| SHAKE-TOK-6 | An option given no value in its own word takes the next word as its value, unless that word is flag-shaped (starts with `-` and is not `-`) or there is none; then the parse fails with `NoValue{name}`. | Proved |
 | SHAKE-TOK-7 | A long or short spelling that no argument of the current command has is refused as `UnknownFlag{word}`. Arguments of a parent command are not matched after a subcommand is selected. | Proved |
 
 Evidence: `cut_eq` and `short_of` (`main.bend:153-186`), `parse.step.kind.go` (`main.bend:675-683`), `parse.take_flag` (`main.bend:470-478`), `parse.step.need` (`main.bend:725-732`), `parse.take_arg` (`main.bend:506-516`), and the confirmed runs in the inventory. TOK-7's second sentence is today's behavior, and clap's for non-global arguments: `by_long` and `by_short` search `args`, which `parse.enter` sets to the subcommand's own arguments.
