@@ -36,7 +36,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | SHAKE-TOK-4 | When a word exactly `--` reaches `parse` where an option could stand, it binds nothing and every later word is read as a plain word bound to a positional, whatever its shape. | Proved | pending |  |
 | SHAKE-TOK-5 | A flag given a value (`--verbose=x`, `-vx`) is refused as `Unexpected{word}`. | Proved | pending |  |
 | SHAKE-TOK-6 | An option given no value in its own word takes the next word as its value, unless that word starts with `-` and is not `-`, or there is none; then the parse fails with `Missing{name}`. | Proved | pending |  |
-| SHAKE-TOK-7 | A long or short spelling that no argument of the current command has is refused as `UnknownFlag{word}`. Arguments of a parent command are not matched after a subcommand is selected. | Proved | pending |  |
+| SHAKE-TOK-7 | A long or short spelling that no argument of the current command has is refused as `UnknownFlag{word}`. Arguments of a parent command are not matched after a subcommand is selected. | Proved | pending | src/LAWS.bend unknown_long; src/LAWS.bend unknown_short |
 
 ### What a parse binds (SHAKE-PARSE)
 
@@ -51,7 +51,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | SHAKE-PARSE-7 | A successful parse binds every required argument of every command on the selected path. Otherwise the parse fails with `Missing{name}`. | Proved | pending |  |
 | SHAKE-PARSE-8 | Before `--` and before any positional of the current command is bound, a plain word `help` makes the parse fail with `NeedHelp{path}`, where `path` is the selected path followed by the remaining words, as long as each names a subcommand under the one before; the first remaining word that does not makes the parse fail with `Unexpected{word}`. | Proved | pending |  |
 | SHAKE-PARSE-9 | Once a word makes the parse fail, the words after it do not change the error. | Proved | proved | src/LAWS.bend fail_stays |
-| SHAKE-PARSE-10 | When an option or flag is given more than once, `get` reads the last value given and `get_all` every value, in the order given. | Proved | pending |  |
+| SHAKE-PARSE-10 | When an option or flag is given more than once, `get` reads the last value given and `get_all` every value, in the order given. | Proved | pending | src/LAWS.bend get_last |
 
 ### Checking a spec (SHAKE-SPEC)
 
