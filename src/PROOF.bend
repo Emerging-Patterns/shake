@@ -4748,3 +4748,112 @@ def Laws.plain_word_step(tok, args, up, subs, path, bs, pos, seen, h_dd, h_dash,
 
 def Laws.dash_word_step(_args, _up, _subs, _path, _bs, _pos, _seen):
   {==}
+
+# the help walk renders the page it reaches
+def hl.go(
+  path: List<&2, String>,
+  how: S.How
+) -> {S.help.go(path, how) == Laws.page(Laws.reach(path, how)) : String}:
+  match path:
+    case Nil{}:
+      match how:
+        case S.How{_b, _a, _v, _g, _s, _u}:
+          {==}
+    case Con{+hh, tt}:
+      hl.go(tt, S.help.step(how, hh))
+
+# the usage walk reads the usage line of the page it reaches
+def hl.usage(
+  path: List<&2, String>,
+  how: S.How
+) -> {S.usage.go(path, how) == Laws.usage_line(Laws.reach(path, how)) : String}:
+  match path:
+    case Nil{}:
+      match how:
+        case S.How{_b, _a, _v, _g, _s, _u}:
+          {==}
+    case Con{+hh, tt}:
+      hl.usage(tt, S.help.step(how, hh))
+
+def Laws.help_page(spec, path):
+  match spec:
+    case S.Cli{+name, +about, +version, +args, +subs}:
+      hl.go(path, S.How{name, about, version, args, subs, name})
+
+def Laws.reach_child(bin, about, version, args, subs, usage, name, sn, sa, sargs, ssubs, h_sub):
+  ee = Equal.sym(Maybe<&2, S.Sub>, S.find_sub(subs, name), Some{S.Sub{sn, sa, sargs, ssubs}}, h_sub)
+  %ee : {S.help.step.go(_, bin, about, version, args, subs, name, usage)
+    == S.How{sn, sa, None{}, sargs, ssubs, usage ++ " " ++ name} : S.How}
+  {==}
+
+def Laws.reach_skip(bin, about, version, args, subs, usage, name, h_sub):
+  ee = Equal.sym(Maybe<&2, S.Sub>, S.find_sub(subs, name), None{}, h_sub)
+  %ee : {S.help.step.go(_, bin, about, version, args, subs, name, usage) == S.How{bin, about, version, args,
+      subs, usage}
+    : S.How}
+  {==}
+
+def Laws.err_path_at(_at, _word, _name, _value):
+  {==}
+
+# the usage line an error's text shows is the one its command's page shows
+def et.usage(
+  spec: Shake.Cli,
+  +path: List<&2, String>
+) -> {S.usage.at(spec, path) == Laws.usage_line(Laws.reach(path, Laws.root(spec))) : String}:
+  match spec:
+    case S.Cli{+name, +about, +version, +args, +subs}:
+      hl.usage(path, S.How{name, about, version, args, subs, name})
+
+# an error's text, with its usage line read as its page's
+def et.wrap(
+  +spec: Shake.Cli,
+  +at: List<&2, String>,
+  +msg: String
+) -> {S.err.wrap(spec, at, msg)
+    == msg ++ "\n\n" ++ Laws.usage_line(Laws.reach(at, Laws.root(spec))) ++ "\n\n" ++ S.err.hint(at) : String}:
+  Equal.cong(String, String, uu => msg ++ "\n\n" ++ uu ++ "\n\n" ++ S.err.hint(at), S.usage.at(spec, at),
+    Laws.usage_line(Laws.reach(at, Laws.root(spec))), et.usage(spec, at))
+
+# what `err_text_usage` claims of an error
+def et.ty(+spec: Shake.Cli, +err: Shake.ParseErr) -> Type:
+  &msg: String -> {Shake.err_text(spec, err)
+    == msg ++ "\n\n" ++ Laws.usage_line(Laws.reach(Shake.err_path(err), Laws.root(spec))) ++ "\n\n" ++
+      S.err.hint(Shake.err_path(err)) : String}
+
+# Unit for None, Empty for Some: a motive that tells them apart
+def et.none_ty(mm: Maybe<&2, List<&2, String>>) -> Type:
+  match mm:
+    case None{}:
+      Unit
+    case Some{_p}:
+      Empty
+
+# a request for help has a help path
+def et.some_none(+path: List<&2, String>, hh: {Some{path} == None{} : Maybe<&2, List<&2, String>>}) -> Empty:
+  ee = Equal.sym(Maybe<&2, List<&2, String>>, Some{path}, None{}, hh)
+  %ee : et.none_ty(_)
+  Unit{}
+
+def Laws.err_text_usage(spec, err, h_err):
+  match err:
+    case S.UnknownFlag{+at, +word}:
+      ("error: unexpected argument '" ++ word ++ "' found",
+        et.wrap(spec, at, "error: unexpected argument '" ++ word ++ "' found"))
+    case S.Missing{+at, +name}:
+      ("error: the following required argument was not provided:\n  " ++ name,
+        et.wrap(spec, at, "error: the following required argument was not provided:\n  " ++ name))
+    case S.NoValue{+at, +name}:
+      ("error: a value is required for '" ++ name ++ "' but none was supplied",
+        et.wrap(spec, at, "error: a value is required for '" ++ name ++ "' but none was supplied"))
+    case S.BadValue{+at, +name, +value}:
+      ("error: invalid value '" ++ value ++ "' for '" ++ name ++ "'",
+        et.wrap(spec, at, "error: invalid value '" ++ value ++ "' for '" ++ name ++ "'"))
+    case S.NeedHelp{+path}:
+      Empty.absurd(et.ty(spec, S.NeedHelp{path}), et.some_none(path, h_err))
+    case S.Unexpected{+at, +arg}:
+      ("error: unexpected argument '" ++ arg ++ "' found",
+        et.wrap(spec, at, "error: unexpected argument '" ++ arg ++ "' found"))
+    case S.Repeated{+at, +name}:
+      ("error: the argument '" ++ name ++ "' cannot be used multiple times",
+        et.wrap(spec, at, "error: the argument '" ++ name ++ "' cannot be used multiple times"))

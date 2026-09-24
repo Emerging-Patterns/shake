@@ -70,7 +70,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
-| SHAKE-HELP-1 | `help(spec, path)` renders the page of the command reached by following each name of `path` from the root through the subcommands, skipping a name that is not a subcommand where it stands. | Proved | pending |  |
+| SHAKE-HELP-1 | `help(spec, path)` renders the page of the command reached by following each name of `path` from the root through the subcommands, skipping a name that is not a subcommand where it stands. | Proved | proved | src/LAWS.bend help_page; src/LAWS.bend reach_child; src/LAWS.bend reach_skip |
 | SHAKE-HELP-2 | A page lists each subcommand of its command exactly once, in spec order, followed by `help`, and each flag and option exactly once, in spec order. Its usage line names each positional exactly once, in spec order, as `<NAME>` when required and `[NAME]` otherwise, with `...` after a rest positional. | Proved | pending |  |
 
 ### Errors (SHAKE-ERR)
@@ -78,7 +78,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
 | SHAKE-ERR-1 | `err_text(spec, err)` is empty exactly when `help_path(err)` is `Some`, that is, when the parse failed with a request for help. | Proved | proved | src/LAWS.bend err_text_help; src/LAWS.bend err_text_iff |
-| SHAKE-ERR-2 | For every error but a request for help, `err_path(err)` is the path of subcommands the parse had selected at the word that failed it, and `err_text(spec, err)` shows the usage line of the command at that path, as `help(spec, err_path(err))` does. | Proved | pending |  |
+| SHAKE-ERR-2 | For every error but a request for help, `err_path(err)` is the path of subcommands the parse had selected at the word that failed it, and `err_text(spec, err)` shows the usage line of the command at that path, as `help(spec, err_path(err))` does. | Proved | proved | src/LAWS.bend err_path_at; src/LAWS.bend err_text_usage; src/LAWS.bend help_page; src/LAWS.bend unknown_long; src/LAWS.bend unknown_short; src/LAWS.bend no_pos_left; src/LAWS.bend choice_refused; src/LAWS.bend flag_long_valued; src/LAWS.bend value_flag_shaped; src/LAWS.bend value_absent; src/LAWS.bend help_unknown; src/LAWS.bend long_no_name; src/LAWS.bend repeated_long_flag; src/LAWS.bend repeated_long_opt; src/LAWS.bend value_refused; src/LAWS.bend long_refused; src/LAWS.bend raw_no_pos; src/LAWS.bend raw_refused; src/LAWS.bend enter_missing; src/LAWS.bend required_missing; src/LAWS.bend letter_flag_eq; src/LAWS.bend letter_unknown; src/LAWS.bend letter_flag_again; src/LAWS.bend letter_opt_again; src/LAWS.bend letter_value_bad |
 
 ### The argument list (SHAKE-ARGS)
 

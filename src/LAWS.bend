@@ -353,6 +353,7 @@ law unknown_long_dies:
 # any bindings, a long option that no argument of that command spells fails
 # the parse with UnknownFlag of the word, whatever follows
 # SHAKE-TOK-7
+# SHAKE-ERR-2
 law unknown_long:
   for +spec: Shake.Cli
   for +pre: List<&2, String>
@@ -435,6 +436,7 @@ law unknown_short_step:
 # word whose first letter no argument of that command has fails the parse
 # with UnknownFlag of the word, whatever follows
 # SHAKE-TOK-7
+# SHAKE-ERR-2
 law unknown_short:
   for +spec: Shake.Cli
   for +pre: List<&2, String>
@@ -461,6 +463,7 @@ law unknown_short:
 # left, a plain word that names no subcommand fails the parse with Unexpected
 # of the word, whatever follows
 # SHAKE-PARSE-2
+# SHAKE-ERR-2
 law no_pos_left:
   for +spec: Shake.Cli
   for +pre: List<&2, String>
@@ -486,6 +489,7 @@ law no_pos_left:
 # fails the parse with BadValue of that positional and the word, whatever
 # follows
 # SHAKE-PARSE-5
+# SHAKE-ERR-2
 law choice_refused:
   for +spec: Shake.Cli
   for +pre: List<&2, String>
@@ -541,6 +545,7 @@ law long_arg_step:
 # that spells a flag not yet given and gives it a value fails the parse with
 # Unexpected of the word, whatever follows
 # SHAKE-TOK-5
+# SHAKE-ERR-2
 law flag_long_valued:
   for +spec: Shake.Cli
   for +pre: List<&2, String>
@@ -577,6 +582,7 @@ law flag_long_valued:
 # word that starts with `-` and is not `-` fails the parse with Missing of the
 # option, whatever follows
 # SHAKE-TOK-6
+# SHAKE-ERR-2
 law value_flag_shaped:
   for +spec: Shake.Cli
   for +pre: List<&2, String>
@@ -600,6 +606,7 @@ law value_flag_shaped:
 # LAW: when the words end with an option still waiting for its value, the
 # parse fails with Missing of the option
 # SHAKE-TOK-6
+# SHAKE-ERR-2
 law value_absent:
   for +spec: Shake.Cli
   for +ws: List<&2, String>
@@ -621,6 +628,7 @@ law value_absent:
 # word that names no subcommand where the path stands fails the parse with
 # Unexpected of the word, whatever follows
 # SHAKE-PARSE-8
+# SHAKE-ERR-2
 law help_unknown:
   for +spec: Shake.Cli
   for +pre: List<&2, String>
@@ -644,6 +652,7 @@ law help_unknown:
 # with nothing between `--` and `=`, fails the parse with UnknownFlag of the
 # word, whatever follows
 # SHAKE-TOK-1
+# SHAKE-ERR-2
 law long_no_name:
   for +spec: Shake.Cli
   for +pre: List<&2, String>
@@ -678,6 +687,7 @@ law once_dead:
 # spells a flag already given fails the parse with Repeated of its name,
 # whatever follows
 # SHAKE-PARSE-10
+# SHAKE-ERR-2
 law repeated_long_flag:
   for +spec: Shake.Cli
   for +pre: List<&2, String>
@@ -714,6 +724,7 @@ law repeated_long_flag:
 # spells an option built with `opt` already given fails the parse with Repeated of its name,
 # whatever follows
 # SHAKE-PARSE-10
+# SHAKE-ERR-2
 law repeated_long_opt:
   for +spec: Shake.Cli
   for +pre: List<&2, String>
@@ -1023,6 +1034,7 @@ law raw_binds:
 # positional left, any word fails the parse with Unexpected of the word,
 # whatever follows
 # SHAKE-TOK-4
+# SHAKE-ERR-2
 law raw_no_pos:
   for +spec: Shake.Cli
   for +pre: List<&2, String>
@@ -1044,6 +1056,7 @@ law raw_no_pos:
 # with BadValue, whatever follows
 # SHAKE-TOK-4
 # SHAKE-PARSE-5
+# SHAKE-ERR-2
 law raw_refused:
   for +spec: Shake.Cli
   for +pre: List<&2, String>
@@ -1133,6 +1146,7 @@ law long_binds:
 # fails the parse with BadValue of the option and the word, whatever follows
 # SHAKE-PARSE-5
 # SHAKE-TOK-3
+# SHAKE-ERR-2
 law value_refused:
   for +spec: Shake.Cli
   for +pre: List<&2, String>
@@ -1159,6 +1173,7 @@ law value_refused:
 # built with `many`, and whose choices do not allow `vv`, fails the parse with
 # BadValue of the option and `vv`, whatever follows
 # SHAKE-PARSE-5
+# SHAKE-ERR-2
 law long_refused:
   for +spec: Shake.Cli
   for +pre: List<&2, String>
@@ -1551,6 +1566,7 @@ law required_present:
 # command on the selected path unbound and without a default, the parse fails
 # with Missing at the selected path
 # SHAKE-PARSE-7
+# SHAKE-ERR-2
 law required_missing:
   for +spec: Shake.Cli
   for +ws: List<&2, String>
@@ -1654,6 +1670,7 @@ law enter_step:
 # word that names a subcommand of the current command while a positional
 # blocks it fails the parse with Missing of that positional, whatever follows
 # SHAKE-PARSE-4
+# SHAKE-ERR-2
 law enter_missing:
   for +spec: Shake.Cli
   for +pre: List<&2, String>
@@ -1930,6 +1947,7 @@ law letter_flag:
 # LAW: a letter that spells a flag not yet given, with `=` after it, refuses
 # the whole word as Unexpected
 # SHAKE-TOK-5
+# SHAKE-ERR-2
 law letter_flag_eq:
   for +cc: Char
   for +rest: String
@@ -1960,6 +1978,7 @@ law letter_flag_eq:
 # word as UnknownFlag, whatever letters came before it
 # SHAKE-TOK-2
 # SHAKE-TOK-7
+# SHAKE-ERR-2
 law letter_unknown:
   for +cc: Char
   for +rest: String
@@ -1979,6 +1998,7 @@ law letter_unknown:
 # LAW: a letter that spells a flag already given refuses the whole word as
 # Repeated
 # SHAKE-PARSE-10
+# SHAKE-ERR-2
 law letter_flag_again:
   for +cc: Char
   for +rest: String
@@ -2007,6 +2027,7 @@ law letter_flag_again:
 # LAW: a letter that spells an option built with `opt` already given refuses
 # the whole word as Repeated
 # SHAKE-PARSE-10
+# SHAKE-ERR-2
 law letter_opt_again:
   for +cc: Char
   for +rest: String
@@ -2131,6 +2152,7 @@ law letter_value_next:
 # LAW: a letter that spells an option taking a value now, with a glued value
 # its choices do not allow, refuses the whole word as BadValue
 # SHAKE-PARSE-5
+# SHAKE-ERR-2
 law letter_value_bad:
   for +cc: Char
   for +rest: String
@@ -2192,3 +2214,95 @@ law dash_word_step:
   for +seen: Bool
   {S.parse.step("-", S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen})
     == S.parse.word.go(S.find_sub(subs, "-"), "-", args, up, subs, path, bs, pos, False{}, seen) : S.St}
+
+# the page a help walk reaches from `how`: each name that is a subcommand
+# where it stands moves to it, and any other name is skipped
+def reach(path: List<&2, String>, how: S.How) -> S.How:
+  match path:
+    case Nil{}:
+      how
+    case Con{+hh, tt}:
+      reach(tt, S.help.step(how, hh))
+
+# the root's page
+def root(app: Shake.Cli) -> S.How:
+  S.Cli{+name, about, version, args, subs} = app
+  S.How{name, about, version, args, subs, name}
+
+# the usage line of a page
+def usage_line(how: S.How) -> String:
+  S.How{_b, _a, _v, +args, +subs, +usage} = how
+  S.help.usage(usage, args, subs)
+
+# a page as `help` renders it: its title, what it is about, its usage line
+# (`usage_line`), its subcommands and its options
+def page(how: S.How) -> String:
+  S.How{+bin, +about, version, +args, +subs, +usage} = how
+  S.help.page(S.title.go(bin, version), about, S.help.usage(usage, args, subs), args, subs)
+
+# LAW: `help` renders the page of the command a path reaches from the root
+# SHAKE-HELP-1
+# SHAKE-ERR-2
+law help_page:
+  for spec: Shake.Cli
+  for +path: List<&2, String>
+  {Shake.help(spec, path) == page(reach(path, root(spec))) : String}
+
+# LAW: a name that is a subcommand where the walk stands moves the page to
+# that subcommand, its usage line gaining the name
+# SHAKE-HELP-1
+law reach_child:
+  for +bin: String
+  for +about: String
+  for +version: Maybe<&2, String>
+  for +args: List<&2, S.Arg>
+  for +subs: List<&2, S.Sub>
+  for +usage: String
+  for +name: String
+  for +sn: String
+  for +sa: String
+  for +sargs: List<&2, S.Arg>
+  for +ssubs: List<&2, S.Sub>
+  for h_sub: {S.find_sub(subs, name) == Some{S.Sub{sn, sa, sargs, ssubs}} : Maybe<&2, S.Sub>}
+  {S.help.step(S.How{bin, about, version, args, subs, usage}, name)
+    == S.How{sn, sa, None{}, sargs, ssubs, usage ++ " " ++ name} : S.How}
+
+# LAW: a name that is no subcommand where the walk stands is skipped
+# SHAKE-HELP-1
+law reach_skip:
+  for +bin: String
+  for +about: String
+  for +version: Maybe<&2, String>
+  for +args: List<&2, S.Arg>
+  for +subs: List<&2, S.Sub>
+  for +usage: String
+  for +name: String
+  for h_sub: {S.find_sub(subs, name) == None{} : Maybe<&2, S.Sub>}
+  {S.help.step(S.How{bin, about, version, args, subs, usage}, name)
+    == S.How{bin, about, version, args, subs, usage} : S.How}
+
+# LAW: every error but a request for help names the command path where the
+# parse failed, and `err_path` reads it
+# SHAKE-ERR-2
+law err_path_at:
+  for +at: List<&2, String>
+  for +word: String
+  for +name: String
+  for +value: String
+  {[Shake.err_path(S.UnknownFlag{at, word}), Shake.err_path(S.Missing{at, name}), Shake.err_path(S.NoValue{at, name}),
+      Shake.err_path(S.BadValue{at, name, value}), Shake.err_path(S.Unexpected{at, word}),
+      Shake.err_path(S.Repeated{at, name})]
+    == [at, at, at, at, at, at] : List<&2, List<&2, String>>}
+
+# LAW: the text of every error but a request for help is a message, then the
+# usage line of the command at its path, as that command's help page shows it,
+# then where to look for more
+# SHAKE-ERR-2
+law err_text_usage:
+  for spec: Shake.Cli
+  for +err: Shake.ParseErr
+  for h_err: {Shake.help_path(err) == None{} : Maybe<&2, List<&2, String>>}
+  exs msg: String
+  {Shake.err_text(spec, err)
+    == msg ++ "\n\n" ++ usage_line(reach(Shake.err_path(err), root(spec))) ++ "\n\n" ++ S.err.hint(Shake.err_path(err))
+    : String}
