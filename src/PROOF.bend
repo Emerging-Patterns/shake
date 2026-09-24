@@ -2,6 +2,7 @@
 import Base
 import ../src/cli.bend as S
 import ../src/eq.bend as Eq
+import ../src/args.bend as Args
 import ./LAWS.bend as Laws
 
 def Laws.looks_flag_long(_ss):
@@ -14,9 +15,6 @@ def Laws.get_nil(_name):
   {==}
 
 def Laws.on_nil(_name):
-  {==}
-
-def Laws.copy_one(_hh):
   {==}
 
 def Laws.err_text_help(_spec, _path):
@@ -104,3 +102,12 @@ def Laws.on_get(_found, _name):
 
 def Laws.path_of_path(_path, _bs):
   {==}
+
+def Laws.copy_keeps(xs):
+  match xs:
+    case Nil{}:
+      {==}
+    case Con{+hh, tt}:
+      ih = Equal.sym(List<&1, String>, Laws.down(Args.copy(tt)), tt, Laws.copy_keeps(tt))
+      %ih : {hh <> _ == hh <> tt : List<&1, String>}
+      {==}
