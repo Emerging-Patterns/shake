@@ -1359,3 +1359,217 @@ law rest_raw_binds:
     == Some{List.append(&2, String, S.get_all.bind(List.reverse(&2, S.Bind, bs), nm), List.append(&2, String,
         fs, after))}
     : Maybe<&2, List<&2, String>>}
+
+# whether no argument of a list is named `name`
+def none_named(args: List<&2, S.Arg>, +name: String) -> Bool:
+  match args:
+    case Nil{}:
+      True{}
+    case Con{hh, tt}:
+      S.Arg{+nn, _s, _l, _k, _h, _r, _d, _c} = hh
+      Bool.and(Bool.not(String.eq(nn, name)), none_named(tt, name))
+
+# whether a name has values in the command at `path` in a Matched, when the
+# path reaches one
+def present_at.go(mm: Maybe<&2, Shake.Matched>, +name: String) -> Maybe<&2, Bool>:
+  match mm:
+    case None{}:
+      None{}
+    case Some{found}:
+      Some{Bool.not(List.is_empty(&2, String, Shake.get_all(found, name)))}
+
+# whether a name has values in the command at `path` in a Matched
+def present_at(found: Shake.Matched, path: List<&2, String>, +name: String) -> Maybe<&2, Bool>:
+  present_at.go(Shake.at(found, path), name)
+
+# whether a mode is free
+def free.mode(mode: S.Mode) -> Bool:
+  match mode:
+    case S.Free{}:
+      True{}
+    case _other:
+      False{}
+
+# whether a walker is free
+def free(st: S.St) -> Bool:
+  S.St{mode, _a, _g, _s, _p, _b, _o, _r, _n} = st
+  free.mode(mode)
+
+# LAW: when the parse succeeds, an argument with a default that its command
+# left unbound reads its default, once, in that command's Matched
+# SHAKE-PARSE-6
+law default_filled:
+  for +spec: Shake.Cli
+  for +ws: List<&2, String>
+  for +found: Shake.Matched
+  for +qs: List<&2, S.Level>
+  for +pa: List<&2, S.Arg>
+  for +qa: List<&2, S.Arg>
+  for +nn: String
+  for +sh: Maybe<&2, String>
+  for +lo: Maybe<&2, String>
+  for +kind: S.ArgKind
+  for +hp: String
+  for +req: Bool
+  for +dd: String
+  for +cs: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +up: List<&2, S.Level>
+  for +path: List<&2, String>
+  for +ms: List<&2, String>
+  for h_done: {Shake.parse(spec, ws) == Done{found} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+  for h_fr: {Grow.gw.frame(S.parse.walk(ws, S.parse.start(spec)))
+    == Grow.Frame{List.append(&2, S.Level, qs,
+      S.Level{List.append(&2, S.Arg, pa, S.Arg{nn, sh, lo, kind, hp, req, Some{dd}, cs} <> qa), bs} <> up),
+      List.append(&2, String, path, ms)} : Grow.Frame}
+  for h_len: {List.length(&2, S.Level, up) == List.length(&2, String, path) : Nat}
+  for h_pa: {none_named(pa, nn) == True{} : Bool}
+  for h_qa: {none_named(qa, nn) == True{} : Bool}
+  for h_free: {S.bound(bs, nn) == False{} : Bool}
+  {all_at(found, path, nn) == Some{[dd]} : Maybe<&2, List<&2, String>>}
+
+# LAW: when the parse succeeds, an argument its command bound reads exactly
+# the values it was given, in order, in that command's Matched: a default
+# never replaces them nor adds to them
+# SHAKE-PARSE-6
+law bound_kept:
+  for +spec: Shake.Cli
+  for +ws: List<&2, String>
+  for +found: Shake.Matched
+  for +qs: List<&2, S.Level>
+  for +pa: List<&2, S.Arg>
+  for +qa: List<&2, S.Arg>
+  for +nn: String
+  for +sh: Maybe<&2, String>
+  for +lo: Maybe<&2, String>
+  for +kind: S.ArgKind
+  for +hp: String
+  for +req: Bool
+  for +dflt: Maybe<&2, String>
+  for +cs: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +up: List<&2, S.Level>
+  for +path: List<&2, String>
+  for +ms: List<&2, String>
+  for h_done: {Shake.parse(spec, ws) == Done{found} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+  for h_fr: {Grow.gw.frame(S.parse.walk(ws, S.parse.start(spec)))
+    == Grow.Frame{List.append(&2, S.Level, qs,
+      S.Level{List.append(&2, S.Arg, pa, S.Arg{nn, sh, lo, kind, hp, req, dflt, cs} <> qa), bs} <> up),
+      List.append(&2, String, path, ms)} : Grow.Frame}
+  for h_len: {List.length(&2, S.Level, up) == List.length(&2, String, path) : Nat}
+  for h_pa: {none_named(pa, nn) == True{} : Bool}
+  for h_qa: {none_named(qa, nn) == True{} : Bool}
+  for h_bound: {S.bound(bs, nn) == True{} : Bool}
+  {all_at(found, path, nn) == Some{S.get_all.bind(List.reverse(&2, S.Bind, bs), nn)} : Maybe<&2, List<&2, String>>}
+
+# LAW: when the parse succeeds, an argument with no default reads only the
+# values the words gave it in its command's Matched, none when they gave none
+# SHAKE-PARSE-6
+law no_default:
+  for +spec: Shake.Cli
+  for +ws: List<&2, String>
+  for +found: Shake.Matched
+  for +qs: List<&2, S.Level>
+  for +pa: List<&2, S.Arg>
+  for +qa: List<&2, S.Arg>
+  for +nn: String
+  for +sh: Maybe<&2, String>
+  for +lo: Maybe<&2, String>
+  for +kind: S.ArgKind
+  for +hp: String
+  for +req: Bool
+  for +cs: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +up: List<&2, S.Level>
+  for +path: List<&2, String>
+  for +ms: List<&2, String>
+  for h_done: {Shake.parse(spec, ws) == Done{found} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+  for h_fr: {Grow.gw.frame(S.parse.walk(ws, S.parse.start(spec)))
+    == Grow.Frame{List.append(&2, S.Level, qs,
+      S.Level{List.append(&2, S.Arg, pa, S.Arg{nn, sh, lo, kind, hp, req, None{}, cs} <> qa), bs} <> up),
+      List.append(&2, String, path, ms)} : Grow.Frame}
+  for h_len: {List.length(&2, S.Level, up) == List.length(&2, String, path) : Nat}
+  for h_pa: {none_named(pa, nn) == True{} : Bool}
+  for h_qa: {none_named(qa, nn) == True{} : Bool}
+  {all_at(found, path, nn) == Some{S.get_all.bind(List.reverse(&2, S.Bind, bs), nn)} : Maybe<&2, List<&2, String>>}
+
+# LAW: when the parse succeeds, a name no argument of a command has reads only
+# what the words bound to it in that command's Matched
+# SHAKE-PARSE-6
+law no_argument:
+  for +spec: Shake.Cli
+  for +ws: List<&2, String>
+  for +found: Shake.Matched
+  for +qs: List<&2, S.Level>
+  for +args: List<&2, S.Arg>
+  for +nn: String
+  for +bs: List<&2, S.Bind>
+  for +up: List<&2, S.Level>
+  for +path: List<&2, String>
+  for +ms: List<&2, String>
+  for h_done: {Shake.parse(spec, ws) == Done{found} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+  for h_fr: {Grow.gw.frame(S.parse.walk(ws, S.parse.start(spec)))
+    == Grow.Frame{List.append(&2, S.Level, qs, S.Level{args, bs} <> up), List.append(&2, String, path, ms)}
+    : Grow.Frame}
+  for h_len: {List.length(&2, S.Level, up) == List.length(&2, String, path) : Nat}
+  for h_none: {none_named(args, nn) == True{} : Bool}
+  {all_at(found, path, nn) == Some{S.get_all.bind(List.reverse(&2, S.Bind, bs), nn)} : Maybe<&2, List<&2, String>>}
+
+# LAW: when the parse succeeds, every required argument of every command on
+# the selected path has a value in that command's Matched
+# SHAKE-PARSE-7
+law required_present:
+  for +spec: Shake.Cli
+  for +ws: List<&2, String>
+  for +found: Shake.Matched
+  for +qs: List<&2, S.Level>
+  for +pa: List<&2, S.Arg>
+  for +qa: List<&2, S.Arg>
+  for +nn: String
+  for +sh: Maybe<&2, String>
+  for +lo: Maybe<&2, String>
+  for +kind: S.ArgKind
+  for +hp: String
+  for +dflt: Maybe<&2, String>
+  for +cs: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +up: List<&2, S.Level>
+  for +path: List<&2, String>
+  for +ms: List<&2, String>
+  for h_done: {Shake.parse(spec, ws) == Done{found} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+  for h_fr: {Grow.gw.frame(S.parse.walk(ws, S.parse.start(spec)))
+    == Grow.Frame{List.append(&2, S.Level, qs,
+      S.Level{List.append(&2, S.Arg, pa, S.Arg{nn, sh, lo, kind, hp, True{}, dflt, cs} <> qa), bs} <> up),
+      List.append(&2, String, path, ms)} : Grow.Frame}
+  for h_len: {List.length(&2, S.Level, up) == List.length(&2, String, path) : Nat}
+  {present_at(found, path, nn) == Some{True{}} : Maybe<&2, Bool>}
+
+# LAW: when the words end with the walker free and a required argument of a
+# command on the selected path unbound and without a default, the parse fails
+# with Missing at the selected path
+# SHAKE-PARSE-7
+law required_missing:
+  for +spec: Shake.Cli
+  for +ws: List<&2, String>
+  for +qs: List<&2, S.Level>
+  for +pa: List<&2, S.Arg>
+  for +qa: List<&2, S.Arg>
+  for +nn: String
+  for +sh: Maybe<&2, String>
+  for +lo: Maybe<&2, String>
+  for +kind: S.ArgKind
+  for +hp: String
+  for +dflt: Maybe<&2, String>
+  for +cs: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +up: List<&2, S.Level>
+  for +path: List<&2, String>
+  for h_free: {free(S.parse.walk(ws, S.parse.start(spec))) == True{} : Bool}
+  for h_fr: {Grow.gw.frame(S.parse.walk(ws, S.parse.start(spec)))
+    == Grow.Frame{List.append(&2, S.Level, qs,
+      S.Level{List.append(&2, S.Arg, pa, S.Arg{nn, sh, lo, kind, hp, True{}, dflt, cs} <> qa), bs} <> up), path}
+    : Grow.Frame}
+  for h_unbound: {S.bound(S.fill.args(List.append(&2, S.Arg, pa, S.Arg{nn, sh, lo, kind, hp, True{}, dflt, cs} <> qa),
+    bs), nn) == False{} : Bool}
+  exs name: String
+  {Shake.parse(spec, ws) == Fail{S.Missing{path, name}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
