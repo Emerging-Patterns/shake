@@ -41,7 +41,7 @@ that list, and `get` still reads one value. `argv` is the process's
 arguments, each word reusable.
 
 A compiled Bend program's runtime reads the command line before shake does
-(bend 2.0.26):
+(bend 2.0.27):
 
 - `--help` prints the runtime's own usage and exits, and `--gpu-build`
   builds the GPU image and exits; neither runs `main`.
