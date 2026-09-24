@@ -4,12 +4,14 @@
 # parsing; in a compiled program the runtime takes the first `--` itself.
 import Base
 
-# a flag, a valued option, a positional, or a rest positional
+# a flag, a valued option, an option that may repeat, a positional, or a rest
+# positional
 type ArgKind is Data:
   Flag{}
   Opt{}
   Pos{}
   Rest{}
+  Many{}
 
 # one argument: name is the binding key; short/long are the CLI spellings
 type Arg is Data:
@@ -61,6 +63,7 @@ type ParseErr is Data:
   BadValue{at: List<&2, String>, name: String, value: String}
   NeedHelp{path: List<&2, String>}
   Unexpected{at: List<&2, String>, arg: String}
+  Repeated{at: List<&2, String>, name: String}
 
 # how the next token is read
 type Mode is Data:
@@ -133,6 +136,18 @@ def opt(
   choices: List<&2, String>
 ) -> Arg:
   Arg{name, short, long, Opt{}, help, required, default, choices}
+
+# an option that may be given more than once; `get_all` reads every value
+def many(
+  +name: String,
+  short: Maybe<&2, String>,
+  long: Maybe<&2, String>,
+  +help: String,
+  required: Bool,
+  default: Maybe<&2, String>,
+  choices: List<&2, String>
+) -> Arg:
+  Arg{name, short, long, Many{}, help, required, default, choices}
 
 # a positional
 def pos(
@@ -316,6 +331,8 @@ def pos.is.kind(kk: ArgKind) -> Bool:
       False{}
     case Opt{}:
       False{}
+    case Many{}:
+      False{}
 
 # whether this ArgKind is rest
 def rest.is.kind(kk: ArgKind) -> Bool:
@@ -327,6 +344,8 @@ def rest.is.kind(kk: ArgKind) -> Bool:
     case Flag{}:
       False{}
     case Opt{}:
+      False{}
+    case Many{}:
       False{}
 
 # whether this Arg is a positional
@@ -577,6 +596,16 @@ def parse.take_opt(
     case Some{v}:
       parse.take_opt_val(name, v, args, specs, subs, path, binds, pos, raw, seen)
 
+# a flag or single-valued option given again is refused, whatever the walk
+# would have done with it; the walker keeps the rest of its state
+def parse.once(again: Bool, st: St, +name: String, +path: List<&2, String>) -> St:
+  match again:
+    case True{}:
+      St{_m, +args, +specs, +subs, _p, +binds, +pos, +raw, +seen} = st
+      St{Dead{Repeated{path, name}}, args, specs, subs, path, binds, pos, raw, seen}
+    case False{}:
+      st
+
 # dispatch on the found Arg's kind
 def parse.take_arg.kind(
   kk: ArgKind,
@@ -594,8 +623,12 @@ def parse.take_arg.kind(
 ) -> St:
   match kk:
     case Flag{}:
-      parse.take_flag(val, name, orig, args, specs, subs, path, binds, pos, raw, seen)
+      parse.once(bound(binds, name), parse.take_flag(val, name, orig, args, specs, subs, path,
+        binds, pos, raw, seen), name, path)
     case Opt{}:
+      parse.once(bound(binds, name), parse.take_opt(val, name, args, specs, subs, path, binds, pos,
+        raw, seen), name, path)
+    case Many{}:
       parse.take_opt(val, name, args, specs, subs, path, binds, pos, raw, seen)
     case Pos{}:
       parse.dead(UnknownFlag{path, orig}, args, specs, subs, path, binds, pos, raw, seen)
@@ -696,6 +729,8 @@ def cluster.val.kind(kk: ArgKind, +rest: String) -> Maybe<&2, String>:
       cluster.val.flag(String.starts_with(rest, "="), rest)
     case Opt{}:
       short_of.val(String.starts_with(rest, "="), rest)
+    case Many{}:
+      short_of.val(String.starts_with(rest, "="), rest)
     case Pos{}:
       None{}
     case Rest{}:
@@ -717,6 +752,8 @@ def cluster.ends.kind(kk: ArgKind, +rest: String) -> Bool:
     case Flag{}:
       String.starts_with(rest, "=")
     case Opt{}:
+      True{}
+    case Many{}:
       True{}
     case Pos{}:
       True{}
@@ -1248,6 +1285,8 @@ def show.err(ee: ParseErr) -> String:
       "help " ++ String.join(path, " ")
     case Unexpected{_at, arg}:
       "unexpected " ++ arg
+    case Repeated{_at, name}:
+      "repeated " ++ name
 
 # one bind as `name=value`
 def show.bind(bb: Bind, +rest: String) -> String:
@@ -1282,6 +1321,8 @@ def help.label.kind(kk: ArgKind, +name: String, +label: String) -> String:
       label
     case Opt{}:
       label ++ " <" ++ String.to_upper(name) ++ ">"
+    case Many{}:
+      label ++ " <" ++ String.to_upper(name) ++ ">..."
     case Pos{}:
       label
     case Rest{}:
@@ -1548,3 +1589,5 @@ def err_text(+app: Cli, ee: ParseErr) -> String:
       ""
     case Unexpected{+at, arg}:
       err.wrap(app, at, "error: unexpected argument '" ++ arg ++ "' found")
+    case Repeated{+at, name}:
+      err.wrap(app, at, "error: the argument '" ++ name ++ "' cannot be used multiple times")

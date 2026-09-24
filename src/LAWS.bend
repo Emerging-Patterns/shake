@@ -115,7 +115,6 @@ law get_all_miss:
 
 # LAW: `get` is the value of the last binding of the name
 # SHAKE-GET-1
-# SHAKE-PARSE-10
 law get_last:
   for +path: List<&2, String>
   for +bs: List<&2, S.Bind>

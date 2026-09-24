@@ -51,7 +51,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | SHAKE-PARSE-7 | A successful parse binds every required argument of every command on the selected path. Otherwise the parse fails with `Missing{name}`. | Proved | pending |  |
 | SHAKE-PARSE-8 | Before `--` and before any positional of the current command is bound, a plain word `help` makes the parse fail with `NeedHelp{path}`, where `path` is the selected path followed by the remaining words, as long as each names a subcommand under the one before; the first remaining word that does not makes the parse fail with `Unexpected{word}`. | Proved | pending |  |
 | SHAKE-PARSE-9 | Once a word makes the parse fail, the words after it do not change the error. | Proved | proved | src/LAWS.bend fail_stays |
-| SHAKE-PARSE-10 | When an option or flag is given more than once, `get` reads `Some` of the last value given and `get_all` every value, in the order given. | Proved | pending | src/LAWS.bend get_last |
+| SHAKE-PARSE-10 | A flag or an option built with `opt` that is given a second time, under any of its spellings, fails the parse with `Repeated{at, name}`. An option built with `many` binds every value given, in the order given, and `get_all` reads them all. | Proved | pending |  |
 
 ### Checking a spec (SHAKE-SPEC)
 
@@ -92,7 +92,6 @@ Every pending row is unproved in full, except those below; the RFC's Rollout say
 | ID | Proved so far | Missing |
 | :---- | :---- | :---- |
 | SHAKE-TOK-7 | `unknown_long`, `unknown_short`: wherever the words before it leave the walker free, a long option, or a short cluster whose first letter, no argument of the walker's current argument list spells fails the parse with `UnknownFlag` of the word, whatever follows. | An unknown letter after flags in a cluster (`-vx`); and that the walker's current argument list, after a subcommand is selected, is that subcommand's own, so a parent's arguments are not matched, which is part of SHAKE-PARSE-4. |
-| SHAKE-PARSE-10 | `get_last`: `get` reads the value of the last binding of a name, whatever comes before it. | That `parse` records bindings in the order the words give them, which is part of SHAKE-PARSE-1. |
 
 ## Trust boundary
 

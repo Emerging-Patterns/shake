@@ -1,5 +1,5 @@
 # shake: CLI argument parser for Bend 2. Describe a program with `app`, `sub`,
-# `flag`, `opt`, `pos` and `rest`; `parse` binds argv against it, and `get`,
+# `flag`, `opt`, `many`, `pos` and `rest`; `parse` binds argv against it, and `get`,
 # `get_all`, `on` and `path_of` read the result. `help` writes the usage page
 # for a command path. For a failed parse, `help_path` tells a request for help
 # from an error, `err_text` writes the message and `err_path` names the command
@@ -74,6 +74,19 @@ def opt(
   choices: List<&2, String>
 ) -> S.Arg:
   S.opt(name, short, long, help, required, default, choices)
+
+# an option that may be given more than once; `get_all` reads every value, in
+# order, and `get` the last
+def many(
+  +name: String,
+  short: Maybe<&2, String>,
+  long: Maybe<&2, String>,
+  +help: String,
+  required: Bool,
+  default: Maybe<&2, String>,
+  choices: List<&2, String>
+) -> S.Arg:
+  S.many(name, short, long, help, required, default, choices)
 
 # a positional
 def pos(
@@ -153,6 +166,8 @@ def err_path(err: S.ParseErr) -> List<&2, String>:
       path
     case S.Unexpected{at, _arg}:
       at
+    case S.Repeated{at, _name}:
+      at
 
 # the command path of a request for help (`help`, `help <path>`), or None
 # when the parse failed for another reason
@@ -169,6 +184,8 @@ def help_path(err: S.ParseErr) -> Maybe<&2, List<&2, String>>:
     case S.BadValue{_at, _name, _value}:
       None{}
     case S.Unexpected{_at, _arg}:
+      None{}
+    case S.Repeated{_at, _name}:
       None{}
 
 # the process's arguments, each word reusable. A compiled program's runtime
