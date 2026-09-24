@@ -57,7 +57,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
-| SHAKE-SPEC-1 | `check(spec)` reports exactly one error for each of: a rest positional that is not its command's last positional; an argument of a command with the name, short spelling or long spelling of an earlier argument of that command; a subcommand with the name of an earlier subcommand of the same command; a subcommand named `help`; a default outside its argument's nonempty choices; a required positional after an optional one. It reports nothing else. | Proved | pending |  |
+| SHAKE-SPEC-1 | `check(spec)` reports exactly one error for each of: a rest positional that is not its command's last positional; an argument of a command with the name, short spelling or long spelling of an earlier argument of that command; a subcommand with the name of an earlier subcommand of the same command; a subcommand named `help`; a default outside its argument's nonempty choices; a required positional after an optional one. It reports nothing else. | Proved | proved | src/LAWS.bend check_listed |
 
 ### Reading a result (SHAKE-GET)
 

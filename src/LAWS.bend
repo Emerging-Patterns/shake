@@ -4,6 +4,7 @@
 import Base
 import ../main.bend as Shake
 import ../src/cli.bend as S
+import ../src/check.bend as K
 import ../src/args.bend as Args
 import ../src/grow.bend as Grow
 import ../src/walk.bend as Walk
@@ -2394,3 +2395,157 @@ law usage_listed:
   {S.help.usage(name, args, subs)
     == "Usage: " ++ name ++ S.help.opts_hint(args) ++ marks(List.filter(~S.Arg, ~S.pos.is, args)) ++ S.help.cmd_hint(subs)
     : String}
+
+# the names of some arguments
+def arg_names(args: List<&2, S.Arg>) -> List<&2, String>:
+  match args:
+    case Nil{}:
+      []
+    case Con{hh, tt}:
+      S.Arg{name, _s, _l, _k, _h, _r, _d, _c} = hh
+      name <> arg_names(tt)
+
+# the short spellings of some arguments, of those that have one
+def arg_shorts(args: List<&2, S.Arg>) -> List<&2, String>:
+  match args:
+    case Nil{}:
+      []
+    case Con{hh, tt}:
+      S.Arg{_n, short, _l, _k, _h, _r, _d, _c} = hh
+      K.spelled.add(short, arg_shorts(tt))
+
+# the long spellings of some arguments, of those that have one
+def arg_longs(args: List<&2, S.Arg>) -> List<&2, String>:
+  match args:
+    case Nil{}:
+      []
+    case Con{hh, tt}:
+      S.Arg{_n, _s, long, _k, _h, _r, _d, _c} = hh
+      K.spelled.add(long, arg_longs(tt))
+
+# a report of a default that is outside nonempty choices
+def off_choice(
+  +path: List<&2, String>,
+  +name: String,
+  +cs: List<&2, String>,
+  dflt: Maybe<&2, String>
+) -> List<&2, K.SpecErr>:
+  match dflt:
+    case None{}:
+      []
+    case Some{+vv}:
+      K.one(Bool.and(Bool.not(List.is_empty(&2, String, cs)), Bool.not(List.contains(~String, ~String.eq, cs, vv))),
+        K.DefaultNotChoice{path, name, vv})
+
+# the reports about one argument of a command, against the arguments before
+# it, then `after`: its name, short and long spellings where an earlier one
+# has them, and its default
+def arg_reports(
+  +path: List<&2, String>,
+  +before: List<&2, S.Arg>,
+  aa: S.Arg,
+  after: List<&2, K.SpecErr>
+) -> List<&2, K.SpecErr>:
+  S.Arg{+name, +short, +long, _k, _h, _r, dflt, +cs} = aa
+  K.both(K.one(List.contains(~String, ~String.eq, arg_names(before), name), K.SameName{path, name}),
+    K.both(K.one(K.spelled.seen(short, arg_shorts(before)), K.SameShort{path, S.text.of(short, "")}),
+      K.both(K.one(K.spelled.seen(long, arg_longs(before)), K.SameLong{path, S.text.of(long, "")}),
+        K.both(off_choice(path, name, cs, dflt), after))))
+
+# the reports about each argument, in spec order, given those before them
+def args_reports(
+  args: List<&2, S.Arg>,
+  +path: List<&2, String>,
+  +before: List<&2, S.Arg>
+) -> List<&2, K.SpecErr>:
+  match args:
+    case Nil{}:
+      []
+    case Con{+hh, tt}:
+      arg_reports(path, before, hh, args_reports(tt, path, hh <> before))
+
+# whether one of some arguments is optional
+def any_optional(args: List<&2, S.Arg>) -> Bool:
+  match args:
+    case Nil{}:
+      False{}
+    case Con{hh, tt}:
+      S.Arg{_n, _s, _l, _k, _h, required, _d, _c} = hh
+      Bool.or(any_optional(tt), Bool.not(required))
+
+# the reports about each positional, in spec order, given those before them: a
+# rest positional with one after it, and a required one after an optional one
+def pos_reports(
+  pos: List<&2, S.Arg>,
+  +path: List<&2, String>,
+  +before: List<&2, S.Arg>
+) -> List<&2, K.SpecErr>:
+  match pos:
+    case Nil{}:
+      []
+    case Con{+hh, +tt}:
+      S.Arg{+name, _s, _l, kind, _h, required, _d, _c} = hh
+      K.both(K.one(Bool.and(S.rest.is.kind(kind), Bool.not(List.is_empty(&2, S.Arg, tt))), K.RestNotLast{path, name}),
+        K.both(K.one(Bool.and(required, any_optional(before)), K.RequiredAfterOptional{path, name}),
+          pos_reports(tt, path, hh <> before)))
+
+# the names of some subcommands
+def sub_names(subs: List<&2, S.Sub>) -> List<&2, String>:
+  match subs:
+    case Nil{}:
+      []
+    case Con{hh, tt}:
+      S.Sub{name, _a, _g, _c} = hh
+      name <> sub_names(tt)
+
+# the reports about each subcommand, in spec order, given those before them:
+# a name an earlier one has, and the name `help`
+def sub_reports(
+  subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +before: List<&2, S.Sub>
+) -> List<&2, K.SpecErr>:
+  match subs:
+    case Nil{}:
+      []
+    case Con{+hh, tt}:
+      S.Sub{+name, _a, _g, _c} = hh
+      K.both(K.one(List.contains(~String, ~String.eq, sub_names(before), name), K.SameSub{path, name}),
+        K.both(K.one(String.eq(name, "help"), K.HelpSub{path}), sub_reports(tt, path, hh <> before)))
+
+# one command's reports, at its path: its arguments', its positionals', its
+# subcommands'
+def cmd_reports(
+  +path: List<&2, String>,
+  +args: List<&2, S.Arg>,
+  subs: List<&2, S.Sub>
+) -> List<&2, K.SpecErr>:
+  K.both(args_reports(args, path, []), K.both(pos_reports(S.pos_of(args), path, []), sub_reports(subs, path, [])))
+
+# the reports of every command under some subcommands of the command at
+# `path`, depth first, each at its own path
+def below(subs: List<&2, S.Sub>, +path: List<&2, String>) -> List<&2, K.SpecErr>:
+  match subs:
+    case Nil{}:
+      []
+    case Con{hh, tt}:
+      S.Sub{+name, _a, +args, +kids} = hh
+      +here = List.append(&2, String, path, [name])
+      K.both(cmd_reports(here, args, kids), K.both(below(kids, here), below(tt, path)))
+
+# LAW: `check` reports, for the root and then for every subcommand depth
+# first, each at its own path: each argument whose name, short spelling or
+# long spelling an earlier argument of its command has, each default outside
+# nonempty choices, each rest positional before the last positional, each
+# required positional after an optional one, each subcommand with an earlier
+# sibling's name, and each subcommand named `help`; one report each and
+# nothing else
+# SHAKE-SPEC-1
+law check_listed:
+  for +name: String
+  for +about: String
+  for +version: Maybe<&2, String>
+  for +args: List<&2, S.Arg>
+  for +subs: List<&2, S.Sub>
+  {Shake.check(S.Cli{name, about, version, args, subs}) == K.both(cmd_reports([], args, subs), below(subs, []))
+    : List<&2, K.SpecErr>}
