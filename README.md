@@ -23,7 +23,7 @@ import 0xdf41d30432187d983a3c5b9db32d376d/main.bend as Shake
 `Shake.Arg`, `Shake.Matched`, `Shake.ParseErr`, `Shake.SpecErr`), the
 builders (`app`, `sub`, `flag`, `opt`, `pos`, `rest`), `check` and
 `spec_err_text`, `parse`, the readers (`get`, `get_all`, `on`, `path_of`),
-`help`, `err_text`, `help_path` and `argv`. Everything under `src/` is
+`help`, `err_text`, `help_path`, `err_path` and `argv`. Everything under `src/` is
 internal and may change in any release; import only `main.bend`.
 [SPEC.md](SPEC.md) lists what shake guarantees, and which of it is proved.
 

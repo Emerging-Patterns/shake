@@ -185,6 +185,7 @@ Wording, padding and the title line are not requirements. The six closed laws th
 | ID | Requirement | Level |
 | :---- | :---- | :---- |
 | SHAKE-ERR-1 | `err_text(app, e)` is empty exactly when `e` is `NeedHelp`. | Proved |
+| SHAKE-ERR-2 | For every error but a request for help, `err_path(err)` is the path of subcommands the parse had selected at the word that failed it, and `err_text(spec, err)` shows the usage line of the command at that path. | Proved |
 
 `err_text_help` already proves half of this over every Cli and path; the other half is a case split over the constructors. The wording of each message, and that it shows the root usage line (F8), are not requirements.
 

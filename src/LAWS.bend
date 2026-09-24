@@ -230,7 +230,7 @@ law unknown_long_step:
   for h_name: {String.is_empty(name) == False{} : Bool}
   for h_none: {S.by_long(args, name) == None{} : Maybe<&2, S.Arg>}
   {S.parse.step("--" ++ body, S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen})
-    == S.St{S.Dead{S.UnknownFlag{"--" ++ body}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+    == S.St{S.Dead{S.UnknownFlag{path, "--" ++ body}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
 
 # LAW: a walk that reaches an unknown long option dies there (a lemma)
 law unknown_long_dies:
@@ -253,7 +253,7 @@ law unknown_long_dies:
   for h_name: {String.is_empty(name) == False{} : Bool}
   for h_none: {S.by_long(args, name) == None{} : Maybe<&2, S.Arg>}
   {dead_of(S.parse.walk(List.append(&2, String, pre, ["--" ++ body]), S.parse.start(spec)))
-    == Some{S.UnknownFlag{"--" ++ body}} : Maybe<&2, S.ParseErr>}
+    == Some{S.UnknownFlag{path, "--" ++ body}} : Maybe<&2, S.ParseErr>}
 
 # LAW: wherever the words before it leave the parse, in any command and with
 # any bindings, a long option that no argument of that command spells fails
@@ -280,7 +280,7 @@ law unknown_long:
   for h_name: {String.is_empty(name) == False{} : Bool}
   for h_none: {S.by_long(args, name) == None{} : Maybe<&2, S.Arg>}
   {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, ["--" ++ body]), more))
-    == Fail{S.UnknownFlag{"--" ++ body}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+    == Fail{S.UnknownFlag{path, "--" ++ body}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
 
 # LAW: in a free walker, a short option whose letter no argument of the
 # current command has kills the walk with UnknownFlag of the whole word (a
@@ -302,7 +302,7 @@ law unknown_short_step:
   for h_cut: {S.short_of(body) == (name, val) : String & Maybe<&2, String>}
   for h_none: {S.by_short(args, name) == None{} : Maybe<&2, S.Arg>}
   {S.parse.step("-" ++ body, S.St{S.Free{}, args, specs, subs, path, bs, pos, False{}, seen})
-    == S.St{S.Dead{S.UnknownFlag{"-" ++ body}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
+    == S.St{S.Dead{S.UnknownFlag{path, "-" ++ body}}, args, specs, subs, path, bs, pos, False{}, seen} : S.St}
 
 # LAW: a walk that reaches an unknown short option dies there (a lemma)
 law unknown_short_dies:
@@ -326,7 +326,7 @@ law unknown_short_dies:
   for h_cut: {S.short_of(body) == (name, val) : String & Maybe<&2, String>}
   for h_none: {S.by_short(args, name) == None{} : Maybe<&2, S.Arg>}
   {dead_of(S.parse.walk(List.append(&2, String, pre, ["-" ++ body]), S.parse.start(spec)))
-    == Some{S.UnknownFlag{"-" ++ body}} : Maybe<&2, S.ParseErr>}
+    == Some{S.UnknownFlag{path, "-" ++ body}} : Maybe<&2, S.ParseErr>}
 
 # LAW: wherever the words before it leave the parse, a short option whose
 # letter no argument of that command has fails the parse with UnknownFlag of
@@ -354,4 +354,4 @@ law unknown_short:
   for h_cut: {S.short_of(body) == (name, val) : String & Maybe<&2, String>}
   for h_none: {S.by_short(args, name) == None{} : Maybe<&2, S.Arg>}
   {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, ["-" ++ body]), more))
-    == Fail{S.UnknownFlag{"-" ++ body}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+    == Fail{S.UnknownFlag{path, "-" ++ body}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}

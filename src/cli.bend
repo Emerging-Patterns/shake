@@ -52,14 +52,15 @@ type Matched is Data:
   Matched{+path: List<&2, String>, +binds: List<&2, Bind>}
 
 # a failed parse. NeedHelp is `help` / `help <path>`; NoValue is an option
-# whose value never came, Missing a required argument nothing bound
+# whose value never came, Missing a required argument nothing bound. Every
+# error but NeedHelp carries `at`, the command path selected where it failed
 type ParseErr is Data:
-  UnknownFlag{flag: String}
-  Missing{name: String}
-  NoValue{name: String}
-  BadValue{name: String, value: String}
+  UnknownFlag{at: List<&2, String>, flag: String}
+  Missing{at: List<&2, String>, name: String}
+  NoValue{at: List<&2, String>, name: String}
+  BadValue{at: List<&2, String>, name: String, value: String}
   NeedHelp{path: List<&2, String>}
-  Unexpected{arg: String}
+  Unexpected{at: List<&2, String>, arg: String}
 
 # how the next token is read
 type Mode is Data:
@@ -509,7 +510,7 @@ def parse.take_choice(
     case True{}:
       parse.put(name, val, args, specs, subs, path, binds, pos, raw, seen)
     case False{}:
-      parse.dead(BadValue{name, val}, args, specs, subs, path, binds, pos, raw, seen)
+      parse.dead(BadValue{path, name, val}, args, specs, subs, path, binds, pos, raw, seen)
 
 # bind an option that already has its value
 def parse.take_opt_val(
@@ -545,7 +546,7 @@ def parse.take_flag(
     case None{}:
       parse.put(name, "true", args, specs, subs, path, binds, pos, raw, seen)
     case Some{_v}:
-      parse.dead(Unexpected{orig}, args, specs, subs, path, binds, pos, raw, seen)
+      parse.dead(Unexpected{path, orig}, args, specs, subs, path, binds, pos, raw, seen)
 
 # an option: glued value now, or the next token
 def parse.take_opt(
@@ -587,9 +588,9 @@ def parse.take_arg.kind(
     case Opt{}:
       parse.take_opt(val, name, args, specs, subs, path, binds, pos, raw, seen)
     case Pos{}:
-      parse.dead(UnknownFlag{orig}, args, specs, subs, path, binds, pos, raw, seen)
+      parse.dead(UnknownFlag{path, orig}, args, specs, subs, path, binds, pos, raw, seen)
     case Rest{}:
-      parse.dead(UnknownFlag{orig}, args, specs, subs, path, binds, pos, raw, seen)
+      parse.dead(UnknownFlag{path, orig}, args, specs, subs, path, binds, pos, raw, seen)
 
 # a found Arg, or an unknown flag
 def parse.take_arg(
@@ -607,7 +608,7 @@ def parse.take_arg(
 ) -> St:
   match found:
     case None{}:
-      parse.dead(UnknownFlag{orig}, args, specs, subs, path, binds, pos, raw, seen)
+      parse.dead(UnknownFlag{path, orig}, args, specs, subs, path, binds, pos, raw, seen)
     case Some{a}:
       Arg{+name, _s, _l, kind, _h, _r, _d, _c} = a
       parse.take_arg.kind(kind, name, val, orig, args, specs, subs, path, binds, pos,
@@ -630,7 +631,7 @@ def parse.take_long.named(
 ) -> St:
   match empty:
     case True{}:
-      parse.dead(UnknownFlag{orig}, args, specs, subs, path, binds, pos, raw, seen)
+      parse.dead(UnknownFlag{path, orig}, args, specs, subs, path, binds, pos, raw, seen)
     case False{}:
       parse.take_arg(by_long(args, name), val, orig, args, specs, subs, path, binds,
         pos, raw, seen)
@@ -722,7 +723,7 @@ def parse.take_pos(
 ) -> St:
   match pos:
     case Nil{}:
-      parse.dead(Unexpected{tok}, args, specs, subs, path, binds, pos, raw, True{})
+      parse.dead(Unexpected{path, tok}, args, specs, subs, path, binds, pos, raw, True{})
     case Con{+h, t}:
       Arg{+name, _s, _l, _k, _h, _r, _d, +cs} = h
       parse.take_choice(allowed(cs, tok), name, tok, args, specs, subs, path, binds,
@@ -793,7 +794,7 @@ def parse.enter_or(
     case None{}:
       parse.enter(ss, specs, path, binds)
     case Some{n}:
-      parse.dead(Missing{n}, args, specs, subs, path, binds, pos, raw, seen)
+      parse.dead(Missing{path, n}, args, specs, subs, path, binds, pos, raw, seen)
 
 # a found subcommand, or a positional
 def parse.word.go(
@@ -974,7 +975,7 @@ def parse.step.need(
 ) -> St:
   match flag:
     case True{}:
-      parse.dead(NoValue{name}, args, specs, subs, path, binds, pos, raw, seen)
+      parse.dead(NoValue{path, name}, args, specs, subs, path, binds, pos, raw, seen)
     case False{}:
       parse.take_opt_val(name, tok, args, specs, subs, path, binds, pos, raw, seen)
 
@@ -994,7 +995,7 @@ def parse.step.help_path(
 ) -> St:
   match found:
     case None{}:
-      parse.dead(Unexpected{tok}, args, specs, subs, path, binds, pos, raw, seen)
+      parse.dead(Unexpected{path, tok}, args, specs, subs, path, binds, pos, raw, seen)
     case Some{ss}:
       Sub{_n, _a, _g, next_subs} = ss
       St{Help{}, args, specs, next_subs, List.append(&2, String, path, [tok]), binds,
@@ -1113,7 +1114,7 @@ def parse.finish.miss(
 ) -> Result<&2, &2, ParseErr, Matched>:
   match mm:
     case Some{n}:
-      Fail{Missing{n}}
+      Fail{Missing{path, n}}
     case None{}:
       Done{Matched{path, List.reverse(&2, Bind, binds)}}
 
@@ -1136,7 +1137,7 @@ def parse.finish.mode(
     case Dead{e}:
       Fail{e}
     case Need{name}:
-      Fail{NoValue{name}}
+      Fail{NoValue{path, name}}
     case Help{}:
       Fail{NeedHelp{path}}
     case Free{}:
@@ -1154,17 +1155,17 @@ def parse(app: Cli, argv: List<&2, String>) -> Result<&2, &2, ParseErr, Matched>
 # a ParseErr as a short tag
 def show.err(ee: ParseErr) -> String:
   match ee:
-    case UnknownFlag{word}:
+    case UnknownFlag{_at, word}:
       "unknown " ++ word
-    case Missing{name}:
+    case Missing{_at, name}:
       "missing " ++ name
-    case NoValue{name}:
+    case NoValue{_at, name}:
       "novalue " ++ name
-    case BadValue{name, value}:
+    case BadValue{_at, name, value}:
       "bad " ++ name ++ " " ++ value
     case NeedHelp{path}:
       "help " ++ String.join(path, " ")
-    case Unexpected{arg}:
+    case Unexpected{_at, arg}:
       "unexpected " ++ arg
 
 # one bind as `name=value`
@@ -1427,25 +1428,42 @@ def help(+app: Cli, path: List<&2, String>) -> String:
   Cli{+name, +about, version, args, subs} = app
   help.go(path, How{name, about, version, args, subs, name})
 
-# a short error with the root usage line
-def err.wrap(app: Cli, +msg: String) -> String:
-  Cli{+name, _a, _v, args, subs} = app
-  msg ++ "\n\n" ++ help.usage(name, args, subs) ++
-    "\n\nFor more information, try 'help'.\n"
+# the usage line of the page at the end of a shrinking path
+def usage.go(path: List<&2, String>, how: How) -> String:
+  match path:
+    case Nil{}:
+      How{_b, _a, _v, +args, +subs, +usage} = how
+      help.usage(usage, args, subs)
+    case Con{+hh, tt}:
+      usage.go(tt, help.step(how, hh))
+
+# the usage line of the command at `path`, as `help` shows it
+def usage.at(+app: Cli, path: List<&2, String>) -> String:
+  Cli{+name, +about, version, args, subs} = app
+  usage.go(path, How{name, about, version, args, subs, name})
+
+# where to look for more: `help`, and the path when there is one
+def err.hint(+path: List<&2, String>) -> String:
+  "For more information, try 'help" ++
+    Bool.pick(String, List.is_empty(&2, String, path), "", " " ++ String.join(path, " ")) ++ "'.\n"
+
+# a short error, the usage line of the command where it happened, and the hint
+def err.wrap(+app: Cli, +at: List<&2, String>, +msg: String) -> String:
+  msg ++ "\n\n" ++ usage.at(app, at) ++ "\n\n" ++ err.hint(at)
 
 # error text; NeedHelp is empty (the caller prints `help`)
 def err_text(+app: Cli, ee: ParseErr) -> String:
   match ee:
-    case UnknownFlag{word}:
-      err.wrap(app, "error: unexpected argument '" ++ word ++ "' found")
-    case Missing{name}:
-      err.wrap(app, "error: the following required argument was not provided:\n  " ++
+    case UnknownFlag{+at, word}:
+      err.wrap(app, at, "error: unexpected argument '" ++ word ++ "' found")
+    case Missing{+at, name}:
+      err.wrap(app, at, "error: the following required argument was not provided:\n  " ++
         name)
-    case NoValue{name}:
-      err.wrap(app, "error: a value is required for '" ++ name ++ "' but none was supplied")
-    case BadValue{name, value}:
-      err.wrap(app, "error: invalid value '" ++ value ++ "' for '" ++ name ++ "'")
+    case NoValue{+at, name}:
+      err.wrap(app, at, "error: a value is required for '" ++ name ++ "' but none was supplied")
+    case BadValue{+at, name, value}:
+      err.wrap(app, at, "error: invalid value '" ++ value ++ "' for '" ++ name ++ "'")
     case NeedHelp{_path}:
       ""
-    case Unexpected{arg}:
-      err.wrap(app, "error: unexpected argument '" ++ arg ++ "' found")
+    case Unexpected{+at, arg}:
+      err.wrap(app, at, "error: unexpected argument '" ++ arg ++ "' found")
