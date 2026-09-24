@@ -133,7 +133,7 @@ Law sketch for TOK-1, over every well-formed spec, argv prefix and value: `parse
 | SHAKE-PARSE-7 | A successful parse binds every required argument of every command on the selected path. Otherwise the parse fails with `Missing{name}`. | Proved |
 | SHAKE-PARSE-8 | Before `--` and before any positional of the current command is bound, a plain word `help` makes the parse fail with `NeedHelp{path}`, where `path` is the selected path followed by the remaining words, each of which names a subcommand under the one before; a remaining word that does not fails with `Unexpected{word}`. | Proved |
 | SHAKE-PARSE-9 | Once a word makes the parse fail, the words after it do not change the error. | Proved |
-| SHAKE-PARSE-10 | When an option or flag is given more than once, `get` reads `Some` of the last value given and `get_all` every value, in argv order. | Proved |
+| SHAKE-PARSE-10 | A flag or an option built with `opt` that is given a second time, under any of its spellings, fails the parse with `Repeated{at, name}`. An option built with `many` binds every value given, in the order given, and `get_all` reads them all. | Proved |
 
 Evidence: `parse.take_pos` (`main.bend:571-580`) and `parse.take_pos.keep`; `parse.word.go` and `parse.enter_or` (`main.bend:625-643`); `allowed` (`main.bend:347-348`) and `parse.take_opt_val`; `fill.args` and `miss.args` (`main.bend:787-815`); `parse.step.help` and the `Help{}` arm of `parse.step.mode`; the `Dead{e}` arm of `parse.step.mode` (`main.bend:739-740`). PARSE-8's last clause depends on REVIEW-6, and PARSE-10 on REVIEW-4: both rows stay pending until their change lands.
 

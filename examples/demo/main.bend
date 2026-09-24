@@ -12,6 +12,8 @@ def spec() -> Shake.Cli:
           Shake.opt("name", Some{"n"}, Some{"name"}, "Who to greet", False{},
             Some{"world"}, []),
           Shake.flag("verbose", Some{"v"}, Some{"verbose"}, "More output"),
+          Shake.many("tag", Some{"t"}, Some{"tag"}, "A tag to add, as often as wanted", False{},
+            None{}, []),
           Shake.pos("who", "Optional who, overrides --name", False{}, None{}, [])
         ], []),
       Shake.sub("add", "Add two numbers",
@@ -33,6 +35,14 @@ def greet.v(vv: Bool) -> IO(Unit):
     case False{}:
       IO.pure(Unit, Unit{})
 
+# the tags line, when any were given
+def greet.tags(tags: List<&2, String>) -> IO(Unit):
+  match tags:
+    case Nil{}:
+      IO.pure(Unit, Unit{})
+    case Con{hh, tt}:
+      IO.print("tags: " ++ String.join(hh <> tt, " "))
+
 # the value bound to `name`, or "" when nothing bound it
 def text(+mm: Shake.Matched, +name: String) -> String:
   Maybe.default(&2, String, Shake.get(mm, name), "")
@@ -43,6 +53,7 @@ def greet(+mm: Shake.Matched) -> IO(Unit):  # noqa: L001 IO
     +who : String <- IO.pure(String,
       Maybe.default(&2, String, Shake.get(mm, "who"), text(mm, "name")))
     IO.print("hello " ++ who)
+    greet.tags(Shake.get_all(mm, "tag"))
     greet.v(Shake.on(mm, "verbose"))
 
 # a successful add

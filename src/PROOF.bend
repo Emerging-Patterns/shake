@@ -36,6 +36,8 @@ def Laws.err_text_iff(spec, err):
       {==}
     case S.Cli{_n, _a, _v, _g, _s} S.Unexpected{_at, _arg}:
       {==}
+    case S.Cli{_n, _a, _v, _g, _s} S.Repeated{_at, _name}:
+      {==}
 
 def Laws.hit_append(bb, _vv, _xs, _ys):
   match bb:
