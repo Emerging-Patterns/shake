@@ -4050,3 +4050,37 @@ def Laws.help_word_binds(
           S.Arg{name, sh, lo, kind, hp, req, dflt, cs}, rest), False{}, True{}},
       hw.full(args, up, subs, path, bs, name, sh, lo, kind, hp, req, dflt, cs, rest, h_sub, h_ok)),
     h_done)
+
+# one letter against a failed walker keeps it failed, read or skipped
+def cd.letter(
+  done: Bool,
+  +cc: Char,
+  +rest: String,
+  +orig: String,
+  +err: S.ParseErr,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +bs: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool
+) -> {S.cluster.letter(done, cc, rest, orig, S.St{S.Dead{err}, args, up, subs, path, bs, pos, raw, seen})
+    == S.St{S.Dead{err}, args, up, subs, path, bs, pos, raw, seen} : S.St}:
+  match done:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+def Laws.cluster_dead(body, orig, err, args, up, subs, path, bs, pos, raw, seen, done):
+  match body:
+    case SNil{}:
+      {==}
+    case SCon{+cc, +rest}:
+      +dd = {S.St{S.Dead{err}, args, up, subs, path, bs, pos, raw, seen} : S.St}
+      ee = Equal.sym(S.St, S.cluster.letter(done, cc, rest, orig, dd), dd,
+        cd.letter(done, cc, rest, orig, err, args, up, subs, path, bs, pos, raw, seen))
+      %ee : {S.cluster(rest, orig, _, S.cluster.done(done, cc, rest, dd)) == dd : S.St}
+      Laws.cluster_dead(rest, orig, err, args, up, subs, path, bs, pos, raw, seen, S.cluster.done(done, cc, rest, dd))

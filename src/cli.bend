@@ -837,12 +837,34 @@ def cluster.ends(found: Maybe<&2, Arg>, +rest: String) -> Bool:
       Arg{_n, _s, _l, kind, _h, _r, _d, _c} = aa
       cluster.ends.kind(kind, rest)
 
-# one letter against the walker, through `take_arg`
+# one letter against a walker an earlier letter failed changes nothing;
+# otherwise it goes through `take_arg`
+def cluster.apply.mode(
+  mode: Mode,
+  +cc: Char,
+  +rest: String,
+  +orig: String,
+  +args: List<&2, Arg>,
+  +up: List<&2, Level>,
+  +subs: List<&2, Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, Bind>,
+  +pos: List<&2, Arg>,
+  +raw: Bool,
+  +seen: Bool
+) -> St:
+  match mode:
+    case Dead{e}:
+      St{Dead{e}, args, up, subs, path, binds, pos, raw, seen}
+    case _other:
+      +found = by_short(args, SCon{cc, SNil{}})
+      parse.take_arg(found, cluster.val(found, rest), orig, args, up, subs, path, binds, pos,
+        raw, seen)
+
+# one letter against the walker
 def cluster.apply(st: St, +cc: Char, +rest: String, +orig: String) -> St:
-  St{_mode, +args, +up, +subs, +path, +binds, +pos, +raw, +seen} = st
-  +found = by_short(args, SCon{cc, SNil{}})
-  parse.take_arg(found, cluster.val(found, rest), orig, args, up, subs, path, binds, pos,
-    raw, seen)
+  St{mode, +args, +up, +subs, +path, +binds, +pos, +raw, +seen} = st
+  cluster.apply.mode(mode, cc, rest, orig, args, up, subs, path, binds, pos, raw, seen)
 
 # one letter of a cluster, unless an earlier one ended it
 def cluster.letter(done: Bool, +cc: Char, +rest: String, +orig: String, st: St) -> St:
