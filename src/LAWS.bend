@@ -1573,3 +1573,103 @@ law required_missing:
     bs), nn) == False{} : Bool}
   exs name: String
   {Shake.parse(spec, ws) == Fail{S.Missing{path, name}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+
+# whether a pending positional blocks a subcommand: required, with no
+# default, and not a rest
+def blocks(aa: S.Arg) -> Bool:
+  S.Arg{_n, _s, _l, kind, _h, req, dflt, _c} = aa
+  Bool.and(Bool.not(S.rest.is.kind(kind)), Bool.and(req, Maybe.is_none(&2, String, dflt)))
+
+# whether no pending positional blocks a subcommand
+def none_block(pos: List<&2, S.Arg>) -> Bool:
+  match pos:
+    case Nil{}:
+      True{}
+    case Con{hh, tt}:
+      Bool.and(Bool.not(blocks(hh)), none_block(tt))
+
+# LAW: with no pending positional that is required, has no default and is not
+# a rest, nothing blocks a subcommand
+# SHAKE-PARSE-4
+law none_blocking:
+  for pos: List<&2, S.Arg>
+  for +h_none: {none_block(pos) == True{} : Bool}
+  {S.parse.first_req(pos) == None{} : Maybe<&2, String>}
+
+# LAW: the positional that blocks a subcommand is the first pending one that is
+# required, has no default and is not a rest
+# SHAKE-PARSE-4
+law first_blocking:
+  for pa: List<&2, S.Arg>
+  for +nm: String
+  for +sh: Maybe<&2, String>
+  for +lo: Maybe<&2, String>
+  for +kind: S.ArgKind
+  for +hp: String
+  for +cs: List<&2, String>
+  for +qa: List<&2, S.Arg>
+  for +h_pa: {none_block(pa) == True{} : Bool}
+  for h_kind: {S.rest.is.kind(kind) == False{} : Bool}
+  {S.parse.first_req(List.append(&2, S.Arg, pa, S.Arg{nm, sh, lo, kind, hp, True{}, None{}, cs} <> qa)) == Some{nm}
+    : Maybe<&2, String>}
+
+# LAW: wherever the words before it leave the walker free before `--`, a plain
+# word that names a subcommand of the current command, with nothing blocking
+# it, selects it: the path gains the subcommand's name, its arguments become
+# current with its positionals pending and no bindings of its own, and the
+# command left keeps its arguments and bindings above it
+# SHAKE-PARSE-4
+# SHAKE-TOK-7
+law enter_step:
+  for +spec: Shake.Cli
+  for +pre: List<&2, String>
+  for +tok: String
+  for +args: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +pos: List<&2, S.Arg>
+  for +seen: Bool
+  for +name: String
+  for +about: String
+  for +next: List<&2, S.Arg>
+  for +kids: List<&2, S.Sub>
+  for h_at: {S.parse.walk(pre, S.parse.start(spec))
+    == S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
+  for h_dd: {String.eq(tok, "--") == False{} : Bool}
+  for h_help: {String.eq(tok, "help") == False{} : Bool}
+  for +h_dash: {String.starts_with(tok, "-") == False{} : Bool}
+  for h_sub: {S.find_sub(subs, tok) == Some{S.Sub{name, about, next, kids}} : Maybe<&2, S.Sub>}
+  for h_req: {S.parse.first_req(pos) == None{} : Maybe<&2, String>}
+  {S.parse.walk(List.append(&2, String, pre, [tok]), S.parse.start(spec))
+    == S.St{S.Free{}, next, S.Level{args, bs} <> up, kids, List.append(&2, String, path, [name]), [], S.pos_of(next),
+      False{}, False{}} : S.St}
+
+# LAW: wherever the words before it leave the walker free before `--`, a plain
+# word that names a subcommand of the current command while a positional
+# blocks it fails the parse with Missing of that positional, whatever follows
+# SHAKE-PARSE-4
+law enter_missing:
+  for +spec: Shake.Cli
+  for +pre: List<&2, String>
+  for +more: List<&2, String>
+  for +tok: String
+  for +args: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +pos: List<&2, S.Arg>
+  for +seen: Bool
+  for +sub: S.Sub
+  for +nm: String
+  for h_at: {S.parse.walk(pre, S.parse.start(spec))
+    == S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
+  for h_dd: {String.eq(tok, "--") == False{} : Bool}
+  for h_help: {String.eq(tok, "help") == False{} : Bool}
+  for +h_dash: {String.starts_with(tok, "-") == False{} : Bool}
+  for h_sub: {S.find_sub(subs, tok) == Some{sub} : Maybe<&2, S.Sub>}
+  for h_req: {S.parse.first_req(pos) == Some{nm} : Maybe<&2, String>}
+  {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, [tok]), more))
+    == Fail{S.Missing{path, nm}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}

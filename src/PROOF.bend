@@ -3443,3 +3443,267 @@ def Laws.required_missing(
   fin.missing(S.parse.walk(ws, S.parse.start(spec)), List.append(&2, S.Level, qs, S.Level{args, bs} <> up), path,
     List.append(&2, S.Level, r0, S.Level{args, fb} <> rq), h_free, h_fr, fin.levels(qs, args, bs, up),
     fin.miss_levels_some(r0, args, fb, rq, fin.miss_args_some(pa, qa, nn, sh, lo, kind, hp, dflt, cs, fb, h_unbound)))
+
+# a plain word before `--` is read as a word: a subcommand or a positional
+def enter.word(
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +bs: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool,
+  h_dd: {String.eq(tok, "--") == False{} : Bool},
+  h_help: {String.eq(tok, "help") == False{} : Bool},
+  +h_dash: {String.starts_with(tok, "-") == False{} : Bool}
+) -> {S.parse.step(tok, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen})
+    == S.parse.word.go(S.find_sub(subs, tok), tok, args, up, subs, path, bs, pos, False{}, seen) : S.St}:
+  +rhs = S.parse.word.go(S.find_sub(subs, tok), tok, args, up, subs, path, bs, pos, False{}, seen)
+  e1 = Equal.sym(Bool, String.eq(tok, "--"), False{}, h_dd)
+  %e1 : {S.parse.step.end(_, tok, args, up, subs, path, bs, pos, seen) == rhs : S.St}
+  e2 = Equal.sym(Bool, String.eq(tok, "help"), False{}, h_help)
+  %e2 : {S.parse.step.help(Bool.and(_, Bool.not(seen)), tok, args, up, subs, path, bs, pos, seen) == rhs : S.St}
+  e3 = Equal.sym(Bool, String.starts_with(tok, "--"), False{}, Walk.wk.dash(tok, h_dash))
+  %e3 : {S.parse.step.kind.go(_, String.starts_with(tok, "-"), tok, args, up, subs, path, bs, pos, seen) == rhs : S.St}
+  e4 = Equal.sym(Bool, String.starts_with(tok, "-"), False{}, h_dash)
+  %e4 : {S.parse.step.kind.go(False{}, _, tok, args, up, subs, path, bs, pos, seen) == rhs : S.St}
+  {==}
+
+# a found subcommand, entered or refused, as the first blocking positional says
+def enter.go(
+  +tok: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +bs: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool,
+  +sub: S.Sub,
+  h_sub: {S.find_sub(subs, tok) == Some{sub} : Maybe<&2, S.Sub>}
+) -> {S.parse.word.go(S.find_sub(subs, tok), tok, args, up, subs, path, bs, pos, False{}, seen)
+    == S.parse.enter_or(S.parse.first_req(pos), sub, args, up, subs, path, bs, pos, False{}, seen) : S.St}:
+  ee = Equal.sym(Maybe<&2, S.Sub>, S.find_sub(subs, tok), Some{sub}, h_sub)
+  %ee : {S.parse.word.go(_, tok, args, up, subs, path, bs, pos, False{}, seen)
+    == S.parse.enter_or(S.parse.first_req(pos), sub, args, up, subs, path, bs, pos, False{}, seen) : S.St}
+  {==}
+
+# nothing blocking: the subcommand is entered
+def enter.none(
+  +pos: List<&2, S.Arg>,
+  +name: String,
+  +about: String,
+  +next: List<&2, S.Arg>,
+  +kids: List<&2, S.Sub>,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +bs: List<&2, S.Bind>,
+  +seen: Bool,
+  h_req: {S.parse.first_req(pos) == None{} : Maybe<&2, String>}
+) -> {S.parse.enter_or(S.parse.first_req(pos), S.Sub{name, about, next, kids}, args, up, subs, path, bs, pos, False{},
+      seen)
+    == S.St{S.Free{}, next, S.Level{args, bs} <> up, kids, List.append(&2, String, path, [name]), [], S.pos_of(next),
+      False{}, False{}} : S.St}:
+  er = Equal.sym(Maybe<&2, String>, S.parse.first_req(pos), None{}, h_req)
+  %er : {S.parse.enter_or(_, S.Sub{name, about, next, kids}, args, up, subs, path, bs, pos, False{}, seen)
+    == S.St{S.Free{}, next, S.Level{args, bs} <> up, kids, List.append(&2, String, path, [name]), [], S.pos_of(next),
+      False{}, False{}} : S.St}
+  {==}
+
+# a blocking positional: the word fails the step with Missing of it
+def enter.miss(
+  +pos: List<&2, S.Arg>,
+  +sub: S.Sub,
+  +nm: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +bs: List<&2, S.Bind>,
+  +seen: Bool,
+  h_req: {S.parse.first_req(pos) == Some{nm} : Maybe<&2, String>}
+) -> {Laws.dead_of(S.parse.enter_or(S.parse.first_req(pos), sub, args, up, subs, path, bs, pos, False{}, seen))
+    == Some{S.Missing{path, nm}} : Maybe<&2, S.ParseErr>}:
+  er = Equal.sym(Maybe<&2, String>, S.parse.first_req(pos), Some{nm}, h_req)
+  %er : {Laws.dead_of(S.parse.enter_or(_, sub, args, up, subs, path, bs, pos, False{}, seen))
+    == Some{S.Missing{path, nm}} : Maybe<&2, S.ParseErr>}
+  {==}
+
+# a step equal to a failed walker fails the same way
+def enter.dead(
+  +tok: String,
+  +st: S.St,
+  +st2: S.St,
+  +err: S.ParseErr,
+  ee: {st2 == S.parse.step(tok, st) : S.St},
+  hd: {Laws.dead_of(st2) == Some{err} : Maybe<&2, S.ParseErr>}
+) -> {Laws.dead_of(S.parse.step(tok, st)) == Some{err} : Maybe<&2, S.ParseErr>}:
+  %ee : {Laws.dead_of(_) == Some{err} : Maybe<&2, S.ParseErr>}
+  hd
+
+def Laws.enter_step(
+  spec,
+  pre,
+  tok,
+  args,
+  up,
+  subs,
+  path,
+  bs,
+  pos,
+  seen,
+  name,
+  about,
+  next,
+  kids,
+  h_at,
+  h_dd,
+  h_help,
+  h_dash,
+  h_sub,
+  h_req
+):
+  +st = {S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
+  +sub = {S.Sub{name, about, next, kids} : S.Sub}
+  +rhs = {S.St{S.Free{}, next, S.Level{args, bs} <> up, kids, List.append(&2, String, path, [name]), [], S.pos_of(next),
+    False{}, False{}} : S.St}
+  Equal.trans(S.St, S.parse.walk(List.append(&2, String, pre, [tok]), S.parse.start(spec)), S.parse.step(tok, st), rhs,
+    kept.stepped(spec, pre, tok, st, h_at),
+    Equal.trans(S.St, S.parse.step(tok, st),
+      S.parse.word.go(S.find_sub(subs, tok), tok, args, up, subs, path, bs, pos, False{}, seen), rhs,
+      enter.word(tok, args, up, subs, path, bs, pos, seen, h_dd, h_help, h_dash),
+      Equal.trans(S.St, S.parse.word.go(S.find_sub(subs, tok), tok, args, up, subs, path, bs, pos, False{}, seen),
+        S.parse.enter_or(S.parse.first_req(pos), sub, args, up, subs, path, bs, pos, False{}, seen), rhs,
+        enter.go(tok, args, up, subs, path, bs, pos, seen, sub, h_sub),
+        enter.none(pos, name, about, next, kids, args, up, subs, path, bs, seen, h_req))))
+
+def Laws.enter_missing(
+  spec,
+  pre,
+  more,
+  tok,
+  args,
+  up,
+  subs,
+  path,
+  bs,
+  pos,
+  seen,
+  sub,
+  nm,
+  h_at,
+  h_dd,
+  h_help,
+  h_dash,
+  h_sub,
+  h_req
+):
+  +st = {S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
+  e1 = Equal.sym(S.St, S.parse.step(tok, st),
+    S.parse.enter_or(S.parse.first_req(pos), sub, args, up, subs, path, bs, pos, False{}, seen),
+    Equal.trans(S.St, S.parse.step(tok, st),
+      S.parse.word.go(S.find_sub(subs, tok), tok, args, up, subs, path, bs, pos, False{}, seen),
+      S.parse.enter_or(S.parse.first_req(pos), sub, args, up, subs, path, bs, pos, False{}, seen),
+      enter.word(tok, args, up, subs, path, bs, pos, seen, h_dd, h_help, h_dash),
+      enter.go(tok, args, up, subs, path, bs, pos, seen, sub, h_sub)))
+  Laws.refused(spec, pre, more, tok, st, S.Missing{path, nm}, h_at,
+    enter.dead(tok, st, S.parse.enter_or(S.parse.first_req(pos), sub, args, up, subs, path, bs, pos, False{}, seen),
+      S.Missing{path, nm}, e1, enter.miss(pos, sub, nm, args, up, subs, path, bs, seen, h_req)))
+
+# a positional that does not block a subcommand is skipped: a rest, one not
+# required, or one with a default
+def blk.req(
+  rk: Bool,
+  req: Bool,
+  dflt: Maybe<&2, String>,
+  +nm: String,
+  +sh: Maybe<&2, String>,
+  +lo: Maybe<&2, String>,
+  +kind: S.ArgKind,
+  +hp: String,
+  +cs: List<&2, String>,
+  hh: {Bool.not(Bool.and(Bool.not(rk), Bool.and(req, Maybe.is_none(&2, String, dflt)))) == True{} : Bool}
+) -> {S.parse.first_req.skip(rk, S.Arg{nm, sh, lo, kind, hp, req, dflt, cs}) == None{} : Maybe<&2, String>}:
+  match rk:
+    case True{}:
+      {==}
+    case False{}:
+      match req:
+        case False{}:
+          {==}
+        case True{}:
+          match dflt:
+            case Some{_d}:
+              {==}
+            case None{}:
+              Empty.absurd({S.parse.first_req.skip(False{}, S.Arg{nm, sh, lo, kind, hp, True{}, None{}, cs}) == None{}
+                : Maybe<&2, String>}, Walk.wk.false_true(hh))
+
+# the same, from the argument's kind
+def blk.skip(
+  +kind: S.ArgKind,
+  +req: Bool,
+  +dflt: Maybe<&2, String>,
+  +nm: String,
+  +sh: Maybe<&2, String>,
+  +lo: Maybe<&2, String>,
+  +hp: String,
+  +cs: List<&2, String>,
+  hh: {Bool.not(Laws.blocks(S.Arg{nm, sh, lo, kind, hp, req, dflt, cs})) == True{} : Bool}
+) -> {S.parse.first_req.skip(S.rest.is.kind(kind), S.Arg{nm, sh, lo, kind, hp, req, dflt, cs}) == None{}
+    : Maybe<&2, String>}:
+  blk.req(S.rest.is.kind(kind), req, dflt, nm, sh, lo, kind, hp, cs, hh)
+
+# past a positional that does not block, the first blocking one is the rest's
+def blk.past(
+  +kind: S.ArgKind,
+  +req: Bool,
+  +dflt: Maybe<&2, String>,
+  +nm: String,
+  +sh: Maybe<&2, String>,
+  +lo: Maybe<&2, String>,
+  +hp: String,
+  +cs: List<&2, String>,
+  +tt: List<&2, S.Arg>,
+  hh: {Bool.not(Laws.blocks(S.Arg{nm, sh, lo, kind, hp, req, dflt, cs})) == True{} : Bool}
+) -> {S.parse.first_req(S.Arg{nm, sh, lo, kind, hp, req, dflt, cs} <> tt) == S.parse.first_req(tt) : Maybe<&2, String>}:
+  ee = Equal.sym(Maybe<&2, String>,
+    S.parse.first_req.skip(S.rest.is.kind(kind), S.Arg{nm, sh, lo, kind, hp, req, dflt, cs}), None{},
+    blk.skip(kind, req, dflt, nm, sh, lo, hp, cs, hh))
+  %ee : {S.parse.first_req.at(_, S.parse.first_req(tt)) == S.parse.first_req(tt) : Maybe<&2, String>}
+  {==}
+
+def Laws.none_blocking(pos, h_none):
+  match pos:
+    case Nil{}:
+      {==}
+    case Con{hd, +tt}:
+      match hd:
+        case S.Arg{+nm, +sh, +lo, +kind, +hp, +req, +dflt, +cs}:
+          +ab = {S.Arg{nm, sh, lo, kind, hp, req, dflt, cs} : S.Arg}
+          Equal.trans(Maybe<&2, String>, S.parse.first_req(ab <> tt), S.parse.first_req(tt), None{},
+            blk.past(kind, req, dflt, nm, sh, lo, hp, cs, tt,
+              Walk.wk.and_l(Bool.not(Laws.blocks(ab)), Laws.none_block(tt), h_none)),
+            Laws.none_blocking(tt, Walk.wk.and_r(Bool.not(Laws.blocks(ab)), Laws.none_block(tt), h_none)))
+
+def Laws.first_blocking(pa, nm, sh, lo, kind, hp, cs, qa, h_pa, h_kind):
+  match pa:
+    case Nil{}:
+      ee = Equal.sym(Bool, S.rest.is.kind(kind), False{}, h_kind)
+      %ee : {S.parse.first_req.at(S.parse.first_req.skip(_, S.Arg{nm, sh, lo, kind, hp, True{}, None{}, cs}),
+          S.parse.first_req(qa)) == Some{nm} : Maybe<&2, String>}
+      {==}
+    case Con{hd, +tt}:
+      match hd:
+        case S.Arg{+n2, +s2, +l2, +k2, +h2, +r2, +d2, +c2}:
+          +ab = {S.Arg{n2, s2, l2, k2, h2, r2, d2, c2} : S.Arg}
+          +rest = List.append(&2, S.Arg, tt, S.Arg{nm, sh, lo, kind, hp, True{}, None{}, cs} <> qa)
+          Equal.trans(Maybe<&2, String>, S.parse.first_req(ab <> rest), S.parse.first_req(rest), Some{nm},
+            blk.past(k2, r2, d2, n2, s2, l2, h2, c2, rest, Walk.wk.and_l(Bool.not(Laws.blocks(ab)),
+                Laws.none_block(tt), h_pa)),
+            Laws.first_blocking(tt, nm, sh, lo, kind, hp, cs, qa,
+              Walk.wk.and_r(Bool.not(Laws.blocks(ab)), Laws.none_block(tt), h_pa), h_kind))
+
