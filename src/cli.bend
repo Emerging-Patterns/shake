@@ -1073,7 +1073,7 @@ def parse.step.short(
 ) -> St:
   match dash:
     case True{}:
-      parse.step.short.go(String.eq(tok, "-"), tok, args, up, subs, path, binds,
+      parse.step.short.go(String.is_empty(String.drop(tok, 1n)), tok, args, up, subs, path, binds,
         pos, seen)
     case False{}:
       parse.word(tok, args, up, subs, path, binds, pos, False{}, seen)

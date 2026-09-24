@@ -2710,3 +2710,58 @@ law values_here:
     : Grow.Frame}
   for h_len: {List.length(&2, S.Level, up) == List.length(&2, String, path) : Nat}
   {named_at(found, path, mid, args) == Some{True{}} : Maybe<&2, Bool>}
+
+# a count, with one more when a value is not `true`
+def valued.at(flag: Bool, nn: Nat) -> Nat:
+  match flag:
+    case True{}:
+      nn
+    case False{}:
+      1n+nn
+
+# how many bindings have a value other than `true`, the value a flag binds
+def valued(bs: List<&2, S.Bind>) -> Nat:
+  match bs:
+    case Nil{}:
+      0n
+    case Con{hh, tt}:
+      S.Bind{_n, vv} = hh
+      valued.at(String.eq(vv, "true"), valued(tt))
+
+# whether `aa` is at most `bb`
+def nat_le(aa: Nat, bb: Nat) -> Bool:
+  match aa:
+    case 0n:
+      True{}
+    case 1n+pp:
+      match bb:
+        case 0n:
+          False{}
+        case 1n+qq:
+          nat_le(pp, qq)
+
+# a walker's bindings for its current command
+def binds_of(st: S.St) -> List<&2, S.Bind>:
+  S.St{_m, _a, _g, _s, _p, binds, _o, _r, _n} = st
+  binds
+
+# LAW: one word adds at most one binding to the current command other than
+# `true`, which a flag binds: a word never binds two values, whatever the
+# walker it is read by
+# SHAKE-PARSE-1
+law one_value_per_word:
+  for +tok: String
+  for +st: S.St
+  {nat_le(valued(binds_of(S.parse.step(tok, st))), 1n+valued(binds_of(st))) == True{} : Bool}
+
+# LAW: a word read by a walker that can still finish as a success changes it:
+# it binds a value, sets a flag, enters a subcommand, waits for an option's
+# value, switches to positionals, starts a help path, or fails. No word is
+# ignored
+# SHAKE-PARSE-1
+law word_used:
+  for +tok: String
+  for +st: S.St
+  for h_live: {Grow.gw.live(st) == True{} : Bool}
+  for h_same: {S.parse.step(tok, st) == st : S.St}
+  Empty

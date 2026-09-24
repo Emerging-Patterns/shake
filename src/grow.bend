@@ -683,7 +683,7 @@ law gw.step_short:
 def gw.step_short(dash, tok, args, up, subs, path, binds, pos, seen):
   match dash:
     case True{}:
-      gw.short_go(String.eq(tok, "-"), tok, args, up, subs, path, binds, pos, seen)
+      gw.short_go(String.is_empty(String.drop(tok, 1n)), tok, args, up, subs, path, binds, pos, seen)
     case False{}:
       gw.word(tok, args, up, subs, path, binds, pos, False{}, seen)
 
