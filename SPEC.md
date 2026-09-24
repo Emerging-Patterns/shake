@@ -1,10 +1,10 @@
 # shake specification
 
-This is the list of every behavior shake guarantees, each under a stable requirement ID. Every requirement is about the interface in `main.bend`: its types, builders, `parse`, `check`, the readers, `help`, `err_text`, `help_path` and `argv`. Every module under `src/` is internal and carries no promise.
+This is the list of every behavior shake guarantees, each under a stable requirement ID. Every requirement is about the interface in `main.bend`: its types, builders, `parse`, `check`, the readers, `help`, `err_text`, `help_path`, `err_path` and `argv`. Every module under `src/` is internal and carries no promise.
 
 Every requirement has one of two levels. A **Proved** requirement holds for every input, and is backed by a quantified law (a `for` or `exs` binder) in `src/LAWS.bend` that passes the proof gate. A **Trusted** requirement is an assumption shake cannot check from inside its own gate, and it is listed in the trust boundary below. A Proved requirement whose laws have not all landed has status **pending**: we intend to prove it, and until then it is not guaranteed. The proof gate is this check: the first line `bend src/PROOF.bend` prints is exactly `All terms check.` (`ez prove`). Tests and fixtures are never evidence for a requirement.
 
-A spec is **well-formed** when `check` reports nothing for it (SHAKE-SPEC-1). The parse requirements hold for well-formed specs; a spec that contradicts itself, such as two options spelled `-n`, is its author's bug and not an input a user can give. A **plain word** is `-`, or a word that does not start with `-`. The **current command** is the command whose arguments `parse` matches words against: the root, then each subcommand it selects. The **selected path** is the names of the subcommands selected, in order.
+A spec is **well-formed** when `check` reports nothing for it (SHAKE-SPEC-1). The parse requirements hold for well-formed specs; a spec that contradicts itself, such as two options spelled `-n`, is its author's bug and not an input a user can give. Every error a row names but `NeedHelp` also carries `at`, the command path selected where the parse failed (SHAKE-ERR-2); rows write it only where it matters. A **plain word** is `-`, or a word that does not start with `-`. The **current command** is the command whose arguments `parse` matches words against: the root, then each subcommand it selects. The **selected path** is the names of the subcommands selected, in order.
 
 The words `parse` receives are what the program passes it. In a compiled program they come from `argv`, after the runtime has taken its own flags and the first `--` (SHAKE-TRUST-2).
 
@@ -77,6 +77,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
 | SHAKE-ERR-1 | `err_text(spec, err)` is empty exactly when `help_path(err)` is `Some`, that is, when the parse failed with a request for help. | Proved | proved | src/LAWS.bend err_text_help; src/LAWS.bend err_text_iff |
+| SHAKE-ERR-2 | For every error but a request for help, `err_path(err)` is the path of subcommands the parse had selected at the word that failed it, and `err_text(spec, err)` shows the usage line of the command at that path, as `help(spec, err_path(err))` does. | Proved | pending |  |
 
 ### The argument list (SHAKE-ARGS)
 

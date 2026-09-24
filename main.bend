@@ -1,10 +1,11 @@
 # shake: CLI argument parser for Bend 2. Describe a program with `app`, `sub`,
 # `flag`, `opt`, `pos` and `rest`; `parse` binds argv against it, and `get`,
 # `get_all`, `on` and `path_of` read the result. `help` writes the usage page
-# for a command path, `err_text` the message for a failed parse, and
-# `help_path` tells a request for help from an error. `check` reports a spec
-# that contradicts itself. `argv` is the process's arguments. This file is
-# the interface: everything under src/ is internal.
+# for a command path. For a failed parse, `help_path` tells a request for help
+# from an error, `err_text` writes the message and `err_path` names the command
+# it failed in. `check` reports a spec that contradicts itself. `argv` is the
+# process's arguments. This file is the interface: everything under src/ is
+# internal.
 import Base
 import ./src/cli.bend as S
 import ./src/args.bend as Args
@@ -136,21 +137,38 @@ def help(+spec: S.Cli, path: List<&2, String>) -> String:
 def err_text(+spec: S.Cli, err: S.ParseErr) -> String:
   S.err_text(spec, err)
 
+# the command path where the parse failed: the path selected when it did, or
+# for a request for help the path it asks about
+def err_path(err: S.ParseErr) -> List<&2, String>:
+  match err:
+    case S.UnknownFlag{at, _flag}:
+      at
+    case S.Missing{at, _name}:
+      at
+    case S.NoValue{at, _name}:
+      at
+    case S.BadValue{at, _name, _value}:
+      at
+    case S.NeedHelp{path}:
+      path
+    case S.Unexpected{at, _arg}:
+      at
+
 # the command path of a request for help (`help`, `help <path>`), or None
 # when the parse failed for another reason
 def help_path(err: S.ParseErr) -> Maybe<&2, List<&2, String>>:
   match err:
     case S.NeedHelp{path}:
       Some{path}
-    case S.UnknownFlag{_flag}:
+    case S.UnknownFlag{_at, _flag}:
       None{}
-    case S.Missing{_name}:
+    case S.Missing{_at, _name}:
       None{}
-    case S.NoValue{_name}:
+    case S.NoValue{_at, _name}:
       None{}
-    case S.BadValue{_name, _value}:
+    case S.BadValue{_at, _name, _value}:
       None{}
-    case S.Unexpected{_arg}:
+    case S.Unexpected{_at, _arg}:
       None{}
 
 # the process's arguments, each word reusable. A compiled program's runtime
