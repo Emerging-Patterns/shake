@@ -4084,3 +4084,667 @@ def Laws.cluster_dead(body, orig, err, args, up, subs, path, bs, pos, raw, seen,
         cd.letter(done, cc, rest, orig, err, args, up, subs, path, bs, pos, raw, seen))
       %ee : {S.cluster(rest, orig, _, S.cluster.done(done, cc, rest, dd)) == dd : S.St}
       Laws.cluster_dead(rest, orig, err, args, up, subs, path, bs, pos, raw, seen, S.cluster.done(done, cc, rest, dd))
+
+# one letter of a cluster in a free walker, once the argument it spells is
+# known: `take_arg` with the value the letter's kind gives, then the rest,
+# ended or not as the kind says
+def cl.step(
+  +cc: Char,
+  +rest: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +bs: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +aa: S.Arg,
+  h_found: {S.by_short(args, SCon{cc, SNil{}}) == Some{aa} : Maybe<&2, S.Arg>}
+) -> {S.cluster(SCon{cc, rest}, orig, S.St{S.Free{}, args, up, subs, path, bs, pos, raw, seen}, False{})
+    == S.cluster(rest, orig, S.parse.take_arg(Some{aa}, S.cluster.val(Some{aa}, rest), orig, args, up, subs,
+        path, bs, pos,
+      raw, seen), S.cluster.ends(Some{aa}, rest)) : S.St}:
+  ee = Equal.sym(Maybe<&2, S.Arg>, S.by_short(args, SCon{cc, SNil{}}), Some{aa}, h_found)
+  %ee : {S.cluster(rest, orig, S.parse.take_arg(_, S.cluster.val(_, rest), orig, args, up, subs, path, bs, pos, raw,
+      seen), S.cluster.ends(_, rest))
+    == S.cluster(rest, orig, S.parse.take_arg(Some{aa}, S.cluster.val(Some{aa}, rest), orig, args, up, subs, path, bs,
+      pos, raw, seen), S.cluster.ends(Some{aa}, rest)) : S.St}
+  {==}
+
+# the same, the other way round, for rewriting a goal about the cluster
+def cl.back(
+  +cc: Char,
+  +rest: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +bs: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +aa: S.Arg,
+  h_found: {S.by_short(args, SCon{cc, SNil{}}) == Some{aa} : Maybe<&2, S.Arg>}
+) -> {S.cluster(rest, orig, S.parse.take_arg(Some{aa}, S.cluster.val(Some{aa}, rest), orig, args, up, subs,
+    path, bs, pos,
+      raw, seen), S.cluster.ends(Some{aa}, rest))
+    == S.cluster(SCon{cc, rest}, orig, S.St{S.Free{}, args, up, subs, path, bs, pos, raw, seen}, False{}) : S.St}:
+  Equal.sym(S.St, S.cluster(SCon{cc, rest}, orig, S.St{S.Free{}, args, up, subs, path, bs, pos, raw, seen}, False{}),
+    S.cluster(rest, orig, S.parse.take_arg(Some{aa}, S.cluster.val(Some{aa}, rest), orig, args, up, subs, path, bs, pos,
+      raw, seen), S.cluster.ends(Some{aa}, rest)),
+    cl.step(cc, rest, orig, args, up, subs, path, bs, pos, raw, seen, aa, h_found))
+
+def Laws.short_step(cc, rest, args, up, subs, path, bs, pos, seen, h_dd, h_dash):
+  +tok = "-" ++ SCon{cc, rest}
+  +st = {S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
+  e1 = Equal.sym(Bool, String.eq(tok, "--"), False{}, h_dd)
+  %e1 : {S.parse.step.end(_, tok, args, up, subs, path, bs, pos, seen) == S.cluster(SCon{cc, rest}, tok, st,
+      False{}) : S.St}
+  e3 = Equal.sym(Bool, Char.is_eq(cc, '-'), False{}, h_dash)
+  %e3 : {S.parse.step.kind.go(String.starts_with.if(rest, "", _), True{}, tok, args, up, subs, path, bs, pos, seen)
+    == S.cluster(SCon{cc, rest}, tok, st, False{}) : S.St}
+  {==}
+
+# a cluster whose walker has failed stays failed, whatever letters are left
+def cl.dead(
+  +rest: String,
+  +orig: String,
+  xx: S.St,
+  +done: Bool,
+  +err: S.ParseErr,
+  hh: {Laws.dead_of(xx) == Some{err} : Maybe<&2, S.ParseErr>}
+) -> {Laws.dead_of(S.cluster(rest, orig, xx, done)) == Some{err} : Maybe<&2, S.ParseErr>}:
+  match xx:
+    case S.St{S.Dead{+ee}, +a, +g, +s, +p, +b, +o, +r, +n}:
+      ec = Equal.sym(S.St, S.cluster(rest, orig, S.St{S.Dead{ee}, a, g, s, p, b, o, r, n}, done),
+        S.St{S.Dead{ee}, a, g, s, p, b, o, r, n}, Laws.cluster_dead(rest, orig, ee, a, g, s, p, b, o, r, n, done))
+      %ec : {Laws.dead_of(_) == Some{err} : Maybe<&2, S.ParseErr>}
+      hh
+    case S.St{S.Free{}, _a, _g, _s, _p, _b, _o, _r, _n}:
+      none.absurd(&1, {Laws.dead_of(S.cluster(rest, orig, S.St{S.Free{}, _a, _g, _s, _p, _b, _o, _r, _n},
+          done)) == Some{err}
+        : Maybe<&2, S.ParseErr>}, err, hh)
+    case S.St{S.Need{_m}, _a, _g, _s, _p, _b, _o, _r, _n}:
+      none.absurd(&1, {Laws.dead_of(S.cluster(rest, orig, S.St{S.Need{_m}, _a, _g, _s, _p, _b, _o, _r, _n}, done))
+        == Some{err} : Maybe<&2, S.ParseErr>}, err, hh)
+    case S.St{S.Help{}, _a, _g, _s, _p, _b, _o, _r, _n}:
+      none.absurd(&1, {Laws.dead_of(S.cluster(rest, orig, S.St{S.Help{}, _a, _g, _s, _p, _b, _o, _r, _n},
+          done)) == Some{err}
+        : Maybe<&2, S.ParseErr>}, err, hh)
+
+def Laws.letter_flag(
+  cc,
+  rest,
+  orig,
+  args,
+  up,
+  subs,
+  path,
+  bs,
+  pos,
+  raw,
+  seen,
+  nn,
+  sh,
+  lo,
+  hp,
+  req,
+  dflt,
+  cs,
+  h_found,
+  h_once,
+  h_noeq
+):
+  +aa = {S.Arg{nn, sh, lo, S.Flag{}, hp, req, dflt, cs} : S.Arg}
+  +rhs = {S.cluster(rest, orig, S.St{S.Free{}, args, up, subs, path, S.Bind{nn, "true"} <> bs, pos, raw, seen}, False{})
+    : S.St}
+  e0 = cl.back(cc, rest, orig, args, up, subs, path, bs, pos, raw, seen, aa, h_found)
+  %e0 : {_ == rhs : S.St}
+  e1 = Equal.sym(Bool, String.starts_with(rest, "="), False{}, h_noeq)
+  %e1 : {S.cluster(rest, orig, S.parse.take_arg.kind(S.Flag{}, nn, S.cluster.val.flag(_, rest), orig, args, up,
+      subs, path,
+      bs, pos, raw, seen), _) == rhs : S.St}
+  e2 = Equal.sym(Bool, S.bound(bs, nn), False{}, h_once)
+  %e2 : {S.cluster(rest, orig, S.parse.once(_, S.parse.take_flag(None{}, nn, orig, args, up, subs, path, bs,
+      pos, raw, seen),
+      nn, path), False{}) == rhs : S.St}
+  {==}
+
+def Laws.letter_flag_eq(
+  cc,
+  rest,
+  orig,
+  args,
+  up,
+  subs,
+  path,
+  bs,
+  pos,
+  raw,
+  seen,
+  nn,
+  sh,
+  lo,
+  hp,
+  req,
+  dflt,
+  cs,
+  h_found,
+  h_once,
+  h_eq
+):
+  +aa = {S.Arg{nn, sh, lo, S.Flag{}, hp, req, dflt, cs} : S.Arg}
+  +dd = {S.St{S.Dead{S.Unexpected{path, orig}}, args, up, subs, path, bs, pos, raw, seen} : S.St}
+  e0 = cl.back(cc, rest, orig, args, up, subs, path, bs, pos, raw, seen, aa, h_found)
+  %e0 : {_ == dd : S.St}
+  e1 = Equal.sym(Bool, String.starts_with(rest, "="), True{}, h_eq)
+  %e1 : {S.cluster(rest, orig, S.parse.take_arg.kind(S.Flag{}, nn, S.cluster.val.flag(_, rest), orig, args, up,
+      subs, path,
+      bs, pos, raw, seen), _) == dd : S.St}
+  e2 = Equal.sym(Bool, S.bound(bs, nn), False{}, h_once)
+  %e2 : {S.cluster(rest, orig, S.parse.once(_, dd, nn, path), True{}) == dd : S.St}
+  Laws.cluster_done(rest, orig, dd)
+
+def Laws.letter_unknown(cc, rest, orig, args, up, subs, path, bs, pos, raw, seen, h_none):
+  +dd = {S.St{S.Dead{S.UnknownFlag{path, orig}}, args, up, subs, path, bs, pos, raw, seen} : S.St}
+  e2 = Equal.sym(Maybe<&2, S.Arg>, S.by_short(args, SCon{cc, SNil{}}), None{}, h_none)
+  %e2 : {S.cluster(rest, orig,
+      S.parse.take_arg(_, S.cluster.val(_, rest), orig, args, up, subs, path, bs, pos, raw, seen),
+      S.cluster.ends(_, rest)) == dd : S.St}
+  Laws.cluster_done(rest, orig, dd)
+
+def Laws.letter_flag_again(
+  cc,
+  rest,
+  orig,
+  args,
+  up,
+  subs,
+  path,
+  bs,
+  pos,
+  raw,
+  seen,
+  nn,
+  sh,
+  lo,
+  hp,
+  req,
+  dflt,
+  cs,
+  h_found,
+  h_again
+):
+  +aa = {S.Arg{nn, sh, lo, S.Flag{}, hp, req, dflt, cs} : S.Arg}
+  +vv = S.cluster.val.flag(String.starts_with(rest, "="), rest)
+  e0 = cl.back(cc, rest, orig, args, up, subs, path, bs, pos, raw, seen, aa, h_found)
+  %e0 : {Laws.dead_of(_) == Some{S.Repeated{path, nn}} : Maybe<&2, S.ParseErr>}
+  e2 = Equal.sym(Bool, S.bound(bs, nn), True{}, h_again)
+  %e2 : {Laws.dead_of(S.cluster(rest, orig, S.parse.once(_, S.parse.take_flag(vv, nn, orig, args, up, subs,
+      path, bs, pos,
+      raw, seen), nn, path), String.starts_with(rest, "="))) == Some{S.Repeated{path, nn}} : Maybe<&2, S.ParseErr>}
+  cl.dead(rest, orig, S.parse.once(True{}, S.parse.take_flag(vv, nn, orig, args, up, subs, path, bs, pos, raw,
+      seen), nn,
+      path), String.starts_with(rest, "="), S.Repeated{path, nn},
+    Laws.once_dead(S.parse.take_flag(vv, nn, orig, args, up, subs, path, bs, pos, raw, seen), nn, path))
+
+def Laws.letter_opt_again(
+  cc,
+  rest,
+  orig,
+  args,
+  up,
+  subs,
+  path,
+  bs,
+  pos,
+  raw,
+  seen,
+  nn,
+  sh,
+  lo,
+  hp,
+  req,
+  dflt,
+  cs,
+  h_found,
+  h_again
+):
+  +aa = {S.Arg{nn, sh, lo, S.Opt{}, hp, req, dflt, cs} : S.Arg}
+  +vv = S.short_of.val(String.starts_with(rest, "="), rest)
+  e0 = cl.back(cc, rest, orig, args, up, subs, path, bs, pos, raw, seen, aa, h_found)
+  %e0 : {Laws.dead_of(_) == Some{S.Repeated{path, nn}} : Maybe<&2, S.ParseErr>}
+  e2 = Equal.sym(Bool, S.bound(bs, nn), True{}, h_again)
+  %e2 : {Laws.dead_of(S.cluster(rest, orig, S.parse.once(_, S.parse.take_opt(vv, nn, args, up, subs, path, bs, pos, raw,
+      seen), nn, path), True{})) == Some{S.Repeated{path, nn}} : Maybe<&2, S.ParseErr>}
+  cl.dead(rest, orig, S.parse.once(True{}, S.parse.take_opt(vv, nn, args, up, subs, path, bs, pos, raw, seen),
+      nn, path),
+    True{}, S.Repeated{path, nn}, Laws.once_dead(S.parse.take_opt(vv, nn, args, up, subs, path, bs, pos, raw,
+        seen), nn, path))
+
+# what `lv` claims of an argument kind
+def lv.ty(
+  kk: S.ArgKind,
+  +rest: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +bs: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +nn: String
+) -> Type:
+  {S.cluster(rest, orig, S.parse.take_arg.kind(kk, nn, S.cluster.val.kind(kk, rest), orig, args, up, subs, path,
+      bs, pos, raw, seen),
+    S.cluster.ends.kind(kk, rest)) == S.St{S.Free{}, args, up, subs, path, S.Bind{nn,
+        rest} <> bs, pos, raw, seen} : S.St}
+
+# a letter spelling an option that takes a value now, with a glued value its
+# choices allow, by the option's kind
+def lv(
+  kk: S.ArgKind,
+  +rest: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +bs: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +nn: String,
+  h_kind: {Laws.takes(kk, S.bound(bs, nn)) == True{} : Bool},
+  h_noeq: {String.starts_with(rest, "=") == False{} : Bool},
+  h_some: {String.is_empty(rest) == False{} : Bool},
+  h_ok: {S.allowed(S.parse.choices(S.by_name(args, nn)), rest) == True{} : Bool}
+) -> lv.ty(kk, rest, orig, args, up, subs, path, bs, pos, raw, seen, nn):
+  match kk:
+    case S.Opt{}:
+      +T = {S.St{S.Free{}, args, up, subs, path, S.Bind{nn, rest} <> bs, pos, raw, seen} : S.St}
+      e1 = Equal.sym(Bool, String.starts_with(rest, "="), False{}, h_noeq)
+      %e1 : {S.cluster(rest, orig, S.parse.take_arg.kind(S.Opt{}, nn, S.short_of.val(_, rest), orig, args, up,
+          subs, path, bs, pos, raw, seen), True{})
+        == T : S.St}
+      e2 = Equal.sym(Bool, String.is_empty(rest), False{}, h_some)
+      %e2 : {S.cluster(rest, orig, S.parse.take_arg.kind(S.Opt{}, nn,
+          Bool.pick(Maybe<&2, String>, _, None{},
+              Some{rest}), orig, args, up, subs, path, bs, pos, raw, seen), True{}) == T : S.St}
+      e3 = Equal.sym(Bool, S.bound(bs, nn), False{}, Walk.wk.not_true(S.bound(bs, nn), h_kind))
+      %e3 : {S.cluster(rest, orig, S.parse.once(_, S.parse.take_opt(Some{rest}, nn, args, up, subs, path, bs,
+          pos, raw, seen), nn, path), True{}) == T
+        : S.St}
+      e4 = Equal.sym(Bool, S.allowed(S.parse.choices(S.by_name(args, nn)), rest), True{}, h_ok)
+      %e4 : {S.cluster(rest, orig, S.parse.take_choice(_, nn, rest, args, up, subs, path, bs, pos, raw, seen),
+          True{}) == T : S.St}
+      Laws.cluster_done(rest, orig, T)
+    case S.Many{}:
+      +T = {S.St{S.Free{}, args, up, subs, path, S.Bind{nn, rest} <> bs, pos, raw, seen} : S.St}
+      e1 = Equal.sym(Bool, String.starts_with(rest, "="), False{}, h_noeq)
+      %e1 : {S.cluster(rest, orig, S.parse.take_arg.kind(S.Many{}, nn, S.short_of.val(_, rest), orig, args, up,
+          subs, path, bs, pos, raw, seen), True{})
+        == T : S.St}
+      e2 = Equal.sym(Bool, String.is_empty(rest), False{}, h_some)
+      %e2 : {S.cluster(rest, orig, S.parse.take_arg.kind(S.Many{}, nn,
+          Bool.pick(Maybe<&2, String>, _, None{},
+              Some{rest}), orig, args, up, subs, path, bs, pos, raw, seen), True{}) == T : S.St}
+      e4 = Equal.sym(Bool, S.allowed(S.parse.choices(S.by_name(args, nn)), rest), True{}, h_ok)
+      %e4 : {S.cluster(rest, orig, S.parse.take_choice(_, nn, rest, args, up, subs, path, bs, pos, raw, seen),
+          True{}) == T : S.St}
+      Laws.cluster_done(rest, orig, T)
+    case S.Flag{}:
+      Empty.absurd(lv.ty(S.Flag{}, rest, orig, args, up, subs, path, bs, pos, raw, seen, nn),
+          Walk.wk.false_true(h_kind))
+    case S.Pos{}:
+      Empty.absurd(lv.ty(S.Pos{}, rest, orig, args, up, subs, path, bs, pos, raw, seen, nn), Walk.wk.false_true(h_kind))
+    case S.Rest{}:
+      Empty.absurd(lv.ty(S.Rest{}, rest, orig, args, up, subs, path, bs, pos, raw, seen, nn),
+          Walk.wk.false_true(h_kind))
+
+# what `lb` claims of an argument kind
+def lb.ty(
+  kk: S.ArgKind,
+  +rest: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +bs: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +nn: String
+) -> Type:
+  {S.cluster(rest, orig, S.parse.take_arg.kind(kk, nn, S.cluster.val.kind(kk, rest), orig, args, up, subs, path,
+      bs, pos, raw, seen),
+    S.cluster.ends.kind(kk, rest)) == S.St{S.Dead{S.BadValue{path, nn,
+        rest}}, args, up, subs, path, bs, pos, raw, seen} : S.St}
+
+# the same, with a glued value its choices refuse
+def lb(
+  kk: S.ArgKind,
+  +rest: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +bs: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +nn: String,
+  h_kind: {Laws.takes(kk, S.bound(bs, nn)) == True{} : Bool},
+  h_noeq: {String.starts_with(rest, "=") == False{} : Bool},
+  h_some: {String.is_empty(rest) == False{} : Bool},
+  h_ok: {S.allowed(S.parse.choices(S.by_name(args, nn)), rest) == False{} : Bool}
+) -> lb.ty(kk, rest, orig, args, up, subs, path, bs, pos, raw, seen, nn):
+  match kk:
+    case S.Opt{}:
+      +T = {S.St{S.Dead{S.BadValue{path, nn, rest}}, args, up, subs, path, bs, pos, raw, seen} : S.St}
+      e1 = Equal.sym(Bool, String.starts_with(rest, "="), False{}, h_noeq)
+      %e1 : {S.cluster(rest, orig, S.parse.take_arg.kind(S.Opt{}, nn, S.short_of.val(_, rest), orig, args, up,
+          subs, path, bs, pos, raw, seen), True{})
+        == T : S.St}
+      e2 = Equal.sym(Bool, String.is_empty(rest), False{}, h_some)
+      %e2 : {S.cluster(rest, orig, S.parse.take_arg.kind(S.Opt{}, nn,
+          Bool.pick(Maybe<&2, String>, _, None{},
+              Some{rest}), orig, args, up, subs, path, bs, pos, raw, seen), True{}) == T : S.St}
+      e3 = Equal.sym(Bool, S.bound(bs, nn), False{}, Walk.wk.not_true(S.bound(bs, nn), h_kind))
+      %e3 : {S.cluster(rest, orig, S.parse.once(_, S.parse.take_opt(Some{rest}, nn, args, up, subs, path, bs,
+          pos, raw, seen), nn, path), True{}) == T
+        : S.St}
+      e4 = Equal.sym(Bool, S.allowed(S.parse.choices(S.by_name(args, nn)), rest), False{}, h_ok)
+      %e4 : {S.cluster(rest, orig, S.parse.take_choice(_, nn, rest, args, up, subs, path, bs, pos, raw, seen),
+          True{}) == T : S.St}
+      Laws.cluster_done(rest, orig, T)
+    case S.Many{}:
+      +T = {S.St{S.Dead{S.BadValue{path, nn, rest}}, args, up, subs, path, bs, pos, raw, seen} : S.St}
+      e1 = Equal.sym(Bool, String.starts_with(rest, "="), False{}, h_noeq)
+      %e1 : {S.cluster(rest, orig, S.parse.take_arg.kind(S.Many{}, nn, S.short_of.val(_, rest), orig, args, up,
+          subs, path, bs, pos, raw, seen), True{})
+        == T : S.St}
+      e2 = Equal.sym(Bool, String.is_empty(rest), False{}, h_some)
+      %e2 : {S.cluster(rest, orig, S.parse.take_arg.kind(S.Many{}, nn,
+          Bool.pick(Maybe<&2, String>, _, None{},
+              Some{rest}), orig, args, up, subs, path, bs, pos, raw, seen), True{}) == T : S.St}
+      e4 = Equal.sym(Bool, S.allowed(S.parse.choices(S.by_name(args, nn)), rest), False{}, h_ok)
+      %e4 : {S.cluster(rest, orig, S.parse.take_choice(_, nn, rest, args, up, subs, path, bs, pos, raw, seen),
+          True{}) == T : S.St}
+      Laws.cluster_done(rest, orig, T)
+    case S.Flag{}:
+      Empty.absurd(lb.ty(S.Flag{}, rest, orig, args, up, subs, path, bs, pos, raw, seen, nn),
+          Walk.wk.false_true(h_kind))
+    case S.Pos{}:
+      Empty.absurd(lb.ty(S.Pos{}, rest, orig, args, up, subs, path, bs, pos, raw, seen, nn), Walk.wk.false_true(h_kind))
+    case S.Rest{}:
+      Empty.absurd(lb.ty(S.Rest{}, rest, orig, args, up, subs, path, bs, pos, raw, seen, nn),
+          Walk.wk.false_true(h_kind))
+
+# what `ln` claims of an argument kind
+def ln.ty(
+  kk: S.ArgKind,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +bs: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +nn: String
+) -> Type:
+  {S.cluster(SNil{}, orig, S.parse.take_arg.kind(kk, nn, S.cluster.val.kind(kk, SNil{}), orig, args, up, subs,
+      path, bs, pos, raw, seen),
+    S.cluster.ends.kind(kk, SNil{})) == S.St{S.Need{nn}, args, up, subs, path, bs, pos, raw, seen} : S.St}
+
+# a letter spelling an option that takes a value now, last in its word
+def ln(
+  kk: S.ArgKind,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +bs: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +nn: String,
+  h_kind: {Laws.takes(kk, S.bound(bs, nn)) == True{} : Bool}
+) -> ln.ty(kk, orig, args, up, subs, path, bs, pos, raw, seen, nn):
+  match kk:
+    case S.Opt{}:
+      e3 = Equal.sym(Bool, S.bound(bs, nn), False{}, Walk.wk.not_true(S.bound(bs, nn), h_kind))
+      %e3 : {S.parse.once(_, S.St{S.Need{nn}, args, up, subs, path, bs, pos, raw, seen}, nn,
+          path) == S.St{S.Need{nn}, args, up, subs, path, bs, pos, raw, seen} : S.St}
+      {==}
+    case S.Many{}:
+      {==}
+    case S.Flag{}:
+      Empty.absurd(ln.ty(S.Flag{}, orig, args, up, subs, path, bs, pos, raw, seen, nn), Walk.wk.false_true(h_kind))
+    case S.Pos{}:
+      Empty.absurd(ln.ty(S.Pos{}, orig, args, up, subs, path, bs, pos, raw, seen, nn), Walk.wk.false_true(h_kind))
+    case S.Rest{}:
+      Empty.absurd(ln.ty(S.Rest{}, orig, args, up, subs, path, bs, pos, raw, seen, nn), Walk.wk.false_true(h_kind))
+
+# what `le` claims of an argument kind
+def le.ty(
+  kk: S.ArgKind,
+  +vv: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +bs: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +nn: String
+) -> Type:
+  {S.cluster("=" ++ vv, orig, S.parse.take_arg.kind(kk, nn, S.cluster.val.kind(kk, "=" ++ vv), orig, args, up,
+      subs, path, bs, pos, raw, seen),
+    S.cluster.ends.kind(kk, "=" ++ vv)) == S.St{S.Free{}, args, up, subs, path, S.Bind{nn,
+        vv} <> bs, pos, raw, seen} : S.St}
+
+# a letter spelling an option that takes a value now, then `=` and a value
+def le(
+  kk: S.ArgKind,
+  +vv: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +bs: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +nn: String,
+  h_kind: {Laws.takes(kk, S.bound(bs, nn)) == True{} : Bool},
+  h_ok: {S.allowed(S.parse.choices(S.by_name(args, nn)), vv) == True{} : Bool}
+) -> le.ty(kk, vv, orig, args, up, subs, path, bs, pos, raw, seen, nn):
+  match kk:
+    case S.Opt{}:
+      +T = {S.St{S.Free{}, args, up, subs, path, S.Bind{nn, vv} <> bs, pos, raw, seen} : S.St}
+      ep = Equal.sym(Bool, String.starts_with(vv, ""), True{}, Laws.prefix_empty(vv))
+      %ep : {S.cluster("=" ++ vv, orig, S.parse.take_arg.kind(S.Opt{}, nn, S.short_of.val(_, "=" ++ vv), orig, args, up,
+          subs, path, bs, pos, raw, seen), True{}) == T : S.St}
+      ed = Equal.sym(String, String.drop(vv, 0n), vv, Laws.drop_zero(vv))
+      %ed : {S.cluster("=" ++ vv, orig, S.parse.take_arg.kind(S.Opt{}, nn, Some{_}, orig, args, up, subs, path,
+          bs, pos, raw, seen), True{}) == T
+        : S.St}
+      e3 = Equal.sym(Bool, S.bound(bs, nn), False{}, Walk.wk.not_true(S.bound(bs, nn), h_kind))
+      %e3 : {S.cluster("=" ++ vv, orig, S.parse.once(_, S.parse.take_opt(Some{vv}, nn, args, up, subs, path, bs,
+          pos, raw, seen), nn, path), True{}) == T
+        : S.St}
+      e4 = Equal.sym(Bool, S.allowed(S.parse.choices(S.by_name(args, nn)), vv), True{}, h_ok)
+      %e4 : {S.cluster("=" ++ vv, orig, S.parse.take_choice(_, nn, vv, args, up, subs, path, bs, pos, raw,
+          seen), True{}) == T : S.St}
+      Laws.cluster_done("=" ++ vv, orig, T)
+    case S.Many{}:
+      +T = {S.St{S.Free{}, args, up, subs, path, S.Bind{nn, vv} <> bs, pos, raw, seen} : S.St}
+      ep = Equal.sym(Bool, String.starts_with(vv, ""), True{}, Laws.prefix_empty(vv))
+      %ep : {S.cluster("=" ++ vv, orig, S.parse.take_arg.kind(S.Many{}, nn, S.short_of.val(_, "=" ++ vv), orig,
+          args, up,
+          subs, path, bs, pos, raw, seen), True{}) == T : S.St}
+      ed = Equal.sym(String, String.drop(vv, 0n), vv, Laws.drop_zero(vv))
+      %ed : {S.cluster("=" ++ vv, orig, S.parse.take_arg.kind(S.Many{}, nn, Some{_}, orig, args, up, subs, path,
+          bs, pos, raw, seen), True{}) == T
+        : S.St}
+      e4 = Equal.sym(Bool, S.allowed(S.parse.choices(S.by_name(args, nn)), vv), True{}, h_ok)
+      %e4 : {S.cluster("=" ++ vv, orig, S.parse.take_choice(_, nn, vv, args, up, subs, path, bs, pos, raw,
+          seen), True{}) == T : S.St}
+      Laws.cluster_done("=" ++ vv, orig, T)
+    case S.Flag{}:
+      Empty.absurd(le.ty(S.Flag{}, vv, orig, args, up, subs, path, bs, pos, raw, seen, nn), Walk.wk.false_true(h_kind))
+    case S.Pos{}:
+      Empty.absurd(le.ty(S.Pos{}, vv, orig, args, up, subs, path, bs, pos, raw, seen, nn), Walk.wk.false_true(h_kind))
+    case S.Rest{}:
+      Empty.absurd(le.ty(S.Rest{}, vv, orig, args, up, subs, path, bs, pos, raw, seen, nn), Walk.wk.false_true(h_kind))
+
+def Laws.letter_value(
+  cc,
+  rest,
+  orig,
+  args,
+  up,
+  subs,
+  path,
+  bs,
+  pos,
+  raw,
+  seen,
+  nn,
+  sh,
+  lo,
+  kind,
+  hp,
+  req,
+  dflt,
+  cs,
+  h_found,
+  h_kind,
+  h_noeq,
+  h_some,
+  h_ok
+):
+  +aa = {S.Arg{nn, sh, lo, kind, hp, req, dflt, cs} : S.Arg}
+  +T = {S.St{S.Free{}, args, up, subs, path, S.Bind{nn, rest} <> bs, pos, raw, seen} : S.St}
+  e0 = cl.back(cc, rest, orig, args, up, subs, path, bs, pos, raw, seen, aa, h_found)
+  %e0 : {_ == T : S.St}
+  lv(kind, rest, orig, args, up, subs, path, bs, pos, raw, seen, nn, h_kind, h_noeq, h_some, h_ok)
+
+def Laws.letter_value_bad(
+  cc,
+  rest,
+  orig,
+  args,
+  up,
+  subs,
+  path,
+  bs,
+  pos,
+  raw,
+  seen,
+  nn,
+  sh,
+  lo,
+  kind,
+  hp,
+  req,
+  dflt,
+  cs,
+  h_found,
+  h_kind,
+  h_noeq,
+  h_some,
+  h_bad
+):
+  +aa = {S.Arg{nn, sh, lo, kind, hp, req, dflt, cs} : S.Arg}
+  +T = {S.St{S.Dead{S.BadValue{path, nn, rest}}, args, up, subs, path, bs, pos, raw, seen} : S.St}
+  e0 = cl.back(cc, rest, orig, args, up, subs, path, bs, pos, raw, seen, aa, h_found)
+  %e0 : {_ == T : S.St}
+  lb(kind, rest, orig, args, up, subs, path, bs, pos, raw, seen, nn, h_kind, h_noeq, h_some, h_bad)
+
+def Laws.letter_value_next(
+  cc,
+  orig,
+  args,
+  up,
+  subs,
+  path,
+  bs,
+  pos,
+  raw,
+  seen,
+  nn,
+  sh,
+  lo,
+  kind,
+  hp,
+  req,
+  dflt,
+  cs,
+  h_found,
+  h_kind
+):
+  +aa = {S.Arg{nn, sh, lo, kind, hp, req, dflt, cs} : S.Arg}
+  +T = {S.St{S.Need{nn}, args, up, subs, path, bs, pos, raw, seen} : S.St}
+  e0 = cl.back(cc, SNil{}, orig, args, up, subs, path, bs, pos, raw, seen, aa, h_found)
+  %e0 : {_ == T : S.St}
+  ln(kind, orig, args, up, subs, path, bs, pos, raw, seen, nn, h_kind)
+
+def Laws.letter_value_eq(
+  cc,
+  vv,
+  orig,
+  args,
+  up,
+  subs,
+  path,
+  bs,
+  pos,
+  raw,
+  seen,
+  nn,
+  sh,
+  lo,
+  kind,
+  hp,
+  req,
+  dflt,
+  cs,
+  h_found,
+  h_kind,
+  h_ok
+):
+  +aa = {S.Arg{nn, sh, lo, kind, hp, req, dflt, cs} : S.Arg}
+  +T = {S.St{S.Free{}, args, up, subs, path, S.Bind{nn, vv} <> bs, pos, raw, seen} : S.St}
+  e0 = cl.back(cc, "=" ++ vv, orig, args, up, subs, path, bs, pos, raw, seen, aa, h_found)
+  %e0 : {_ == T : S.St}
+  le(kind, vv, orig, args, up, subs, path, bs, pos, raw, seen, nn, h_kind, h_ok)
+
+def Laws.plain_word_step(tok, args, up, subs, path, bs, pos, seen, h_dd, h_dash, h_help):
+  +rhs = S.parse.word.go(S.find_sub(subs, tok), tok, args, up, subs, path, bs, pos, False{}, seen)
+  e1 = Equal.sym(Bool, String.eq(tok, "--"), False{}, h_dd)
+  %e1 : {S.parse.step.end(_, tok, args, up, subs, path, bs, pos, seen) == rhs : S.St}
+  e2 = Equal.sym(Bool, Bool.and(String.eq(tok, "help"), Bool.not(seen)), False{}, h_help)
+  %e2 : {S.parse.step.help(_, tok, args, up, subs, path, bs, pos, seen) == rhs : S.St}
+  e3 = Equal.sym(Bool, String.starts_with(tok, "--"), False{}, Walk.wk.dash(tok, h_dash))
+  %e3 : {S.parse.step.kind.go(_, String.starts_with(tok, "-"), tok, args, up, subs, path, bs, pos, seen) == rhs : S.St}
+  e4 = Equal.sym(Bool, String.starts_with(tok, "-"), False{}, h_dash)
+  %e4 : {S.parse.step.kind.go(False{}, _, tok, args, up, subs, path, bs, pos, seen) == rhs : S.St}
+  {==}
+
+def Laws.dash_word_step(_args, _up, _subs, _path, _bs, _pos, _seen):
+  {==}
