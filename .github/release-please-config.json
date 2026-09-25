@@ -9,7 +9,8 @@
           "type": "generic",
           "path": "flake.nix"
         }
-      ]
+      ],
+      "versioning": "always-bump-minor"
     }
   },
   "bootstrap-sha": "d6b8461409e9dbc0582d5984bde4ba8bc5fcb6aa"
