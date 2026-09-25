@@ -6,17 +6,45 @@ commands; `help` writes usage.
 
 ## Install
 
-Use with [Bend](https://github.com/bendlang/bend) or install easily with [ez](https://github.com/Emerging-Patterns/ez):
+With [Bend](https://github.com/bendlang/bend) alone there is nothing to
+install: import shake by its hub name and `bend` fetches it from
+[the hub](https://hub.bend-lang.com) into `~/.bend/lib` on the first run.
+`0x085b03c84ca37125e38dddede7b91e55` is shake v0.2.0.
 
 ```
-ez init
+import 0x085b03c84ca37125e38dddede7b91e55/main.bend as Shake
+```
+
+Or with [ez](https://github.com/Emerging-Patterns/ez), which records the
+package in `ez.toml` (`ez init` makes one):
+
+```
 ez add Emerging-Patterns/shake
 ```
 
 ## Usage
 
+A spec, a parse, and a read. `parse` answers `Done` with what the words
+bound, or `Fail` with why they could not be bound:
+
 ```
-import 0xdf41d30432187d983a3c5b9db32d376d/main.bend as Shake
+import 0x085b03c84ca37125e38dddede7b91e55/main.bend as Shake
+
+def spec() -> Shake.Cli:
+  Shake.app("hi", "Say hello.", None{},
+    [Shake.opt("name", Some{"n"}, Some{"name"}, "Who to greet", False{},
+      Some{"world"}, [])],
+    [])
+
+def greet(got: Result<&2, &2, Shake.ParseErr, Shake.Matched>) -> String:
+  match got:
+    case Done{mm}:
+      "hello " ++ Maybe.default(&2, String, Shake.get(mm, "name"), "")
+    case Fail{ee}:
+      Shake.err_text(spec(), ee)
+
+def main() -> String:
+  greet(Shake.parse(spec(), ["--name", "Ada"]))
 ```
 
 `main.bend` is the whole interface: the types (`Shake.Cli`, `Shake.Sub`,
