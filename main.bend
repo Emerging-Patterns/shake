@@ -1,5 +1,7 @@
-# shake: CLI argument parser for Bend 2. Describe a program with `app`, `sub`,
-# `flag`, `opt`, `many`, `pos` and `rest`; `parse` binds argv against it, and
+# shake: a proven command-line argument parser for Bend 2, with subcommands and help.
+#
+# Describe a program with `app`, `sub`, `flag`, `opt`, `many`, `pos` and
+# `rest`; `parse` binds argv against it, and
 # the result is read one command at a time, as clap's: `get`, `get_all` and
 # `on` read a command's own bindings, and `sub_name`, `sub_of`, `at` and
 # `path_of` reach the subcommands selected under it. `help` writes the usage
