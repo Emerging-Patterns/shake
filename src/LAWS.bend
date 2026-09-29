@@ -244,7 +244,7 @@ law at_cons:
   for +rest: List<&2, String>
   {Shake.at(found, name <> rest) == at.via(Shake.sub_of(found, name), rest) : Maybe<&2, Shake.Matched>}
 
-# LAW: `copy` keeps every word IO.args gives, all of them, in order and
+# LAW: `copy` keeps every word it is given, all of them, in order and
 # unchanged: read back, the copy is the list it was made from
 # SHAKE-ARGS-1
 law copy_keeps:

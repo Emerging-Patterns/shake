@@ -76,14 +76,17 @@ list, and `get` still reads one value. `argv` is the process's
 arguments, each word reusable.
 
 A compiled Bend program's runtime reads the command line before shake does
-(bend 2.0.27):
+(bend 2.0.34):
 
-- `--help` prints the runtime's own usage and exits, and `--gpu-build`
-  builds the GPU image and exits; neither runs `main`.
+- `--bend-help` prints the runtime's own usage and exits, and `--gpu-build`
+  builds the GPU image and exits; neither runs `main`. `--help` is an
+  ordinary argument.
 - `--threads N` and `--gpu X` are taken, with their value, and a bad value
   stops the program.
 - The first `--` is taken too, and every word after it is passed on
   unexamined.
+- The first word `IO.args` answers is the program name. `argv` drops it
+  and returns the words after it.
 
 So a `--` ends shake's option parsing (every later word is a positional)
 only when it is the second one: `tool add -- -- -5 3` binds `-5` and `3`.

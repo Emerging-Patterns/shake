@@ -206,8 +206,9 @@ def help_path(err: S.ParseErr) -> Maybe<&2, List<&2, String>>:
       None{}
 
 # the process's arguments, each word reusable. A compiled program's runtime
-# has already acted on `--help`, `--gpu-build`, `--threads N` and `--gpu X`
-# and taken the first `--`, passing every word after it here unexamined; so
-# the `--` that `parse` sees is the user's second one
+# has already acted on `--bend-help`, `--gpu-build`, `--threads N` and
+# `--gpu X` and taken the first `--`, passing every word after it here
+# unexamined; so the `--` that `parse` sees is the user's second one.
+# `IO.args` starts with the program name, and `argv` drops it
 def argv() -> IO(List<&2, String>):  # noqa: L001 IO: reads argv
   Args.argv()

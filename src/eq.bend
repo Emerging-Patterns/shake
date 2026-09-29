@@ -90,7 +90,11 @@ law string_eq_self:
   for +ss: String
   {String.eq(ss, ss) == True{} : Bool}
 
+# a string comparison read as a bit: what `String.eq` reads off `String.cmp`
+def eq.of(rr: (String & String) & Cmp) -> Bool:  # noqa: L001 a proof of this file's law
+  Cmp.is_eq(Pair.snd(String & String, Cmp, rr))
+
 # equality is the comparison read as a bit, so the comparison's law answers
 def string_eq_self(ss):  # noqa: L001 a proof of this file's law
-  Equal.cong((String & String) & Cmp, Bool, rr => String.eq.fin(rr),
+  Equal.cong((String & String) & Cmp, Bool, rr => eq.of(rr),
     String.cmp(ss, ss), ((ss, ss), EQ{}), string_cmp_self(ss))

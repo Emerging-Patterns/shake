@@ -2,11 +2,11 @@
 
 This is the list of every behavior shake guarantees, each under a stable requirement ID. Every requirement is about the interface in `main.bend`: its types, builders, `parse`, `check`, the readers, `help`, `err_text`, `help_path`, `err_path` and `argv`. Every module under `src/` is internal and carries no promise.
 
-Every requirement has one of two levels. A **Proved** requirement holds for every input, and is backed by a quantified law (a `for` or `exs` binder) in `src/LAWS.bend` that passes the proof gate. A **Trusted** requirement is an assumption shake cannot check from inside its own gate, and it is listed in the trust boundary below. A Proved requirement whose laws have not all landed has status **pending**: we intend to prove it, and until then it is not guaranteed. The proof gate is this check: the first line `bend src/PROOF.bend` prints is exactly `All terms check.` (`ez prove`). Tests and fixtures are never evidence for a requirement.
+Every requirement has one of two levels. A **Proved** requirement holds for every input, and is backed by a quantified law (a `for` or `exs` binder) in `src/LAWS.bend` that passes the proof gate. A **Trusted** requirement is an assumption shake cannot check from inside its own gate, and it is listed in the trust boundary below. A Proved requirement whose laws have not all landed has status **pending**: we intend to prove it, and until then it is not guaranteed. The proof gate is this check: the first line `bend src/PROOF.bend` prints is exactly `ALL PROOFS CHECK`. Tests and fixtures are never evidence for a requirement.
 
 A spec is **well-formed** when `check` reports nothing for it (SHAKE-SPEC-1). The parse requirements hold for well-formed specs; a spec that contradicts itself, such as two options spelled `-n`, is its author's bug and not an input a user can give. Every error a row names but `NeedHelp` also carries `at`, the command path selected where the parse failed (SHAKE-ERR-2); rows write it only where it matters. A **plain word** is `-`, or a word that does not start with `-`. The **current command** is the command whose arguments `parse` matches words against: the root, then each subcommand it selects. The **selected path** is the names of the subcommands selected, in order. A successful parse answers the root command's **Matched**, as clap answers `ArgMatches`: the bindings that command made while it was current and, when a subcommand was selected under it, that subcommand's name and its own Matched, and so on down the selected path.
 
-The words `parse` receives are what the program passes it. In a compiled program they come from `argv`, after the runtime has taken its own flags and the first `--` (SHAKE-TRUST-2).
+The words `parse` receives are what the program passes it. In a compiled program they come from `argv`, after the runtime has taken its own flags and the first `--` (SHAKE-TRUST-2) and after `argv` has dropped the program name (SHAKE-TRUST-4).
 
 The reasoning behind each requirement, the verdict of each against the code at `b93357a`, and the decisions that shaped them are in [docs/rfc/shake-spec.md](docs/rfc/shake-spec.md). The RFC also records the audit behind them and the rollout that proved every row.
 
@@ -84,7 +84,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
-| SHAKE-ARGS-1 | The copy `argv` makes of the words `IO.args` gives keeps all of them, in order and unchanged: for every list, reading the copy back gives the list. | Proved | proved | src/LAWS.bend copy_keeps |
+| SHAKE-ARGS-1 | The copy `argv` makes keeps every word it is given, in order and unchanged: for every list, reading the copy back gives the list. | Proved | proved | src/LAWS.bend copy_keeps |
 
 ## Left to prove
 
@@ -96,7 +96,7 @@ These assumptions sit outside the proofs. They are the complete list of Trusted 
 
 | ID | Assumption | Why it is trusted |
 | :---- | :---- | :---- |
-| SHAKE-TRUST-1 | The Bend checker is sound: a proof it accepts proves its law. | It cannot be checked from inside Bend; this is EZ-TRUST-1. shake pins bend 2.0.27 through the flake. |
-| SHAKE-TRUST-2 | A program compiled by bend 2.0.27 hands `IO.args` the process's words after the program name, except that it stops examining words at the first `--`, drops that `--` and passes every later word through unchanged; before that `--` it removes `--threads` and `--gpu` with the word after each, and ends the process before `main` on `--help` and on `--gpu-build`. | It is the C `main` bend emits, read from bend 2.0.26's own source (in its binary) and confirmed against the demo; rechecked for 2.0.27, whose `main` is identical. It changes when bend does, so every bend bump rechecks it. |
-| SHAKE-TRUST-3 | The proof-gate runner fails the build unless the first line of `bend src/PROOF.bend` is `All terms check.` | It is ez's `mkProofs` running `ez prove`, run by `nix flake check` in CI; this is EZ-TRUST-4. |
-| SHAKE-TRUST-4 | `argv` hands on exactly the list `IO.args` answers, through the copy SHAKE-ARGS-1 is about. | It is IO, which no law can reach: `argv` in `src/args.bend` is one `IO.bind` of `IO.args` into `copy`, short enough to check by reading, and marked `# noqa: L001` for that reason. |
+| SHAKE-TRUST-1 | The Bend checker is sound: a proof it accepts proves its law. | It cannot be checked from inside Bend; this is EZ-TRUST-1. shake pins bend 2.0.34 through the flake. |
+| SHAKE-TRUST-2 | A program compiled by bend 2.0.34 hands `IO.args` the program name and then the process's words, except that it stops examining words at the first `--`, drops that `--` and passes every later word through unchanged; before that `--` it removes `--threads` and `--gpu` with the word after each, and ends the process before `main` on `--bend-help` and on `--gpu-build`. | It is the C `main` bend emits, read from bend 2.0.34's own source and confirmed against the demo. It changes when bend does, so every bend bump rechecks it. |
+| SHAKE-TRUST-3 | The proof-gate runner fails the build unless the first line of `bend src/PROOF.bend` is `ALL PROOFS CHECK`. | It is the flake's proofs check, run by `nix flake check` in CI. |
+| SHAKE-TRUST-4 | `argv` drops the first word `IO.args` answers (the program name) and hands on the rest through the copy SHAKE-ARGS-1 is about. When `IO.args` answers nothing, so does `argv`. | It is IO, which no law can reach: `argv` in `src/args.bend` binds `IO.args` into `copy` after `after` drops that first word, short enough to check by reading, and both are marked `# noqa: L001` for that reason. |
