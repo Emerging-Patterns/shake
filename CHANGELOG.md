@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.0](https://github.com/Emerging-Patterns/shake/compare/v0.2.0...v0.3.0) (2026-09-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* shake needs bend 2.0.32 or later: argv() drops the first word of IO.args, which on older bend is a real argument. A bare --help is now a request for help (help_path is Some) instead of an UnknownFlag error.
+
+### Features
+
+* bend 2.0.34, argv drops the program name, --help asks for help ([#49](https://github.com/Emerging-Patterns/shake/issues/49)) ([4957476](https://github.com/Emerging-Patterns/shake/commit/49574769bf80454fecdf4e1d67193da9f62abeba))
+
 ## [0.2.0](https://github.com/Emerging-Patterns/shake/compare/v0.1.1...v0.2.0) (2026-09-25)
 
 
