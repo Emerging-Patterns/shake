@@ -1,7 +1,8 @@
 # shake/cli: the parser behind main.bend, internal. `parse` reads argv
 # against a Cli; `help` writes usage for a command path, and `help` is the
-# subcommand that asks for it. A `--` that reaches `parse` ends option
-# parsing; in a compiled program the runtime takes the first `--` itself.
+# subcommand that asks for it (`--help` too, unless the command declares its
+# own long `help`). A `--` that reaches `parse` ends option parsing; in a
+# compiled program the runtime takes the first `--` itself.
 import Base
 
 # a flag, a valued option, an option that may repeat, a positional, or a rest
@@ -61,9 +62,10 @@ type Matched is Data:
   Leaf{+binds: List<&2, Bind>}
   Node{+binds: List<&2, Bind>, +name: String, +sub: Matched}
 
-# a failed parse. NeedHelp is `help` / `help <path>`; NoValue is an option
-# whose value never came, Missing a required argument nothing bound. Every
-# error but NeedHelp carries `at`, the command path selected where it failed
+# a failed parse. NeedHelp is `help` / `help <path>` (or `--help`); NoValue
+# is an option whose value never came, Missing a required argument nothing
+# bound. Every error but NeedHelp carries `at`, the command path selected
+# where it failed
 type ParseErr is Data:
   UnknownFlag{at: List<&2, String>, flag: String}
   Missing{at: List<&2, String>, name: String}
@@ -724,6 +726,57 @@ def parse.take_arg(
       parse.take_arg.kind(kind, name, val, orig, args, up, subs, path, binds, pos,
         raw, seen)
 
+# whether an unknown long option is a request for help: a bare `--help`,
+# with no `=` value, before any positional of the current command is bound
+def long_help(+name: String, val: Maybe<&2, String>, seen: Bool) -> Bool:
+  match val:
+    case None{}:
+      Bool.and(String.eq(name, "help"), Bool.not(seen))
+    case Some{_v}:
+      False{}
+
+# an unknown long option: a request for help (`--help`, as `help`), or an
+# unknown flag
+def parse.take_long.help(
+  hit: Bool,
+  +orig: String,
+  +args: List<&2, Arg>,
+  +up: List<&2, Level>,
+  +subs: List<&2, Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, Bind>,
+  +pos: List<&2, Arg>,
+  +raw: Bool,
+  +seen: Bool
+) -> St:
+  match hit:
+    case True{}:
+      St{Help{}, args, up, subs, path, binds, pos, raw, seen}
+    case False{}:
+      parse.dead(UnknownFlag{path, orig}, args, up, subs, path, binds, pos, raw, seen)
+
+# a long option the current command spells, or an unknown one
+def parse.take_long.found(
+  found: Maybe<&2, Arg>,
+  +name: String,
+  val: Maybe<&2, String>,
+  +orig: String,
+  +args: List<&2, Arg>,
+  +up: List<&2, Level>,
+  +subs: List<&2, Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, Bind>,
+  +pos: List<&2, Arg>,
+  +raw: Bool,
+  +seen: Bool
+) -> St:
+  match found:
+    case None{}:
+      parse.take_long.help(long_help(name, val, seen), orig, args, up, subs, path,
+        binds, pos, raw, seen)
+    case Some{a}:
+      parse.take_arg(Some{a}, val, orig, args, up, subs, path, binds, pos, raw, seen)
+
 # a long option with a name, or `--=...`
 def parse.take_long.named(
   empty: Bool,
@@ -743,8 +796,8 @@ def parse.take_long.named(
     case True{}:
       parse.dead(UnknownFlag{path, orig}, args, up, subs, path, binds, pos, raw, seen)
     case False{}:
-      parse.take_arg(by_long(args, name), val, orig, args, up, subs, path, binds,
-        pos, raw, seen)
+      parse.take_long.found(by_long(args, name), name, val, orig, args, up, subs,
+        path, binds, pos, raw, seen)
 
 # a long option after the `=` cut
 def parse.take_long.cut(

@@ -186,7 +186,8 @@ def err_path(err: S.ParseErr) -> List<&2, String>:
     case S.Repeated{at, _name}:
       at
 
-# the command path of a request for help (`help`, `help <path>`), or None
+# the command path of a request for help (`help`, `help <path>`, `--help`),
+# or None
 # when the parse failed for another reason
 def help_path(err: S.ParseErr) -> Maybe<&2, List<&2, String>>:
   match err:
@@ -205,9 +206,10 @@ def help_path(err: S.ParseErr) -> Maybe<&2, List<&2, String>>:
     case S.Repeated{_at, _name}:
       None{}
 
-# the process's arguments, each word reusable. A compiled program's runtime
-# has already acted on `--help`, `--gpu-build`, `--threads N` and `--gpu X`
-# and taken the first `--`, passing every word after it here unexamined; so
-# the `--` that `parse` sees is the user's second one
+# the process's arguments, each word reusable, without the program name
+# that `IO.args` starts with (bend 2.0.32 and later). A compiled program's
+# runtime has already acted on `--bend-help`, `--gpu-build`, `--threads N`
+# and `--gpu X` and taken the first `--`, passing every word after it here
+# unexamined; so the `--` that `parse` sees is the user's second one
 def argv() -> IO(List<&2, String>):  # noqa: L001 IO: reads argv
   Args.argv()
