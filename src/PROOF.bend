@@ -185,6 +185,13 @@ def Laws.copy_keeps(xs):
       %ih : {hh <> _ == hh <> tt : List<&1, String>}
       {==}
 
+def Laws.words_keeps(xs):
+  match xs:
+    case Nil{}:
+      {==}
+    case Con{_hh, tt}:
+      Laws.copy_keeps(tt)
+
 def Laws.walk_append(xs, ys, st):
   match xs:
     case Nil{}:
@@ -275,7 +282,23 @@ def Laws.drop_zero(ss):
     case SCon{_h, _t}:
       {==}
 
-def Laws.unknown_long_step(body, name, val, args, up, subs, path, bs, pos, seen, h_dd, h_cut, h_name, h_none):
+def Laws.unknown_long_step(
+  body,
+  name,
+  val,
+  args,
+  up,
+  subs,
+  path,
+  bs,
+  pos,
+  seen,
+  h_dd,
+  h_cut,
+  h_name,
+  h_none,
+  h_lh
+):
   e1 = Equal.sym(Bool, String.eq("--" ++ body, "--"), False{}, h_dd)
   %e1 : {S.parse.step.end(_, "--" ++ body, args, up, subs, path, bs, pos, seen)
     == S.St{S.Dead{S.UnknownFlag{path, "--" ++ body}}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
@@ -292,7 +315,10 @@ def Laws.unknown_long_step(body, name, val, args, up, subs, path, bs, pos, seen,
   %e3 : {S.parse.take_long.named(_, name, val, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen)
     == S.St{S.Dead{S.UnknownFlag{path, "--" ++ body}}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   e4 = Equal.sym(Maybe<&2, S.Arg>, S.by_long(args, name), None{}, h_none)
-  %e4 : {S.parse.take_arg(_, val, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen)
+  %e4 : {S.parse.take_long.found(_, name, val, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen)
+    == S.St{S.Dead{S.UnknownFlag{path, "--" ++ body}}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
+  e5 = Equal.sym(Bool, S.long_help(name, val, seen), False{}, h_lh)
+  %e5 : {S.parse.take_long.help(_, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen)
     == S.St{S.Dead{S.UnknownFlag{path, "--" ++ body}}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   {==}
 
@@ -313,7 +339,8 @@ def Laws.unknown_long_dies(
   h_dd,
   h_cut,
   h_name,
-  h_none
+  h_none,
+  h_lh
 ):
   e1 = Equal.sym(S.St,
     S.parse.walk(List.append(&2, String, pre, ["--" ++ body]), S.parse.start(spec)),
@@ -329,7 +356,7 @@ def Laws.unknown_long_dies(
   e3 = Equal.sym(S.St, S.parse.step("--" ++ body, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen}),
     S.St{S.Dead{S.UnknownFlag{path, "--" ++ body}}, args, up, subs, path, bs, pos, False{}, seen},
     Laws.unknown_long_step(body, name, val, args, up, subs, path, bs, pos, seen,
-      h_dd, h_cut, h_name, h_none))
+      h_dd, h_cut, h_name, h_none, h_lh))
   %e3 : {Laws.dead_of(_) == Some{S.UnknownFlag{path, "--" ++ body}} : Maybe<&2, S.ParseErr>}
   {==}
 
@@ -351,11 +378,12 @@ def Laws.unknown_long(
   h_dd,
   h_cut,
   h_name,
-  h_none
+  h_none,
+  h_lh
 ):
   Laws.fail_stays(spec, List.append(&2, String, pre, ["--" ++ body]), more, S.UnknownFlag{path, "--" ++ body},
     Laws.unknown_long_dies(spec, pre, body, name, val, args, up, subs, path, bs, pos, seen,
-      h_at, h_dd, h_cut, h_name, h_none))
+      h_at, h_dd, h_cut, h_name, h_none, h_lh))
 
 def Laws.step_dies(
   spec,
@@ -606,23 +634,23 @@ def Laws.long_arg_step(
 ):
   e1 = Equal.sym(Bool, String.eq("--" ++ body, "--"), False{}, h_dd)
   %e1 : {S.parse.step.end(_, "--" ++ body, args, up, subs, path, bs, pos, seen)
-    == S.parse.take_arg(S.by_long(args, name), val, "--" ++ body, args, up, subs, path, bs, pos, False{},
+    == S.parse.take_long.found(S.by_long(args, name), name, val, "--" ++ body, args, up, subs, path, bs, pos, False{},
         seen) : S.St}
   e0 = Equal.sym(Bool, String.starts_with(body, ""), True{}, Laws.prefix_empty(body))
   %e0 : {S.parse.step.kind.go(_, True{}, "--" ++ body, args, up, subs, path, bs, pos, seen)
-    == S.parse.take_arg(S.by_long(args, name), val, "--" ++ body, args, up, subs, path, bs, pos, False{},
+    == S.parse.take_long.found(S.by_long(args, name), name, val, "--" ++ body, args, up, subs, path, bs, pos, False{},
         seen) : S.St}
   ed = Equal.sym(String, String.drop(body, 0n), body, Laws.drop_zero(body))
   %ed : {S.parse.take_long(_, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen)
-    == S.parse.take_arg(S.by_long(args, name), val, "--" ++ body, args, up, subs, path, bs, pos, False{},
+    == S.parse.take_long.found(S.by_long(args, name), name, val, "--" ++ body, args, up, subs, path, bs, pos, False{},
         seen) : S.St}
   e2 = Equal.sym(String & Maybe<&2, String>, S.cut_eq(body), (name, val), h_cut)
   %e2 : {S.parse.take_long.cut(_, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen)
-    == S.parse.take_arg(S.by_long(args, name), val, "--" ++ body, args, up, subs, path, bs, pos, False{},
+    == S.parse.take_long.found(S.by_long(args, name), name, val, "--" ++ body, args, up, subs, path, bs, pos, False{},
         seen) : S.St}
   e3 = Equal.sym(Bool, String.is_empty(name), False{}, h_name)
   %e3 : {S.parse.take_long.named(_, name, val, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen)
-    == S.parse.take_arg(S.by_long(args, name), val, "--" ++ body, args, up, subs, path, bs, pos, False{},
+    == S.parse.take_long.found(S.by_long(args, name), name, val, "--" ++ body, args, up, subs, path, bs, pos, False{},
         seen) : S.St}
   {==}
 
@@ -653,11 +681,13 @@ def flag_long_valued.step(
 ) -> {Laws.dead_of(S.parse.step("--" ++ body, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen}))
     == Some{S.Unexpected{path, "--" ++ body}} : Maybe<&2, S.ParseErr>}:
   e1 = Equal.sym(S.St, S.parse.step("--" ++ body, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen}),
-    S.parse.take_arg(S.by_long(args, name), Some{vv}, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen),
+    S.parse.take_long.found(S.by_long(args, name), name, Some{vv}, "--" ++ body, args, up, subs, path, bs, pos, False{},
+      seen),
     Laws.long_arg_step(body, name, Some{vv}, args, up, subs, path, bs, pos, seen, h_dd, h_cut, h_name))
   %e1 : {Laws.dead_of(_) == Some{S.Unexpected{path, "--" ++ body}} : Maybe<&2, S.ParseErr>}
   e2 = Equal.sym(Maybe<&2, S.Arg>, S.by_long(args, name), Some{S.Arg{nn, sh, lo, S.Flag{}, hp, req, dflt, cs}}, h_found)
-  %e2 : {Laws.dead_of(S.parse.take_arg(_, Some{vv}, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen))
+  %e2 : {Laws.dead_of(S.parse.take_long.found(_, name, Some{vv}, "--" ++ body, args, up, subs, path, bs, pos, False{},
+      seen))
     == Some{S.Unexpected{path, "--" ++ body}} : Maybe<&2, S.ParseErr>}
   e3 = Equal.sym(Bool, S.bound(bs, nn), False{}, h_once)
   %e3 : {Laws.dead_of(S.parse.once(_, S.St{S.Dead{S.Unexpected{path, "--" ++ body}}, args, up, subs, path, bs, pos,
@@ -885,11 +915,12 @@ def repeated_long_flag.step(
 ) -> {Laws.dead_of(S.parse.step("--" ++ body, S.St{S.Free{}, args, up, subs, path, bs, pos, False{},
     seen})) == Some{S.Repeated{path, nn}} : Maybe<&2, S.ParseErr>}:
   e1 = Equal.sym(S.St, S.parse.step("--" ++ body, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen}),
-    S.parse.take_arg(S.by_long(args, name), val, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen),
+    S.parse.take_long.found(S.by_long(args, name), name, val, "--" ++ body, args, up, subs, path, bs, pos, False{},
+      seen),
     Laws.long_arg_step(body, name, val, args, up, subs, path, bs, pos, seen, h_dd, h_cut, h_name))
   %e1 : {Laws.dead_of(_) == Some{S.Repeated{path, nn}} : Maybe<&2, S.ParseErr>}
   e2 = Equal.sym(Maybe<&2, S.Arg>, S.by_long(args, name), Some{S.Arg{nn, sh, lo, S.Flag{}, hp, req, dflt, cs}}, h_found)
-  %e2 : {Laws.dead_of(S.parse.take_arg(_, val, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen))
+  %e2 : {Laws.dead_of(S.parse.take_long.found(_, name, val, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen))
     == Some{S.Repeated{path, nn}} : Maybe<&2, S.ParseErr>}
   e3 = Equal.sym(Bool, S.bound(bs, nn), True{}, h_again)
   %e3 : {Laws.dead_of(S.parse.once(_, S.parse.take_flag(val, nn, "--" ++ body, args, up, subs, path, bs, pos,
@@ -956,11 +987,12 @@ def repeated_long_opt.step(
 ) -> {Laws.dead_of(S.parse.step("--" ++ body, S.St{S.Free{}, args, up, subs, path, bs, pos, False{},
     seen})) == Some{S.Repeated{path, nn}} : Maybe<&2, S.ParseErr>}:
   e1 = Equal.sym(S.St, S.parse.step("--" ++ body, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen}),
-    S.parse.take_arg(S.by_long(args, name), val, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen),
+    S.parse.take_long.found(S.by_long(args, name), name, val, "--" ++ body, args, up, subs, path, bs, pos, False{},
+      seen),
     Laws.long_arg_step(body, name, val, args, up, subs, path, bs, pos, seen, h_dd, h_cut, h_name))
   %e1 : {Laws.dead_of(_) == Some{S.Repeated{path, nn}} : Maybe<&2, S.ParseErr>}
   e2 = Equal.sym(Maybe<&2, S.Arg>, S.by_long(args, name), Some{S.Arg{nn, sh, lo, S.Opt{}, hp, req, dflt, cs}}, h_found)
-  %e2 : {Laws.dead_of(S.parse.take_arg(_, val, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen))
+  %e2 : {Laws.dead_of(S.parse.take_long.found(_, name, val, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen))
     == Some{S.Repeated{path, nn}} : Maybe<&2, S.ParseErr>}
   e3 = Equal.sym(Bool, S.bound(bs, nn), True{}, h_again)
   %e3 : {Laws.dead_of(S.parse.once(_, S.parse.take_opt(val, nn, args, up, subs, path, bs, pos, False{},
@@ -1775,11 +1807,12 @@ def long.step(
 ) -> {S.parse.step("--" ++ body, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen})
     == S.St{S.Free{}, args, up, subs, path, S.Bind{nn, vv} <> bs, pos, False{}, seen} : S.St}:
   e1 = Equal.sym(S.St, S.parse.step("--" ++ body, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen}),
-    S.parse.take_arg(S.by_long(args, name), Some{vv}, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen),
+    S.parse.take_long.found(S.by_long(args, name), name, Some{vv}, "--" ++ body, args, up, subs, path, bs, pos, False{},
+      seen),
     Laws.long_arg_step(body, name, Some{vv}, args, up, subs, path, bs, pos, seen, h_dd, h_cut, h_name))
   %e1 : {_ == S.St{S.Free{}, args, up, subs, path, S.Bind{nn, vv} <> bs, pos, False{}, seen} : S.St}
   e2 = Equal.sym(Maybe<&2, S.Arg>, S.by_long(args, name), Some{S.Arg{nn, sh, lo, kind, hp, req, dflt, cs}}, h_found)
-  %e2 : {S.parse.take_arg(_, Some{vv}, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen)
+  %e2 : {S.parse.take_long.found(_, name, Some{vv}, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen)
     == S.St{S.Free{}, args, up, subs, path, S.Bind{nn, vv} <> bs, pos, False{}, seen} : S.St}
   long.kind(kind, nn, vv, "--" ++ body, args, up, subs, path, bs, pos, seen, h_kind, h_ok)
 
@@ -1938,11 +1971,13 @@ def long_refused.step(
 ) -> {Laws.dead_of(S.parse.step("--" ++ body, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen}))
     == Some{S.BadValue{path, nn, vv}} : Maybe<&2, S.ParseErr>}:
   e1 = Equal.sym(S.St, S.parse.step("--" ++ body, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen}),
-    S.parse.take_arg(S.by_long(args, name), Some{vv}, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen),
+    S.parse.take_long.found(S.by_long(args, name), name, Some{vv}, "--" ++ body, args, up, subs, path, bs, pos, False{},
+      seen),
     Laws.long_arg_step(body, name, Some{vv}, args, up, subs, path, bs, pos, seen, h_dd, h_cut, h_name))
   %e1 : {Laws.dead_of(_) == Some{S.BadValue{path, nn, vv}} : Maybe<&2, S.ParseErr>}
   e2 = Equal.sym(Maybe<&2, S.Arg>, S.by_long(args, name), Some{S.Arg{nn, sh, lo, kind, hp, req, dflt, cs}}, h_found)
-  %e2 : {Laws.dead_of(S.parse.take_arg(_, Some{vv}, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen))
+  %e2 : {Laws.dead_of(S.parse.take_long.found(_, name, Some{vv}, "--" ++ body, args, up, subs, path, bs, pos, False{},
+      seen))
     == Some{S.BadValue{path, nn, vv}} : Maybe<&2, S.ParseErr>}
   long_refused.kind(kind, nn, vv, "--" ++ body, args, up, subs, path, bs, pos, seen, h_kind, h_bad)
 
@@ -3899,6 +3934,35 @@ def Laws.help_path(spec, pre, ns, args, up, subs, path, bs, pos, h_at, h_ns):
     Laws.help_walk(spec, ph, ns, args, up, subs, path, bs, pos, False{}, False{},
       Laws.help_step(spec, pre, args, up, subs, path, bs, pos, h_at), h_ns))
 
+# a free walker with no long `help` reads `--help` as `help`
+def dash_help.step(
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +bs: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  h_none: {S.by_long(args, "help") == None{} : Maybe<&2, S.Arg>}
+) -> {S.parse.step("--help", S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, False{}})
+    == S.St{S.Help{}, args, up, subs, path, bs, pos, False{}, False{}} : S.St}:
+  ee = Equal.sym(Maybe<&2, S.Arg>, S.by_long(args, "help"), None{}, h_none)
+  %ee : {S.parse.take_long.found(_, "help", None{}, "--help", args, up, subs, path, bs, pos, False{}, False{})
+    == S.St{S.Help{}, args, up, subs, path, bs, pos, False{}, False{}} : S.St}
+  {==}
+
+def Laws.dash_help_step(spec, pre, args, up, subs, path, bs, pos, h_at, h_none):
+  Equal.trans(S.St, S.parse.walk(List.append(&2, String, pre, ["--help"]), S.parse.start(spec)),
+    S.parse.step("--help", S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, False{}}),
+    S.St{S.Help{}, args, up, subs, path, bs, pos, False{}, False{}},
+    kept.stepped(spec, pre, "--help", S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, False{}}, h_at),
+    dash_help.step(args, up, subs, path, bs, pos, h_none))
+
+def Laws.dash_help_path(spec, pre, ns, args, up, subs, path, bs, pos, h_at, h_none, h_ns):
+  +ph = List.append(&2, String, pre, ["--help"])
+  hp.need(spec, List.append(&2, String, ph, ns), args, up, List.append(&2, String, path, ns), bs, pos,
+    Laws.help_walk(spec, ph, ns, args, up, subs, path, bs, pos, False{}, False{},
+      Laws.dash_help_step(spec, pre, args, up, subs, path, bs, pos, h_at, h_none), h_ns))
+
 def Laws.start_state(_name, _about, _version, _args, _subs):
   {==}
 
@@ -5644,6 +5708,53 @@ def gv.arg(
         case S.Arg{+name, _s, _l, kind, _h, _r, _d, _c}:
           gv.akind(kind, name, val, orig, args, up, subs, path, binds, pos, raw, seen, ws, hm, hb, hu)
 
+# an unknown long option: a request for help, or an unknown flag
+def gv.lhelp(
+  hit: Bool,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  hb: gv.B(binds, ws),
+  hu: gv.U(up, ws)
+) -> gv.G(S.parse.take_long.help(hit, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+  match hit:
+    case True{}:
+      gv.keep(binds, up, ws, hb, hu)
+    case False{}:
+      gv.keep(binds, up, ws, hb, hu)
+
+# a long option the current command spells, or an unknown one
+def gv.found(
+  found: Maybe<&2, S.Arg>,
+  +name: String,
+  +val: Maybe<&2, String>,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  +hm: {gv.mok(val, ws) == True{} : Bool},
+  hb: gv.B(binds, ws),
+  hu: gv.U(up, ws)
+) -> gv.G(S.parse.take_long.found(found, name, val, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+  match found:
+    case None{}:
+      gv.lhelp(S.long_help(name, val, seen), orig, args, up, subs, path, binds, pos, raw, seen, ws, hb, hu)
+    case Some{aa}:
+      gv.arg(Some{aa}, val, orig, args, up, subs, path, binds, pos, raw, seen, ws, hm, hb, hu)
+
 # a long option with a name
 def gv.named(
   empty: Bool,
@@ -5667,7 +5778,7 @@ def gv.named(
     case True{}:
       gv.keep(binds, up, ws, hb, hu)
     case False{}:
-      gv.arg(S.by_long(args, name), val, orig, args, up, subs, path, binds, pos, raw, seen, ws, hm, hb, hu)
+      gv.found(S.by_long(args, name), name, val, orig, args, up, subs, path, binds, pos, raw, seen, ws, hm, hb, hu)
 
 # a long option after the `=` cut
 def gv.cut(
@@ -6924,6 +7035,54 @@ def gn.arg(
         case S.Arg{+name, _s, _l, kind, _h, _r, _d, _c}:
           gn.akind(kind, name, val, orig, args, up, subs, path, binds, pos, raw, seen, ws, hf, hm, hb, hp)
 
+# an unknown long option: a request for help, or an unknown flag
+def gn.lhelp(
+  hit: Bool,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  +hb: {gn.all(binds, args, ws) == True{} : Bool},
+  +hp: {gn.pin(pos, args) == True{} : Bool}
+) -> gn.G(S.parse.take_long.help(hit, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+  match hit:
+    case True{}:
+      gn.keep(args, binds, pos, ws, hb, hp)
+    case False{}:
+      gn.keep(args, binds, pos, ws, hb, hp)
+
+# a long option the current command spells, or an unknown one
+def gn.found(
+  found: Maybe<&2, S.Arg>,
+  +name: String,
+  +val: Maybe<&2, String>,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  +hf: {gn.fok(found, args) == True{} : Bool},
+  +hm: {gv.mok(val, ws) == True{} : Bool},
+  +hb: {gn.all(binds, args, ws) == True{} : Bool},
+  +hp: {gn.pin(pos, args) == True{} : Bool}
+) -> gn.G(S.parse.take_long.found(found, name, val, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+  match found:
+    case None{}:
+      gn.lhelp(S.long_help(name, val, seen), orig, args, up, subs, path, binds, pos, raw, seen, ws, hb, hp)
+    case Some{aa}:
+      gn.arg(Some{aa}, val, orig, args, up, subs, path, binds, pos, raw, seen, ws, hf, hm, hb, hp)
+
 # a long option with a name
 def gn.named(
   empty: Bool,
@@ -6947,7 +7106,7 @@ def gn.named(
     case True{}:
     gn.keep(args, binds, pos, ws, hb, hp)
     case False{}:
-      gn.arg(S.by_long(args, name), val, orig, args, up, subs, path, binds, pos, raw, seen, ws,
+      gn.found(S.by_long(args, name), name, val, orig, args, up, subs, path, binds, pos, raw, seen, ws,
         gn.fok_long(args, name), hm, hb, hp)
 
 # a long option after the `=` cut
@@ -8029,6 +8188,47 @@ def nd.arg(
         case S.Arg{+name, _s, _l, kind, _h, _r, _d, _c}:
           nd.akind(kind, name, val, orig, args, up, subs, path, binds, pos, raw, seen)
 
+# an unknown long option: a request for help, or an unknown flag
+def nd.lhelp(
+  hit: Bool,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool
+) -> nd.T(S.parse.take_long.help(hit, orig, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+  match hit:
+    case True{}:
+      nd.le_s(Laws.valued(binds))
+    case False{}:
+      nd.le_s(Laws.valued(binds))
+
+# a long option the current command spells, or an unknown one
+def nd.found(
+  found: Maybe<&2, S.Arg>,
+  +name: String,
+  +val: Maybe<&2, String>,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool
+) -> nd.T(S.parse.take_long.found(found, name, val, orig, args, up, subs, path, binds, pos, raw, seen),
+  1n+Laws.valued(binds)):
+  match found:
+    case None{}:
+      nd.lhelp(S.long_help(name, val, seen), orig, args, up, subs, path, binds, pos, raw, seen)
+    case Some{aa}:
+      nd.arg(Some{aa}, val, orig, args, up, subs, path, binds, pos, raw, seen)
+
 # a long option with a name
 def nd.named(
   empty: Bool,
@@ -8049,7 +8249,7 @@ def nd.named(
     case True{}:
     nd.le_s(Laws.valued(binds))
     case False{}:
-      nd.arg(S.by_long(args, name), val, orig, args, up, subs, path, binds, pos, raw, seen)
+      nd.found(S.by_long(args, name), name, val, orig, args, up, subs, path, binds, pos, raw, seen)
 
 # a long option after the `=` cut
 def nd.cut(
@@ -8895,6 +9095,57 @@ def nu.arg(
         case S.Arg{+name, _s, _l, kind, _h, _r, _d, _c}:
           nu.akind(kind, name, val, orig, args, up, subs, path, binds, pos, raw, seen, m0, hd, hn)
 
+# an unknown long option: a request for help, or an unknown flag
+def nu.lhelp(
+  hit: Bool,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +m0: S.Mode,
+  +hd: {nu.dead_m(m0) == False{} : Bool},
+  +hl: {nu.help_m(m0) == False{} : Bool}
+) -> nu.N(S.parse.take_long.help(hit, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs,
+  path, binds, pos, raw, seen}):
+  match hit:
+    case True{}:
+      nu.apart(S.parse.take_long.help(True{}, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up,
+        subs, path, binds, pos, raw, seen}, ss => nu.help(ss), {==}, hl)
+    case False{}:
+      nu.apart(S.parse.take_long.help(False{}, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up,
+        subs, path, binds, pos, raw, seen}, ss => nu.dead(ss), {==}, hd)
+
+# a long option the current command spells, or an unknown one
+def nu.found(
+  found: Maybe<&2, S.Arg>,
+  +name: String,
+  +val: Maybe<&2, String>,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +m0: S.Mode,
+  +hd: {nu.dead_m(m0) == False{} : Bool},
+  +hn: {nu.need_m(m0) == False{} : Bool},
+  +hl: {nu.help_m(m0) == False{} : Bool}
+) -> nu.N(S.parse.take_long.found(found, name, val, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0,
+  args, up, subs, path, binds, pos, raw, seen}):
+  match found:
+    case None{}:
+      nu.lhelp(S.long_help(name, val, seen), orig, args, up, subs, path, binds, pos, raw, seen, m0, hd, hl)
+    case Some{aa}:
+      nu.arg(Some{aa}, val, orig, args, up, subs, path, binds, pos, raw, seen, m0, hd, hn)
+
 # a long option with a name
 def nu.named(
   empty: Bool,
@@ -8911,7 +9162,8 @@ def nu.named(
   +seen: Bool,
   +m0: S.Mode,
   +hd: {nu.dead_m(m0) == False{} : Bool},
-  +hn: {nu.need_m(m0) == False{} : Bool}
+  +hn: {nu.need_m(m0) == False{} : Bool},
+  +hl: {nu.help_m(m0) == False{} : Bool}
 ) -> nu.N(S.parse.take_long.named(empty, name, val, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args,
   up, subs, path, binds, pos, raw, seen}):
   match empty:
@@ -8919,7 +9171,7 @@ def nu.named(
       nu.apart(S.parse.take_long.named(True{}, name, val, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0,
         args, up, subs, path, binds, pos, raw, seen}, ss => nu.dead(ss), {==}, hd)
     case False{}:
-      nu.arg(S.by_long(args, name), val, orig, args, up, subs, path, binds, pos, raw, seen, m0, hd, hn)
+      nu.found(S.by_long(args, name), name, val, orig, args, up, subs, path, binds, pos, raw, seen, m0, hd, hn, hl)
 
 # a long option after the `=` cut
 def nu.cut(
@@ -8935,12 +9187,14 @@ def nu.cut(
   +seen: Bool,
   +m0: S.Mode,
   +hd: {nu.dead_m(m0) == False{} : Bool},
-  +hn: {nu.need_m(m0) == False{} : Bool}
+  +hn: {nu.need_m(m0) == False{} : Bool},
+  +hl: {nu.help_m(m0) == False{} : Bool}
 ) -> nu.N(S.parse.take_long.cut(nv, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs, path,
   binds, pos, raw, seen}):
   match nv:
     case (+name, +val):
-      nu.named(String.is_empty(name), name, val, orig, args, up, subs, path, binds, pos, raw, seen, m0, hd, hn)
+      nu.named(String.is_empty(name), name, val, orig, args, up, subs, path, binds, pos, raw, seen, m0, hd, hn,
+        hl)
 
 # a long option
 def nu.long(
@@ -8956,10 +9210,11 @@ def nu.long(
   +seen: Bool,
   +m0: S.Mode,
   +hd: {nu.dead_m(m0) == False{} : Bool},
-  +hn: {nu.need_m(m0) == False{} : Bool}
+  +hn: {nu.need_m(m0) == False{} : Bool},
+  +hl: {nu.help_m(m0) == False{} : Bool}
 ) -> nu.N(S.parse.take_long(body, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs, path,
   binds, pos, raw, seen}):
-  nu.cut(S.cut_eq(body), orig, args, up, subs, path, binds, pos, raw, seen, m0, hd, hn)
+  nu.cut(S.cut_eq(body), orig, args, up, subs, path, binds, pos, raw, seen, m0, hd, hn, hl)
 
 # a cluster walker changed from one with `l0` bindings, free: no fewer
 # bindings, and failed, waiting, reading a help path, or more bindings
@@ -9519,7 +9774,7 @@ def nu.kind_go(
   path, binds, pos, False{}, seen}):
   match long:
     case True{}:
-      nu.long(String.drop(tok, 2n), tok, args, up, subs, path, binds, pos, False{}, seen, m0, hd, hn)
+      nu.long(String.drop(tok, 2n), tok, args, up, subs, path, binds, pos, False{}, seen, m0, hd, hn, hl)
     case False{}:
       nu.step_short(dash, tok, args, up, subs, path, binds, pos, seen, m0, hd, hn, hl)
 

@@ -355,6 +355,52 @@ def gw.arg(found, val, orig, args, up, subs, path, binds, pos, raw, seen):
         case Shake.Arg{+name, _s, _l, kind, _h, _r, _d, _c}:
           gw.kind(kind, name, val, orig, args, up, subs, path, binds, pos, raw, seen)
 
+# an unknown long option: a request for help, or an unknown flag
+law gw.lhelp:
+  for hit: Bool
+  for +orig: String
+  for +args: List<&2, Shake.Arg>
+  for +up: List<&2, Shake.Level>
+  for +subs: List<&2, Shake.Sub>
+  for +path: List<&2, String>
+  for +binds: List<&2, Shake.Bind>
+  for +pos: List<&2, Shake.Arg>
+  for +raw: Bool
+  for +seen: Bool
+  gw.Stay(Shake.parse.take_long.help(hit, orig, args, up, subs, path, binds, pos, raw, seen), View{args, up,
+      path, binds})
+
+def gw.lhelp(hit, _orig, _args, _up, _subs, _path, _binds, _pos, _raw, _seen):
+  match hit:
+    case True{}:
+      ([], {==})
+    case False{}:
+      ([], {==})
+
+# a long option the current command spells, or an unknown one
+law gw.found:
+  for found: Maybe<&2, Shake.Arg>
+  for +name: String
+  for +val: Maybe<&2, String>
+  for +orig: String
+  for +args: List<&2, Shake.Arg>
+  for +up: List<&2, Shake.Level>
+  for +subs: List<&2, Shake.Sub>
+  for +path: List<&2, String>
+  for +binds: List<&2, Shake.Bind>
+  for +pos: List<&2, Shake.Arg>
+  for +raw: Bool
+  for +seen: Bool
+  gw.Stay(Shake.parse.take_long.found(found, name, val, orig, args, up, subs, path, binds, pos, raw, seen),
+    View{args, up, path, binds})
+
+def gw.found(found, name, val, orig, args, up, subs, path, binds, pos, raw, seen):
+  match found:
+    case None{}:
+      gw.lhelp(Shake.long_help(name, val, seen), orig, args, up, subs, path, binds, pos, raw, seen)
+    case Some{aa}:
+      gw.arg(Some{aa}, val, orig, args, up, subs, path, binds, pos, raw, seen)
+
 # a long option with a name, or `--=...`
 law gw.named:
   for empty: Bool
@@ -377,7 +423,7 @@ def gw.named(empty, name, val, orig, args, up, subs, path, binds, pos, raw, seen
     case True{}:
       ([], {==})
     case False{}:
-      gw.arg(Shake.by_long(args, name), val, orig, args, up, subs, path, binds, pos, raw, seen)
+      gw.found(Shake.by_long(args, name), name, val, orig, args, up, subs, path, binds, pos, raw, seen)
 
 # a long option after the `=` cut
 law gw.cut:

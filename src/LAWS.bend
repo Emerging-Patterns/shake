@@ -17,6 +17,14 @@ def down(ys: List<&2, String>) -> List<&1, String>:
     case Con{+hh, tt}:
       hh <> down(tt)
 
+# the words of an IO.args line after its first, the program name
+def after_head(xs: List<&1, String>) -> List<&1, String>:
+  match xs:
+    case Nil{}:
+      Nil{}
+    case Con{_hh, tt}:
+      tt
+
 # the error a walker has failed with, or None while it is still going
 def dead_of(st: S.St) -> Maybe<&2, S.ParseErr>:
   match st:
@@ -251,6 +259,14 @@ law copy_keeps:
   for xs: List<&1, String>
   {down(Args.copy(xs)) == xs : List<&1, String>}
 
+# LAW: `words` drops the program name IO.args starts with and keeps every
+# word after it, in order and unchanged; a line with no program name gives
+# no arguments
+# SHAKE-ARGS-1
+law words_keeps:
+  for xs: List<&1, String>
+  {down(Args.words(xs)) == after_head(xs) : List<&1, String>}
+
 # LAW: walking two word lists is walking the first, then the second (a lemma)
 law walk_append:
   for xs: List<&2, String>
@@ -324,6 +340,7 @@ law unknown_long_step:
   for h_cut: {S.cut_eq(body) == (name, val) : String & Maybe<&2, String>}
   for h_name: {String.is_empty(name) == False{} : Bool}
   for h_none: {S.by_long(args, name) == None{} : Maybe<&2, S.Arg>}
+  for h_lh: {S.long_help(name, val, seen) == False{} : Bool}
   {S.parse.step("--" ++ body, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen})
     == S.St{S.Dead{S.UnknownFlag{path, "--" ++ body}}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
 
@@ -347,12 +364,14 @@ law unknown_long_dies:
   for h_cut: {S.cut_eq(body) == (name, val) : String & Maybe<&2, String>}
   for h_name: {String.is_empty(name) == False{} : Bool}
   for h_none: {S.by_long(args, name) == None{} : Maybe<&2, S.Arg>}
+  for h_lh: {S.long_help(name, val, seen) == False{} : Bool}
   {dead_of(S.parse.walk(List.append(&2, String, pre, ["--" ++ body]), S.parse.start(spec)))
     == Some{S.UnknownFlag{path, "--" ++ body}} : Maybe<&2, S.ParseErr>}
 
 # LAW: wherever the words before it leave the parse, in any command and with
-# any bindings, a long option that no argument of that command spells fails
-# the parse with UnknownFlag of the word, whatever follows
+# any bindings, a long option that no argument of that command spells, other
+# than a bare `--help` that asks for help, fails the parse with UnknownFlag of
+# the word, whatever follows
 # SHAKE-TOK-7
 # SHAKE-ERR-2
 law unknown_long:
@@ -375,6 +394,7 @@ law unknown_long:
   for h_cut: {S.cut_eq(body) == (name, val) : String & Maybe<&2, String>}
   for h_name: {String.is_empty(name) == False{} : Bool}
   for h_none: {S.by_long(args, name) == None{} : Maybe<&2, S.Arg>}
+  for h_lh: {S.long_help(name, val, seen) == False{} : Bool}
   {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, ["--" ++ body]), more))
     == Fail{S.UnknownFlag{path, "--" ++ body}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
 
@@ -522,7 +542,7 @@ law choice_refused:
   {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, [tok]), more))
     == Fail{S.BadValue{path, name, tok}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
 
-# LAW: a free walker hands a long option word to `take_arg`, with the
+# LAW: a free walker hands a long option word to `take_long.found`, with the
 # argument its name spells and the value after `=` (a step lemma)
 law long_arg_step:
   for +body: String
@@ -539,7 +559,7 @@ law long_arg_step:
   for h_cut: {S.cut_eq(body) == (name, val) : String & Maybe<&2, String>}
   for h_name: {String.is_empty(name) == False{} : Bool}
   {S.parse.step("--" ++ body, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen})
-    == S.parse.take_arg(S.by_long(args, name), val, "--" ++ body, args, up, subs, path, bs, pos,
+    == S.parse.take_long.found(S.by_long(args, name), name, val, "--" ++ body, args, up, subs, path, bs, pos,
       False{}, seen) : S.St}
 
 # LAW: wherever the words before it leave the walker free, a long option
@@ -1776,6 +1796,50 @@ law help_path:
     == S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, False{}} : S.St}
   for h_ns: {help_names(ns, subs) == True{} : Bool}
   {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, ["help"]), ns))
+    == Fail{S.NeedHelp{List.append(&2, String, path, ns)}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+
+# LAW: wherever the words before it leave the walker free, before `--` and
+# before any positional of the current command is bound, a word `--help`
+# starts a help path at the selected path, as `help` does, when no argument of
+# the current command spells long `help`
+# SHAKE-PARSE-8
+law dash_help_step:
+  for +spec: Shake.Cli
+  for +pre: List<&2, String>
+  for +args: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +pos: List<&2, S.Arg>
+  for h_at: {S.parse.walk(pre, S.parse.start(spec))
+    == S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, False{}} : S.St}
+  for h_none: {S.by_long(args, "help") == None{} : Maybe<&2, S.Arg>}
+  {S.parse.walk(List.append(&2, String, pre, ["--help"]), S.parse.start(spec))
+    == S.St{S.Help{}, args, up, subs, path, bs, pos, False{}, False{}} : S.St}
+
+# LAW: wherever the words before it leave the walker free, before `--` and
+# before any positional of the current command is bound, a word `--help`,
+# when no argument of the current command spells long `help`, followed by
+# words that each name a subcommand under the one before, until the words
+# end, fails the parse with NeedHelp of the selected path followed by those
+# words, as `help` does
+# SHAKE-PARSE-8
+law dash_help_path:
+  for +spec: Shake.Cli
+  for +pre: List<&2, String>
+  for +ns: List<&2, String>
+  for +args: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +pos: List<&2, S.Arg>
+  for h_at: {S.parse.walk(pre, S.parse.start(spec))
+    == S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, False{}} : S.St}
+  for h_none: {S.by_long(args, "help") == None{} : Maybe<&2, S.Arg>}
+  for h_ns: {help_names(ns, subs) == True{} : Bool}
+  {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, ["--help"]), ns))
     == Fail{S.NeedHelp{List.append(&2, String, path, ns)}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
 
 # LAW: the walk starts free at the root, with no path, no bindings, the root's
