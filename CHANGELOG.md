@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/Emerging-Patterns/shake/compare/v0.3.0...v0.4.0) (2026-09-30)
+
+
+### Bug Fixes
+
+* a one-line package description on the hub ([#52](https://github.com/Emerging-Patterns/shake/issues/52)) ([5d227b1](https://github.com/Emerging-Patterns/shake/commit/5d227b1aeba555cbebf783b8c8fe803cec914544))
+
 ## [0.3.0](https://github.com/Emerging-Patterns/shake/compare/v0.2.0...v0.3.0) (2026-09-29)
 
 
