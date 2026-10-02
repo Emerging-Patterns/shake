@@ -560,7 +560,7 @@ def choice_refused.step(
   +kind: S.ArgKind,
   +hp: String,
   +req: Bool,
-  +dflt: Maybe<&2, String>,
+  +dflt: S.Fallback,
   +cs: List<&2, String>,
   +rest: List<&2, S.Arg>,
   h_dd: {String.eq(tok, "--") == False{} : Bool},
@@ -671,7 +671,7 @@ def flag_long_valued.step(
   +lo: Maybe<&2, String>,
   +hp: String,
   +req: Bool,
-  +dflt: Maybe<&2, String>,
+  +dflt: S.Fallback,
   +cs: List<&2, String>,
   h_dd: {String.eq("--" ++ body, "--") == False{} : Bool},
   h_cut: {S.cut_eq(body) == (name, Some{vv}) : String & Maybe<&2, String>},
@@ -905,7 +905,7 @@ def repeated_long_flag.step(
   +lo: Maybe<&2, String>,
   +hp: String,
   +req: Bool,
-  +dflt: Maybe<&2, String>,
+  +dflt: S.Fallback,
   +cs: List<&2, String>,
   h_dd: {String.eq("--" ++ body, "--") == False{} : Bool},
   h_cut: {S.cut_eq(body) == (name, val) : String & Maybe<&2, String>},
@@ -977,7 +977,7 @@ def repeated_long_opt.step(
   +lo: Maybe<&2, String>,
   +hp: String,
   +req: Bool,
-  +dflt: Maybe<&2, String>,
+  +dflt: S.Fallback,
   +cs: List<&2, String>,
   h_dd: {String.eq("--" ++ body, "--") == False{} : Bool},
   h_cut: {S.cut_eq(body) == (name, val) : String & Maybe<&2, String>},
@@ -1461,7 +1461,7 @@ def pos.take(
   +kind: S.ArgKind,
   +hp: String,
   +req: Bool,
-  +dflt: Maybe<&2, String>,
+  +dflt: S.Fallback,
   +cs: List<&2, String>,
   +rest: List<&2, S.Arg>,
   h_ok: {S.allowed(cs, tok) == True{} : Bool}
@@ -1493,7 +1493,7 @@ def pos.step(
   +kind: S.ArgKind,
   +hp: String,
   +req: Bool,
-  +dflt: Maybe<&2, String>,
+  +dflt: S.Fallback,
   +cs: List<&2, String>,
   +rest: List<&2, S.Arg>,
   h_dd: {String.eq(tok, "--") == False{} : Bool},
@@ -1681,7 +1681,7 @@ def raw_refused.step(
   +kind: S.ArgKind,
   +hp: String,
   +req: Bool,
-  +dflt: Maybe<&2, String>,
+  +dflt: S.Fallback,
   +cs: List<&2, String>,
   +rest: List<&2, S.Arg>,
   h_bad: {S.allowed(cs, tok) == False{} : Bool}
@@ -1796,7 +1796,7 @@ def long.step(
   +kind: S.ArgKind,
   +hp: String,
   +req: Bool,
-  +dflt: Maybe<&2, String>,
+  +dflt: S.Fallback,
   +cs: List<&2, String>,
   h_dd: {String.eq("--" ++ body, "--") == False{} : Bool},
   h_cut: {S.cut_eq(body) == (name, Some{vv}) : String & Maybe<&2, String>},
@@ -1960,7 +1960,7 @@ def long_refused.step(
   +kind: S.ArgKind,
   +hp: String,
   +req: Bool,
-  +dflt: Maybe<&2, String>,
+  +dflt: S.Fallback,
   +cs: List<&2, String>,
   h_dd: {String.eq("--" ++ body, "--") == False{} : Bool},
   h_cut: {S.cut_eq(body) == (name, Some{vv}) : String & Maybe<&2, String>},
@@ -2123,7 +2123,7 @@ def rest.arg(
   +lo: Maybe<&2, String>,
   +hp: String,
   +req: Bool,
-  +dflt: Maybe<&2, String>,
+  +dflt: S.Fallback,
   +cs: List<&2, String>
 ) -> S.Arg:
   S.Arg{nm, sh, lo, S.Rest{}, hp, req, dflt, cs}
@@ -2142,7 +2142,7 @@ def rest.walk(
   +lo: Maybe<&2, String>,
   +hp: String,
   +req: Bool,
-  +dflt: Maybe<&2, String>,
+  +dflt: S.Fallback,
   +cs: List<&2, String>,
   +h_plain: {Walk.all_plain(fs) == True{} : Bool},
   +h_sub: {Walk.wk.unfound(subs, fs) == True{} : Bool},
@@ -2188,7 +2188,7 @@ def rest.raw(
   +lo: Maybe<&2, String>,
   +hp: String,
   +req: Bool,
-  +dflt: Maybe<&2, String>,
+  +dflt: S.Fallback,
   +cs: List<&2, String>,
   +h_ok: {Laws.all_allowed(cs, fs) == True{} : Bool}
 ) -> {S.parse.walk(fs, S.St{S.Free{}, args, up, subs, path, bs, [rest.arg(nm, sh, lo, hp, req, dflt, cs)], True{},
@@ -2693,7 +2693,7 @@ def fin.fill_other(
       {==}
     case Con{hh, +tt}:
       match hh:
-        case S.Arg{+mm, _s, _l, _k, _h, _r, dd, _c}:
+        case S.Arg{+mm, _s, _l, _k, _h, _r, S.Fallback{_e, dd}, _c}:
           Equal.trans(List<&2, String>, S.get_all.bind(S.fill.arg.go(dd, mm, S.fill.args(tt, bs)), nn),
             S.get_all.bind(S.fill.args(tt, bs), nn), S.get_all.bind(bs, nn),
             fin.go_other(dd, mm, S.fill.args(tt, bs), nn, fin.named_head(mm, tt, nn, h_none)),
@@ -2711,7 +2711,7 @@ def fin.fill_other_b(
       {==}
     case Con{hh, +tt}:
       match hh:
-        case S.Arg{+mm, _s, _l, _k, _h, _r, dd, _c}:
+        case S.Arg{+mm, _s, _l, _k, _h, _r, S.Fallback{_e, dd}, _c}:
           Equal.trans(Bool, S.bound(S.fill.arg.go(dd, mm, S.fill.args(tt, bs)), nn), S.bound(S.fill.args(tt, bs), nn),
             S.bound(bs, nn),
             fin.go_other_b(dd, mm, S.fill.args(tt, bs), nn, fin.named_head(mm, tt, nn, h_none)),
@@ -2732,7 +2732,7 @@ def fin.fill_pre(
       {==}
     case Con{hh, +tt}:
       match hh:
-        case S.Arg{+mm, _s, _l, _k, _h, _r, dd, _c}:
+        case S.Arg{+mm, _s, _l, _k, _h, _r, S.Fallback{_e, dd}, _c}:
           +ff = S.fill.args(List.append(&2, S.Arg, tt, rest), bs)
           Equal.trans(List<&2, String>, S.get_all.bind(S.fill.arg.go(dd, mm, ff), nn), S.get_all.bind(ff, nn),
             S.get_all.bind(S.fill.args(rest, bs), nn),
@@ -2763,13 +2763,15 @@ def fin.fill_default(
   +kind: S.ArgKind,
   +hp: String,
   +req: Bool,
+  +ev: Maybe<&2, String>,
   +dd: String,
   +cs: List<&2, String>,
   +bs: List<&2, S.Bind>,
   h_pa: {Laws.none_named(pa, nn) == True{} : Bool},
   +h_qa: {Laws.none_named(qa, nn) == True{} : Bool},
   +h_free: {S.bound(bs, nn) == False{} : Bool}
-) -> {S.get_all.bind(S.fill.args(List.append(&2, S.Arg, pa, S.Arg{nn, sh, lo, kind, hp, req, Some{dd}, cs} <> qa), bs),
+) -> {S.get_all.bind(S.fill.args(List.append(&2, S.Arg, pa, S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{ev,
+    Some{dd}}, cs} <> qa), bs),
     nn) == [dd] : List<&2, String>}:
   +ff = S.fill.args(qa, bs)
   e1 = Equal.sym(Bool, S.bound(ff, nn), False{},
@@ -2779,10 +2781,11 @@ def fin.fill_default(
     Equal.trans(List<&2, String>, S.get_all.bind(ff, nn), S.get_all.bind(bs, nn), [], fin.fill_other(qa, bs, nn, h_qa),
       fin.g_unbound(bs, nn, h_free)))
   Equal.trans(List<&2, String>,
-    S.get_all.bind(S.fill.args(List.append(&2, S.Arg, pa, S.Arg{nn, sh, lo, kind, hp, req, Some{dd}, cs} <> qa),
+    S.get_all.bind(S.fill.args(List.append(&2, S.Arg, pa, S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{ev, Some{dd}},
+        cs} <> qa),
         bs), nn),
     S.get_all.bind(S.fill.one(S.bound(ff, nn), nn, dd, ff), nn), [dd],
-    fin.fill_pre(pa, S.Arg{nn, sh, lo, kind, hp, req, Some{dd}, cs} <> qa, bs, nn, h_pa),
+    fin.fill_pre(pa, S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{ev, Some{dd}}, cs} <> qa, bs, nn, h_pa),
     fin.fill_default.go(nn, dd, ff, e1, e2, e3))
 
 # a bound argument's values, with or without a default
@@ -2812,7 +2815,7 @@ def fin.fill_kept(
   +kind: S.ArgKind,
   +hp: String,
   +req: Bool,
-  +dflt: Maybe<&2, String>,
+  +dflt: S.Fallback,
   +cs: List<&2, String>,
   +bs: List<&2, S.Bind>,
   h_pa: {Laws.none_named(pa, nn) == True{} : Bool},
@@ -2820,13 +2823,17 @@ def fin.fill_kept(
   h_bound: {S.bound(bs, nn) == True{} : Bool}
 ) -> {S.get_all.bind(S.fill.args(List.append(&2, S.Arg, pa, S.Arg{nn, sh, lo, kind, hp, req, dflt, cs} <> qa), bs),
     nn) == S.get_all.bind(bs, nn) : List<&2, String>}:
-  +ff = S.fill.args(qa, bs)
-  Equal.trans(List<&2, String>,
-    S.get_all.bind(S.fill.args(List.append(&2, S.Arg, pa, S.Arg{nn, sh, lo, kind, hp, req, dflt, cs} <> qa), bs), nn),
-    S.get_all.bind(S.fill.arg.go(dflt, nn, ff), nn), S.get_all.bind(bs, nn),
-    fin.fill_pre(pa, S.Arg{nn, sh, lo, kind, hp, req, dflt, cs} <> qa, bs, nn, h_pa),
-    fin.kept_go(dflt, nn, ff, bs, fin.fill_other(qa, bs, nn, h_qa),
-      Equal.trans(Bool, S.bound(ff, nn), S.bound(bs, nn), True{}, fin.fill_other_b(qa, bs, nn, h_qa), h_bound)))
+  match dflt:
+    case S.Fallback{+ev, +dm}:
+      +ff = S.fill.args(qa, bs)
+      Equal.trans(List<&2, String>,
+        S.get_all.bind(S.fill.args(List.append(&2, S.Arg, pa, S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{ev, dm},
+            cs} <> qa),
+          bs), nn),
+        S.get_all.bind(S.fill.arg.go(dm, nn, ff), nn), S.get_all.bind(bs, nn),
+        fin.fill_pre(pa, S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{ev, dm}, cs} <> qa, bs, nn, h_pa),
+        fin.kept_go(dm, nn, ff, bs, fin.fill_other(qa, bs, nn, h_qa),
+          Equal.trans(Bool, S.bound(ff, nn), S.bound(bs, nn), True{}, fin.fill_other_b(qa, bs, nn, h_qa), h_bound)))
 
 # an argument with no default keeps exactly its values
 def fin.fill_nodef(
@@ -2838,16 +2845,20 @@ def fin.fill_nodef(
   +kind: S.ArgKind,
   +hp: String,
   +req: Bool,
+  +ev: Maybe<&2, String>,
   +cs: List<&2, String>,
   +bs: List<&2, S.Bind>,
   h_pa: {Laws.none_named(pa, nn) == True{} : Bool},
   h_qa: {Laws.none_named(qa, nn) == True{} : Bool}
-) -> {S.get_all.bind(S.fill.args(List.append(&2, S.Arg, pa, S.Arg{nn, sh, lo, kind, hp, req, None{}, cs} <> qa), bs),
+) -> {S.get_all.bind(S.fill.args(List.append(&2, S.Arg, pa, S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{ev, None{}},
+    cs} <> qa), bs),
     nn) == S.get_all.bind(bs, nn) : List<&2, String>}:
   Equal.trans(List<&2, String>,
-    S.get_all.bind(S.fill.args(List.append(&2, S.Arg, pa, S.Arg{nn, sh, lo, kind, hp, req, None{}, cs} <> qa), bs), nn),
+    S.get_all.bind(S.fill.args(List.append(&2, S.Arg, pa, S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{ev, None{}},
+        cs} <> qa), bs), nn),
     S.get_all.bind(S.fill.args(qa, bs), nn), S.get_all.bind(bs, nn),
-    fin.fill_pre(pa, S.Arg{nn, sh, lo, kind, hp, req, None{}, cs} <> qa, bs, nn, h_pa), fin.fill_other(qa, bs,
+    fin.fill_pre(pa, S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{ev, None{}}, cs} <> qa, bs, nn, h_pa),
+        fin.fill_other(qa, bs,
         nn, h_qa))
 
 # the frame of the walker the words leave: levels `qs` in front of the level
@@ -2997,6 +3008,7 @@ def Laws.default_filled(
   kind,
   hp,
   req,
+  ev,
   dd,
   cs,
   bs,
@@ -3010,10 +3022,10 @@ def Laws.default_filled(
   h_qa,
   h_free
 ):
-  +args = List.append(&2, S.Arg, pa, S.Arg{nn, sh, lo, kind, hp, req, Some{dd}, cs} <> qa)
+  +args = List.append(&2, S.Arg, pa, S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{ev, Some{dd}}, cs} <> qa)
   fin.back(found, path, nn, S.get_all.bind(S.fill.args(args, bs), nn), [dd],
     fin.all(spec, ws, found, qs, args, bs, up, path, ms, nn, h_done, h_fr, h_len),
-    fin.fill_default(pa, qa, nn, sh, lo, kind, hp, req, dd, cs, bs, h_pa, h_qa, h_free))
+    fin.fill_default(pa, qa, nn, sh, lo, kind, hp, req, ev, dd, cs, bs, h_pa, h_qa, h_free))
 
 def Laws.bound_kept(
   spec,
@@ -3060,6 +3072,7 @@ def Laws.no_default(
   kind,
   hp,
   req,
+  ev,
   cs,
   bs,
   up,
@@ -3071,11 +3084,11 @@ def Laws.no_default(
   h_pa,
   h_qa
 ):
-  +args = List.append(&2, S.Arg, pa, S.Arg{nn, sh, lo, kind, hp, req, None{}, cs} <> qa)
+  +args = List.append(&2, S.Arg, pa, S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{ev, None{}}, cs} <> qa)
   fin.back_bs(found, path, nn, bs,
     fin.back(found, path, nn, S.get_all.bind(S.fill.args(args, bs), nn), S.get_all.bind(bs, nn),
       fin.all(spec, ws, found, qs, args, bs, up, path, ms, nn, h_done, h_fr, h_len),
-      fin.fill_nodef(pa, qa, nn, sh, lo, kind, hp, req, cs, bs, h_pa, h_qa)))
+      fin.fill_nodef(pa, qa, nn, sh, lo, kind, hp, req, ev, cs, bs, h_pa, h_qa)))
 
 def Laws.no_argument(spec, ws, found, qs, args, nn, bs, up, path, ms, h_done, h_fr, h_len, h_none):
   fin.back_bs(found, path, nn, bs,
@@ -3208,7 +3221,7 @@ def fin.req_args(
   +lo: Maybe<&2, String>,
   +kind: S.ArgKind,
   +hp: String,
-  +dflt: Maybe<&2, String>,
+  +dflt: S.Fallback,
   +cs: List<&2, String>,
   +qa: List<&2, S.Arg>
 ) -> List<&2, S.Arg>:
@@ -3223,7 +3236,7 @@ def fin.miss_req(
   +lo: Maybe<&2, String>,
   +kind: S.ArgKind,
   +hp: String,
-  +dflt: Maybe<&2, String>,
+  +dflt: S.Fallback,
   +cs: List<&2, String>,
   +fb: List<&2, S.Bind>,
   hh: {S.miss.args(fin.req_args(pa, nn, sh, lo, kind, hp, dflt, cs, qa), fb) == None{} : Maybe<&2, String>}
@@ -3360,7 +3373,7 @@ def fin.miss_args_some(
   +lo: Maybe<&2, String>,
   +kind: S.ArgKind,
   +hp: String,
-  +dflt: Maybe<&2, String>,
+  +dflt: S.Fallback,
   +cs: List<&2, String>,
   +fb: List<&2, S.Bind>,
   +h_unbound: {S.bound(fb, nn) == False{} : Bool}
@@ -3654,6 +3667,7 @@ def Laws.enter_missing(
 def blk.req(
   rk: Bool,
   req: Bool,
+  +ev: Maybe<&2, String>,
   dflt: Maybe<&2, String>,
   +nm: String,
   +sh: Maybe<&2, String>,
@@ -3662,7 +3676,8 @@ def blk.req(
   +hp: String,
   +cs: List<&2, String>,
   hh: {Bool.not(Bool.and(Bool.not(rk), Bool.and(req, Maybe.is_none(&2, String, dflt)))) == True{} : Bool}
-) -> {S.parse.first_req.skip(rk, S.Arg{nm, sh, lo, kind, hp, req, dflt, cs}) == None{} : Maybe<&2, String>}:
+) -> {S.parse.first_req.skip(rk, S.Arg{nm, sh, lo, kind, hp, req, S.Fallback{ev, dflt}, cs}) == None{} : Maybe<&2,
+    String>}:
   match rk:
     case True{}:
       {==}
@@ -3675,14 +3690,15 @@ def blk.req(
             case Some{_d}:
               {==}
             case None{}:
-              Empty.absurd({S.parse.first_req.skip(False{}, S.Arg{nm, sh, lo, kind, hp, True{}, None{}, cs}) == None{}
+              Empty.absurd({S.parse.first_req.skip(False{}, S.Arg{nm, sh, lo, kind, hp, True{}, S.Fallback{ev,
+                  None{}}, cs}) == None{}
                 : Maybe<&2, String>}, Walk.wk.false_true(hh))
 
 # the same, from the argument's kind
 def blk.skip(
   +kind: S.ArgKind,
   +req: Bool,
-  +dflt: Maybe<&2, String>,
+  +dflt: S.Fallback,
   +nm: String,
   +sh: Maybe<&2, String>,
   +lo: Maybe<&2, String>,
@@ -3691,13 +3707,15 @@ def blk.skip(
   hh: {Bool.not(Laws.blocks(S.Arg{nm, sh, lo, kind, hp, req, dflt, cs})) == True{} : Bool}
 ) -> {S.parse.first_req.skip(S.rest.is.kind(kind), S.Arg{nm, sh, lo, kind, hp, req, dflt, cs}) == None{}
     : Maybe<&2, String>}:
-  blk.req(S.rest.is.kind(kind), req, dflt, nm, sh, lo, kind, hp, cs, hh)
+  match dflt:
+    case S.Fallback{+ev, dm}:
+      blk.req(S.rest.is.kind(kind), req, ev, dm, nm, sh, lo, kind, hp, cs, hh)
 
 # past a positional that does not block, the first blocking one is the rest's
 def blk.past(
   +kind: S.ArgKind,
   +req: Bool,
-  +dflt: Maybe<&2, String>,
+  +dflt: S.Fallback,
   +nm: String,
   +sh: Maybe<&2, String>,
   +lo: Maybe<&2, String>,
@@ -3725,22 +3743,23 @@ def Laws.none_blocking(pos, h_none):
               Walk.wk.and_l(Bool.not(Laws.blocks(ab)), Laws.none_block(tt), h_none)),
             Laws.none_blocking(tt, Walk.wk.and_r(Bool.not(Laws.blocks(ab)), Laws.none_block(tt), h_none)))
 
-def Laws.first_blocking(pa, nm, sh, lo, kind, hp, cs, qa, h_pa, h_kind):
+def Laws.first_blocking(pa, nm, sh, lo, kind, hp, ev, cs, qa, h_pa, h_kind):
   match pa:
     case Nil{}:
       ee = Equal.sym(Bool, S.rest.is.kind(kind), False{}, h_kind)
-      %ee : {S.parse.first_req.at(S.parse.first_req.skip(_, S.Arg{nm, sh, lo, kind, hp, True{}, None{}, cs}),
+      %ee : {S.parse.first_req.at(S.parse.first_req.skip(_, S.Arg{nm, sh, lo, kind, hp, True{}, S.Fallback{ev,
+          None{}}, cs}),
           S.parse.first_req(qa)) == Some{nm} : Maybe<&2, String>}
       {==}
     case Con{hd, +tt}:
       match hd:
         case S.Arg{+n2, +s2, +l2, +k2, +h2, +r2, +d2, +c2}:
           +ab = {S.Arg{n2, s2, l2, k2, h2, r2, d2, c2} : S.Arg}
-          +rest = List.append(&2, S.Arg, tt, S.Arg{nm, sh, lo, kind, hp, True{}, None{}, cs} <> qa)
+          +rest = List.append(&2, S.Arg, tt, S.Arg{nm, sh, lo, kind, hp, True{}, S.Fallback{ev, None{}}, cs} <> qa)
           Equal.trans(Maybe<&2, String>, S.parse.first_req(ab <> rest), S.parse.first_req(rest), Some{nm},
             blk.past(k2, r2, d2, n2, s2, l2, h2, c2, rest, Walk.wk.and_l(Bool.not(Laws.blocks(ab)),
                 Laws.none_block(tt), h_pa)),
-            Laws.first_blocking(tt, nm, sh, lo, kind, hp, cs, qa,
+            Laws.first_blocking(tt, nm, sh, lo, kind, hp, ev, cs, qa,
               Walk.wk.and_r(Bool.not(Laws.blocks(ab)), Laws.none_block(tt), h_pa), h_kind))
 
 
@@ -4032,7 +4051,7 @@ def hw.full(
   +kind: S.ArgKind,
   +hp: String,
   +req: Bool,
-  +dflt: Maybe<&2, String>,
+  +dflt: S.Fallback,
   +cs: List<&2, String>,
   +rest: List<&2, S.Arg>,
   h_sub: {S.find_sub(subs, "help") == None{} : Maybe<&2, S.Sub>},
@@ -5096,7 +5115,7 @@ def sc.args(
       {==}
     case Con{hh, +tt}:
       match hh:
-        case S.Arg{+name, +short, +long, +kind, +help, +req, +dflt, +cs}:
+        case S.Arg{+name, +short, +long, +kind, +help, +req, S.Fallback{+ev, +dflt}, +cs}:
           Equal.cong(List<&2, K.SpecErr>, List<&2, K.SpecErr>,
             zz => K.both(
               K.one(List.contains(~String, ~String.eq, Laws.arg_names(before), name), K.SameName{path, name}),
@@ -5107,13 +5126,15 @@ def sc.args(
               K.args.dups(tt, path, name <> Laws.arg_names(before), K.spelled.add(short, Laws.arg_shorts(before)),
                 K.spelled.add(long, Laws.arg_longs(before)))),
             K.both(Laws.off_choice(path, name, cs, dflt),
-              Laws.args_reports(tt, path, S.Arg{name, short, long, kind, help, req, dflt, cs} <> before)),
+              Laws.args_reports(tt, path, S.Arg{name, short, long, kind, help, req, S.Fallback{ev, dflt},
+                  cs} <> before)),
             sc.both(K.args.default(dflt, cs, path, name), Laws.off_choice(path, name, cs, dflt),
               K.args.dups(tt, path, name <> Laws.arg_names(before), K.spelled.add(short, Laws.arg_shorts(before)),
                 K.spelled.add(long, Laws.arg_longs(before))),
-              Laws.args_reports(tt, path, S.Arg{name, short, long, kind, help, req, dflt, cs} <> before),
+              Laws.args_reports(tt, path, S.Arg{name, short, long, kind, help, req, S.Fallback{ev, dflt},
+                  cs} <> before),
               sc.dflt(path, name, cs, dflt),
-              sc.args(tt, path, S.Arg{name, short, long, kind, help, req, dflt, cs} <> before)))
+              sc.args(tt, path, S.Arg{name, short, long, kind, help, req, S.Fallback{ev, dflt}, cs} <> before)))
 
 # the positional reports, from the positionals before
 def sc.pos(
@@ -6515,13 +6536,13 @@ def gv.given_mono(
       match hd:
         case S.Bind{+nn, +vv}:
           match aa:
-            case S.Arg{+an, +sh, +lo, +kind, +hp, +req, +ad, +cs}:
-              gv.and_tt(Laws.given(ws, S.Arg{an, sh, lo, kind, hp, req, ad, cs} <> tt, S.Bind{nn, vv}),
-                Laws.all_given(xt, ws, S.Arg{an, sh, lo, kind, hp, req, ad, cs} <> tt),
+            case S.Arg{+an, +sh, +lo, +kind, +hp, +req, S.Fallback{+ev, +ad}, +cs}:
+              gv.and_tt(Laws.given(ws, S.Arg{an, sh, lo, kind, hp, req, S.Fallback{ev, ad}, cs} <> tt, S.Bind{nn, vv}),
+                Laws.all_given(xt, ws, S.Arg{an, sh, lo, kind, hp, req, S.Fallback{ev, ad}, cs} <> tt),
                 gv.dmono(String.eq(vv, "true"), Laws.piece(ws, vv),
                   Bool.and(String.eq(an, nn), Laws.default_is(ad, vv)), Laws.is_default(tt, nn, vv),
                   gv.and_l(Laws.given(ws, tt, S.Bind{nn, vv}), Laws.all_given(xt, ws, tt), hh)),
-                gv.given_mono(xt, ws, S.Arg{an, sh, lo, kind, hp, req, ad, cs}, tt,
+                gv.given_mono(xt, ws, S.Arg{an, sh, lo, kind, hp, req, S.Fallback{ev, ad}, cs}, tt,
                   gv.and_r(Laws.given(ws, tt, S.Bind{nn, vv}), Laws.all_given(xt, ws, tt), hh)))
 
 # an argument's own default is given
@@ -6569,15 +6590,16 @@ def gv.fill(
       gv.all_given(bs, ws, [], hh)
     case Con{aa, +tt}:
       match aa:
-        case S.Arg{+an, +sh, +lo, +kind, +hp, +req, ad, +cs}:
+        case S.Arg{+an, +sh, +lo, +kind, +hp, +req, S.Fallback{+ev, ad}, +cs}:
           match ad:
             case None{}:
-              gv.given_mono(S.fill.args(tt, bs), ws, S.Arg{an, sh, lo, kind, hp, req, None{}, cs}, tt,
+              gv.given_mono(S.fill.args(tt, bs), ws, S.Arg{an, sh, lo, kind, hp, req, S.Fallback{ev, None{}}, cs}, tt,
                 gv.fill(tt, bs, ws, hh))
             case Some{+dv}:
               gv.fone(S.bound(S.fill.args(tt, bs), an), an, dv, S.fill.args(tt, bs), ws,
-                S.Arg{an, sh, lo, kind, hp, req, Some{dv}, cs} <> tt,
-                gv.given_mono(S.fill.args(tt, bs), ws, S.Arg{an, sh, lo, kind, hp, req, Some{dv}, cs}, tt,
+                S.Arg{an, sh, lo, kind, hp, req, S.Fallback{ev, Some{dv}}, cs} <> tt,
+                gv.given_mono(S.fill.args(tt, bs), ws, S.Arg{an, sh, lo, kind, hp, req, S.Fallback{ev, Some{dv}},
+                    cs}, tt,
                   gv.fill(tt, bs, ws, hh)),
                 gv.dself(String.eq(dv, "true"), Laws.piece(ws, dv), an, dv, Laws.is_default(tt, an, dv)))
 
@@ -7740,7 +7762,7 @@ def gn.dsub(tt: List<&2, S.Arg>, +args: List<&2, S.Arg>) -> Bool:
     case Nil{}:
       True{}
     case Con{aa, rest}:
-      S.Arg{+an, _s, _l, _k, _h, _r, dd, _c} = aa
+      S.Arg{+an, _s, _l, _k, _h, _r, S.Fallback{_e, dd}, _c} = aa
       Bool.and(gn.dcase(dd, an, args), gn.dsub(rest, args))
 
 # a default of some arguments is a default of more
@@ -7756,9 +7778,9 @@ def gn.dcase_mono(
       {==}
     case Some{+dv}:
       match aa:
-        case S.Arg{+bn, +bs, +bl, +bk, +bh, +br, +bd, +bc}:
-          gv.and_tt(Laws.has_arg(S.Arg{bn, bs, bl, bk, bh, br, bd, bc} <> tt, an),
-            Laws.is_default(S.Arg{bn, bs, bl, bk, bh, br, bd, bc} <> tt, an, dv),
+        case S.Arg{+bn, +bs, +bl, +bk, +bh, +br, S.Fallback{+ev, +bd}, +bc}:
+          gv.and_tt(Laws.has_arg(S.Arg{bn, bs, bl, bk, bh, br, S.Fallback{ev, bd}, bc} <> tt, an),
+            Laws.is_default(S.Arg{bn, bs, bl, bk, bh, br, S.Fallback{ev, bd}, bc} <> tt, an, dv),
             gn.or_rt(String.eq(bn, an), Laws.has_arg(tt, an),
               gv.and_l(Laws.has_arg(tt, an), Laws.is_default(tt, an, dv), hh)),
             gn.or_rt(Bool.and(String.eq(bn, an), Laws.default_is(bd, dv)), Laws.is_default(tt, an, dv),
@@ -7776,13 +7798,14 @@ def gn.dsub_mono(
       {==}
     case Con{xx, +xt}:
       match xx:
-        case S.Arg{+xn, _s, _l, _k, _h, _r, +xd, _c}:
+        case S.Arg{+xn, _s, _l, _k, _h, _r, S.Fallback{_e, +xd}, _c}:
           gv.and_tt(gn.dcase(xd, xn, aa <> tt), gn.dsub(xt, aa <> tt),
             gn.dcase_mono(xd, xn, aa, tt, gv.and_l(gn.dcase(xd, xn, tt), gn.dsub(xt, tt), hh)),
             gn.dsub_mono(xt, aa, tt, gv.and_r(gn.dcase(xd, xn, tt), gn.dsub(xt, tt), hh)))
 
 # an argument's own default is a default of a list it heads
 def gn.dcase_self(
+  +ev: Maybe<&2, String>,
   dd: Maybe<&2, String>,
   +an: String,
   +sh: Maybe<&2, String>,
@@ -7792,7 +7815,7 @@ def gn.dcase_self(
   +req: Bool,
   +cs: List<&2, String>,
   +tt: List<&2, S.Arg>
-) -> {gn.dcase(dd, an, S.Arg{an, sh, lo, kind, hl, req, dd, cs} <> tt) == True{} : Bool}:
+) -> {gn.dcase(dd, an, S.Arg{an, sh, lo, kind, hl, req, S.Fallback{ev, dd}, cs} <> tt) == True{} : Bool}:
   match dd:
     case None{}:
       {==}
@@ -7813,11 +7836,11 @@ def gn.dsub_self(args: List<&2, S.Arg>) -> {gn.dsub(args, args) == True{} : Bool
       {==}
     case Con{aa, +tt}:
       match aa:
-        case S.Arg{+an, +sh, +lo, +kind, +hl, +req, +dd, +cs}:
-          gv.and_tt(gn.dcase(dd, an, S.Arg{an, sh, lo, kind, hl, req, dd, cs} <> tt),
-            gn.dsub(tt, S.Arg{an, sh, lo, kind, hl, req, dd, cs} <> tt),
-            gn.dcase_self(dd, an, sh, lo, kind, hl, req, cs, tt),
-            gn.dsub_mono(tt, S.Arg{an, sh, lo, kind, hl, req, dd, cs}, tt, gn.dsub_self(tt)))
+        case S.Arg{+an, +sh, +lo, +kind, +hl, +req, S.Fallback{+ev, +dd}, +cs}:
+          gv.and_tt(gn.dcase(dd, an, S.Arg{an, sh, lo, kind, hl, req, S.Fallback{ev, dd}, cs} <> tt),
+            gn.dsub(tt, S.Arg{an, sh, lo, kind, hl, req, S.Fallback{ev, dd}, cs} <> tt),
+            gn.dcase_self(ev, dd, an, sh, lo, kind, hl, req, cs, tt),
+            gn.dsub_mono(tt, S.Arg{an, sh, lo, kind, hl, req, S.Fallback{ev, dd}, cs}, tt, gn.dsub_self(tt)))
 
 # a default goes in front when its name is unbound, named and given
 def gn.fone(
@@ -7883,7 +7906,7 @@ def gn.fill(
       hb
     case Con{aa, +rest}:
       match aa:
-        case S.Arg{+an, _s, _l, _k, _h, _r, +dd, _c}:
+        case S.Arg{+an, _s, _l, _k, _h, _r, S.Fallback{_e, +dd}, _c}:
           gn.fill_arg(dd, an, S.fill.args(rest, bs), ws, args,
             gn.fill(rest, args, bs, ws, hb, gv.and_r(gn.dcase(dd, an, args), gn.dsub(rest, args), hs)),
             gv.and_l(gn.dcase(dd, an, args), gn.dsub(rest, args), hs))

@@ -14,6 +14,11 @@ type ArgKind is Data:
   Rest{}
   Many{}
 
+# what an argument the words leave unbound falls back to: the value of its
+# env var, when `parse_env` is given one, else its default
+type Fallback is Data:
+  Fallback{env: Maybe<&2, String>, default: Maybe<&2, String>}
+
 # one argument: name is the binding key; short/long are the CLI spellings
 type Arg is Data:
   Arg{
@@ -23,7 +28,7 @@ type Arg is Data:
     kind: ArgKind,
     help: String,
     required: Bool,
-    default: Maybe<&2, String>,
+    fallback: Fallback,
     choices: List<&2, String>
   }
 
@@ -135,7 +140,7 @@ def flag(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothin
   long: Maybe<&2, String>,
   +help: String
 ) -> Arg:
-  Arg{name, short, long, Flag{}, help, False{}, None{}, []}
+  Arg{name, short, long, Flag{}, help, False{}, Fallback{None{}, None{}}, []}
 
 # a valued option
 def opt(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothing to state
@@ -147,7 +152,7 @@ def opt(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothing
   default: Maybe<&2, String>,
   choices: List<&2, String>
 ) -> Arg:
-  Arg{name, short, long, Opt{}, help, required, default, choices}
+  Arg{name, short, long, Opt{}, help, required, Fallback{None{}, default}, choices}
 
 # an option that may be given more than once; `get_all` reads every value
 def many(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothing to state
@@ -159,7 +164,7 @@ def many(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothin
   default: Maybe<&2, String>,
   choices: List<&2, String>
 ) -> Arg:
-  Arg{name, short, long, Many{}, help, required, default, choices}
+  Arg{name, short, long, Many{}, help, required, Fallback{None{}, default}, choices}
 
 # a positional
 def pos(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothing to state
@@ -169,7 +174,7 @@ def pos(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothing
   default: Maybe<&2, String>,
   choices: List<&2, String>
 ) -> Arg:
-  Arg{name, None{}, None{}, Pos{}, help, required, default, choices}
+  Arg{name, None{}, None{}, Pos{}, help, required, Fallback{None{}, default}, choices}
 
 # a rest positional: every leftover word, as one name
 def rest(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothing to state
@@ -179,7 +184,7 @@ def rest(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothin
   default: Maybe<&2, String>,
   choices: List<&2, String>
 ) -> Arg:
-  Arg{name, None{}, None{}, Rest{}, help, required, default, choices}
+  Arg{name, None{}, None{}, Rest{}, help, required, Fallback{None{}, default}, choices}
 
 # the larger of two Nats
 def help.max(+aa: Nat, +bb: Nat) -> Nat:
@@ -1009,7 +1014,7 @@ def parse.req.go(req: Bool, bare: Bool, +nn: String) -> Maybe<&2, String>:
 
 # a required Arg without a default, as a missing name
 def parse.req(aa: Arg) -> Maybe<&2, String>:
-  Arg{+n, _s, _l, _k, _h, +req, default, _c} = aa
+  Arg{+n, _s, _l, _k, _h, +req, Fallback{_e, default}, _c} = aa
   parse.req.go(req, Maybe.is_none(&2, String, default), n)
 
 # this missing name, else the rest
@@ -1328,7 +1333,7 @@ def fill.arg.go(
 
 # this Arg's default, when it has one and is not bound
 def fill.arg(aa: Arg, +binds: List<&2, Bind>) -> List<&2, Bind>:
-  Arg{+n, _s, _l, _k, _h, _r, default, _c} = aa
+  Arg{+n, _s, _l, _k, _h, _r, Fallback{_e, default}, _c} = aa
   fill.arg.go(default, n, binds)
 
 # defaults of every spec Arg
@@ -1484,7 +1489,7 @@ def help.extra.go(+dd: String, +cs: List<&2, String>) -> String:
 
 # extras after the help string
 def help.extra(aa: Arg) -> String:
-  Arg{_n, _s, _l, _k, _h, _r, default, cs} = aa
+  Arg{_n, _s, _l, _k, _h, _r, Fallback{_e, default}, cs} = aa
   help.extra.go(text.of(default, ""), cs)
 
 # one option line, given the label width

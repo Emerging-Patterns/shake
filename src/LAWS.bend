@@ -528,7 +528,7 @@ law choice_refused:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for +rest: List<&2, S.Arg>
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
@@ -586,7 +586,7 @@ law flag_long_valued:
   for +lo: Maybe<&2, String>
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
     == S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
@@ -728,7 +728,7 @@ law repeated_long_flag:
   for +lo: Maybe<&2, String>
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
     == S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
@@ -765,7 +765,7 @@ law repeated_long_opt:
   for +lo: Maybe<&2, String>
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
     == S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
@@ -902,7 +902,7 @@ law pos_next:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for +rest: List<&2, S.Arg>
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
@@ -942,7 +942,7 @@ law pos_binds:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for +rest: List<&2, S.Arg>
   for +found: Shake.Matched
@@ -1001,7 +1001,7 @@ law raw_next:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for +rest: List<&2, S.Arg>
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
@@ -1036,7 +1036,7 @@ law raw_binds:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for +rest: List<&2, S.Arg>
   for +found: Shake.Matched
@@ -1095,7 +1095,7 @@ law raw_refused:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for +rest: List<&2, S.Arg>
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
@@ -1144,7 +1144,7 @@ law long_binds:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for +found: Shake.Matched
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
@@ -1215,7 +1215,7 @@ law long_refused:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
     == S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
@@ -1281,7 +1281,7 @@ law rest_next:
   for +lo: Maybe<&2, String>
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
     == S.St{S.Free{}, args, up, subs, path, bs, [S.Arg{nm, sh, lo, S.Rest{}, hp, req, dflt, cs}], False{}, seen}
@@ -1315,7 +1315,7 @@ law rest_binds:
   for +lo: Maybe<&2, String>
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for +found: Shake.Matched
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
@@ -1352,7 +1352,7 @@ law rest_raw_next:
   for +lo: Maybe<&2, String>
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
     == S.St{S.Free{}, args, up, subs, path, bs, [S.Arg{nm, sh, lo, S.Rest{}, hp, req, dflt, cs}], True{}, seen}
@@ -1384,7 +1384,7 @@ law rest_raw_binds:
   for +lo: Maybe<&2, String>
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for +found: Shake.Matched
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
@@ -1450,6 +1450,7 @@ law default_filled:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
+  for +ev: Maybe<&2, String>
   for +dd: String
   for +cs: List<&2, String>
   for +bs: List<&2, S.Bind>
@@ -1459,7 +1460,8 @@ law default_filled:
   for h_done: {Shake.parse(spec, ws) == Done{found} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
   for h_fr: {Grow.gw.frame(S.parse.walk(ws, S.parse.start(spec)))
     == Grow.Frame{List.append(&2, S.Level, qs,
-      S.Level{List.append(&2, S.Arg, pa, S.Arg{nn, sh, lo, kind, hp, req, Some{dd}, cs} <> qa), bs} <> up),
+      S.Level{List.append(&2, S.Arg, pa, S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{ev, Some{dd}}, cs} <> qa),
+          bs} <> up),
       List.append(&2, String, path, ms)} : Grow.Frame}
   for h_len: {List.length(&2, S.Level, up) == List.length(&2, String, path) : Nat}
   for h_pa: {none_named(pa, nn) == True{} : Bool}
@@ -1484,7 +1486,7 @@ law bound_kept:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for +bs: List<&2, S.Bind>
   for +up: List<&2, S.Level>
@@ -1517,6 +1519,7 @@ law no_default:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
+  for +ev: Maybe<&2, String>
   for +cs: List<&2, String>
   for +bs: List<&2, S.Bind>
   for +up: List<&2, S.Level>
@@ -1525,7 +1528,8 @@ law no_default:
   for h_done: {Shake.parse(spec, ws) == Done{found} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
   for h_fr: {Grow.gw.frame(S.parse.walk(ws, S.parse.start(spec)))
     == Grow.Frame{List.append(&2, S.Level, qs,
-      S.Level{List.append(&2, S.Arg, pa, S.Arg{nn, sh, lo, kind, hp, req, None{}, cs} <> qa), bs} <> up),
+      S.Level{List.append(&2, S.Arg, pa, S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{ev, None{}}, cs} <> qa),
+          bs} <> up),
       List.append(&2, String, path, ms)} : Grow.Frame}
   for h_len: {List.length(&2, S.Level, up) == List.length(&2, String, path) : Nat}
   for h_pa: {none_named(pa, nn) == True{} : Bool}
@@ -1569,7 +1573,7 @@ law required_present:
   for +lo: Maybe<&2, String>
   for +kind: S.ArgKind
   for +hp: String
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for +bs: List<&2, S.Bind>
   for +up: List<&2, S.Level>
@@ -1599,7 +1603,7 @@ law required_missing:
   for +lo: Maybe<&2, String>
   for +kind: S.ArgKind
   for +hp: String
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for +bs: List<&2, S.Bind>
   for +up: List<&2, S.Level>
@@ -1617,7 +1621,7 @@ law required_missing:
 # whether a pending positional blocks a subcommand: required, with no
 # default, and not a rest
 def blocks(aa: S.Arg) -> Bool:
-  S.Arg{_n, _s, _l, kind, _h, req, dflt, _c} = aa
+  S.Arg{_n, _s, _l, kind, _h, req, S.Fallback{_e, dflt}, _c} = aa
   Bool.and(Bool.not(S.rest.is.kind(kind)), Bool.and(req, Maybe.is_none(&2, String, dflt)))
 
 # whether no pending positional blocks a subcommand
@@ -1646,11 +1650,13 @@ law first_blocking:
   for +lo: Maybe<&2, String>
   for +kind: S.ArgKind
   for +hp: String
+  for +ev: Maybe<&2, String>
   for +cs: List<&2, String>
   for +qa: List<&2, S.Arg>
   for +h_pa: {none_block(pa) == True{} : Bool}
   for h_kind: {S.rest.is.kind(kind) == False{} : Bool}
-  {S.parse.first_req(List.append(&2, S.Arg, pa, S.Arg{nm, sh, lo, kind, hp, True{}, None{}, cs} <> qa)) == Some{nm}
+  {S.parse.first_req(List.append(&2, S.Arg, pa, S.Arg{nm, sh, lo, kind, hp, True{}, S.Fallback{ev, None{}},
+      cs} <> qa)) == Some{nm}
     : Maybe<&2, String>}
 
 # LAW: wherever the words before it leave the walker free before `--`, a plain
@@ -1894,7 +1900,7 @@ law help_word_next:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for +rest: List<&2, S.Arg>
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
@@ -1925,7 +1931,7 @@ law help_word_binds:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for +rest: List<&2, S.Arg>
   for +found: Shake.Matched
@@ -1999,7 +2005,7 @@ law letter_flag:
   for +lo: Maybe<&2, String>
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for h_found: {S.by_short(args, SCon{cc, SNil{}}) == Some{S.Arg{nn, sh, lo, S.Flag{}, hp, req, dflt, cs}}
     : Maybe<&2, S.Arg>}
@@ -2030,7 +2036,7 @@ law letter_flag_eq:
   for +lo: Maybe<&2, String>
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for h_found: {S.by_short(args, SCon{cc, SNil{}}) == Some{S.Arg{nn, sh, lo, S.Flag{}, hp, req, dflt, cs}}
     : Maybe<&2, S.Arg>}
@@ -2081,7 +2087,7 @@ law letter_flag_again:
   for +lo: Maybe<&2, String>
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for h_found: {S.by_short(args, SCon{cc, SNil{}}) == Some{S.Arg{nn, sh, lo, S.Flag{}, hp, req, dflt, cs}}
     : Maybe<&2, S.Arg>}
@@ -2110,7 +2116,7 @@ law letter_opt_again:
   for +lo: Maybe<&2, String>
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for h_found: {S.by_short(args, SCon{cc, SNil{}}) == Some{S.Arg{nn, sh, lo, S.Opt{}, hp, req, dflt, cs}}
     : Maybe<&2, S.Arg>}
@@ -2142,7 +2148,7 @@ law letter_value:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for h_found: {S.by_short(args, SCon{cc, SNil{}}) == Some{S.Arg{nn, sh, lo, kind, hp, req, dflt, cs}}
     : Maybe<&2, S.Arg>}
@@ -2177,7 +2183,7 @@ law letter_value_eq:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for h_found: {S.by_short(args, SCon{cc, SNil{}}) == Some{S.Arg{nn, sh, lo, kind, hp, req, dflt, cs}}
     : Maybe<&2, S.Arg>}
@@ -2206,7 +2212,7 @@ law letter_value_next:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for h_found: {S.by_short(args, SCon{cc, SNil{}}) == Some{S.Arg{nn, sh, lo, kind, hp, req, dflt, cs}}
     : Maybe<&2, S.Arg>}
@@ -2236,7 +2242,7 @@ law letter_value_bad:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for h_found: {S.by_short(args, SCon{cc, SNil{}}) == Some{S.Arg{nn, sh, lo, kind, hp, req, dflt, cs}}
     : Maybe<&2, S.Arg>}
@@ -2510,7 +2516,7 @@ def arg_reports(
   aa: S.Arg,
   after: List<&2, K.SpecErr>
 ) -> List<&2, K.SpecErr>:
-  S.Arg{+name, +short, +long, _k, _h, _r, dflt, +cs} = aa
+  S.Arg{+name, +short, +long, _k, _h, _r, S.Fallback{_e, dflt}, +cs} = aa
   K.both(K.one(List.contains(~String, ~String.eq, arg_names(before), name), K.SameName{path, name}),
     K.both(K.one(K.spelled.seen(short, arg_shorts(before)), K.SameShort{path, S.text.of(short, "")}),
       K.both(K.one(K.spelled.seen(long, arg_longs(before)), K.SameLong{path, S.text.of(long, "")}),
@@ -2646,7 +2652,7 @@ def is_default(args: List<&2, S.Arg>, +name: String, +vv: String) -> Bool:
     case Nil{}:
       False{}
     case Con{hh, tt}:
-      S.Arg{nn, _s, _l, _k, _h, _r, dd, _c} = hh
+      S.Arg{nn, _s, _l, _k, _h, _r, S.Fallback{_e, dd}, _c} = hh
       Bool.or(Bool.and(String.eq(nn, name), default_is(dd, vv)), is_default(tt, name, vv))
 
 # whether a binding's value is `true`, which a flag binds, a piece of one of

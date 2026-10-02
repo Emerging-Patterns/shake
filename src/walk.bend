@@ -201,7 +201,7 @@ def wk.plain_dash(ww, h):
       wk.nor_r(String.eq(ww, "--"), Bool.or(String.eq(ww, "help"), String.starts_with(ww, "-")), h)))
 
 # a rest positional with no choices
-def wk.rest(+nm: String, +hlp: String, +req: Bool, +dflt: Maybe<&2, String>) -> Shake.Arg:
+def wk.rest(+nm: String, +hlp: String, +req: Bool, +dflt: Shake.Fallback) -> Shake.Arg:
   Shake.Arg{nm, None{}, None{}, Shake.Rest{}, hlp, req, dflt, []}
 
 # the binds a walk pushes for a rest named `nm`, onto the ones it had, newest
@@ -277,7 +277,7 @@ law wk.walk_plain:
   for +nm: String
   for +hlp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: Shake.Fallback
   for +seen: Bool
   for +hp: {all_plain(fs) == True{} : Bool}
   for +hu: {wk.unfound(subs, fs) == True{} : Bool}
@@ -317,7 +317,7 @@ law wk.walk_raw:
   for +nm: String
   for +hlp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: Shake.Fallback
   for seen: Bool
   {Shake.parse.walk(fs, Shake.St{Shake.Free{}, args, up, subs, path, bs,
       [wk.rest(nm, hlp, req, dflt)], True{}, seen})

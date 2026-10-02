@@ -70,7 +70,7 @@ def args.dups(
     case Nil{}:
       []
     case Con{hh, tt}:
-      C.Arg{+name, +short, +long, _k, _h, _r, dflt, +cs} = hh
+      C.Arg{+name, +short, +long, _k, _h, _r, C.Fallback{_e, dflt}, +cs} = hh
       both(one(List.contains(~String, ~String.eq, names, name), SameName{path, name}),
         both(one(spelled.seen(short, shorts), SameShort{path, C.text.of(short, "")}),
           both(one(spelled.seen(long, longs), SameLong{path, C.text.of(long, "")}),
