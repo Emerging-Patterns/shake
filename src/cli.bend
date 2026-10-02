@@ -51,6 +51,10 @@ type Cli is Data:
     subcommands: List<&2, Sub>
   }
 
+# an env var's name and its value, as `parse_env` is given them
+def Var() -> Data:
+  Sigma<&2, &2, String, _ => String>
+
 # one bound name and its text
 type Bind is Data:
   Bind{name: String, value: String}
@@ -185,6 +189,11 @@ def rest(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothin
   choices: List<&2, String>
 ) -> Arg:
   Arg{name, None{}, None{}, Rest{}, help, required, Fallback{None{}, default}, choices}
+
+# this argument, falling back to the env var `var` (clap's `.env`)
+def env(aa: Arg, +var: String) -> Arg:
+  Arg{+n, +s, +l, kk, +h, +r, Fallback{_e, dd}, cs} = aa
+  Arg{n, s, l, kk, h, r, Fallback{Some{var}, dd}, cs}
 
 # the larger of two Nats
 def help.max(+aa: Nat, +bb: Nat) -> Nat:
@@ -1451,6 +1460,258 @@ def parse.finish(st: St) -> Result<&2, &2, ParseErr, Matched>:
 def parse(app: Cli, argv: List<&2, String>) -> Result<&2, &2, ParseErr, Matched>:
   parse.finish(parse.walk(argv, parse.start(app)))
 
+# this pair's value when its name matches, else the rest
+def env.get.at(hit: Bool, +vv: String, rest: Maybe<&2, String>) -> Maybe<&2, String>:
+  match hit:
+    case True{}:
+      Some{vv}
+    case False{}:
+      rest
+
+# the value of the first pair named `name`
+def env.get(vars: List<&2, Var>, +name: String) -> Maybe<&2, String>:
+  match vars:
+    case Nil{}:
+      None{}
+    case Con{hh, tt}:
+      (+nn, +vv) = hh
+      env.get.at(String.eq(nn, name), vv, env.get(tt, name))
+
+# a value that is not empty
+def env.full(mv: Maybe<&2, String>) -> Maybe<&2, String>:
+  match mv:
+    case None{}:
+      None{}
+    case Some{+vv}:
+      Bool.pick(Maybe<&2, String>, String.is_empty(vv), None{}, Some{vv})
+
+# the env value of an env var: its first pair's value, when that is not empty
+def env.of(ev: Maybe<&2, String>, vars: List<&2, Var>) -> Maybe<&2, String>:
+  match ev:
+    case None{}:
+      None{}
+    case Some{+var}:
+      env.full(env.get(vars, var))
+
+# whether an env value turns a flag off, as clap's `SetTrue` reads it
+def env.off(+vv: String) -> Bool:
+  allowed.ok(["0", "false", "no", "off", "n", "f"], String.to_lower(vv))
+
+# the default an env value gives an argument of this kind: a flag is set
+# unless the value turns it off; every other kind takes the value
+def env.kind(kk: ArgKind, +vv: String) -> Maybe<&2, String>:
+  match kk:
+    case Flag{}:
+      Bool.pick(Maybe<&2, String>, env.off(vv), None{}, Some{"true"})
+    case Opt{}:
+      Some{vv}
+    case Many{}:
+      Some{vv}
+    case Pos{}:
+      Some{vv}
+    case Rest{}:
+      Some{vv}
+
+# a fallback with its default replaced by what the env value gives, when
+# there is one
+def resolve.with(
+  found: Maybe<&2, String>,
+  kk: ArgKind,
+  ev: Maybe<&2, String>,
+  dd: Maybe<&2, String>
+) -> Fallback:
+  match found:
+    case None{}:
+      Fallback{ev, dd}
+    case Some{+vv}:
+      Fallback{ev, env.kind(kk, vv)}
+
+# an argument whose default is its fallback under `vars`
+def resolve.arg(aa: Arg, vars: List<&2, Var>) -> Arg:
+  Arg{+n, +s, +l, +kk, +h, +r, Fallback{+ev, dd}, +cs} = aa
+  Arg{n, s, l, kk, h, r, resolve.with(env.of(ev, vars), kk, ev, dd), cs}
+
+# every argument's default is its fallback
+def resolve.args(args: List<&2, Arg>, +vars: List<&2, Var>) -> List<&2, Arg>:
+  match args:
+    case Nil{}:
+      []
+    case Con{hh, tt}:
+      resolve.arg(hh, vars) <> resolve.args(tt, vars)
+
+# every argument of every subcommand, its default its fallback
+def resolve.subs(subs: List<&2, Sub>, +vars: List<&2, Var>) -> List<&2, Sub>:
+  match subs:
+    case Nil{}:
+      []
+    case Con{hh, tt}:
+      Sub{+n, +a, args, kids} = hh
+      Sub{n, a, resolve.args(args, vars), resolve.subs(kids, vars)} <> resolve.subs(tt, vars)
+
+# the spec whose every argument's default is its fallback under `vars`
+def resolve(app: Cli, +vars: List<&2, Var>) -> Cli:
+  Cli{+n, +a, +v, args, subs} = app
+  Cli{n, a, v, resolve.args(args, vars), resolve.subs(subs, vars)}
+
+# whether this kind is a flag
+def env.flag.is(kk: ArgKind) -> Bool:
+  match kk:
+    case Flag{}:
+      True{}
+    case Opt{}:
+      False{}
+    case Many{}:
+      False{}
+    case Pos{}:
+      False{}
+    case Rest{}:
+      False{}
+
+# an argument bound to an env value outside its choices: never a flag, and
+# only for a value its command's bindings hold
+def env.bad.val(
+  found: Maybe<&2, String>,
+  kk: ArgKind,
+  +name: String,
+  +cs: List<&2, String>,
+  +binds: List<&2, Bind>
+) -> Maybe<&2, Var>:
+  match found:
+    case None{}:
+      None{}
+    case Some{+vv}:
+      Bool.pick(Maybe<&2, Var>,
+        Bool.and(Bool.not(env.flag.is(kk)), Bool.and(Bool.not(allowed(cs, vv)),
+          List.contains(~String, ~String.eq, get_all.bind(binds, name), vv))),
+        Some{(name, vv)}, None{})
+
+# this argument's name and env value, when its command's bindings hold that
+# value and its choices do not
+def env.bad.arg(aa: Arg, vars: List<&2, Var>, +binds: List<&2, Bind>) -> Maybe<&2, Var>:
+  Arg{+n, _s, _l, kk, _h, _r, Fallback{ev, _d}, +cs} = aa
+  env.bad.val(env.of(ev, vars), kk, n, cs, binds)
+
+# the first of two answers that is one
+def env.first(here: Maybe<&2, Var>, rest: Maybe<&2, Var>) -> Maybe<&2, Var>:
+  match here:
+    case None{}:
+      rest
+    case Some{pp}:
+      Some{pp}
+
+# the first argument of a command bound to an env value outside its choices
+def env.bad.args(
+  args: List<&2, Arg>,
+  +vars: List<&2, Var>,
+  +binds: List<&2, Bind>
+) -> Maybe<&2, Var>:
+  match args:
+    case Nil{}:
+      None{}
+    case Con{hh, tt}:
+      env.first(env.bad.arg(hh, vars, binds), env.bad.args(tt, vars, binds))
+
+# the arguments of a found subcommand, or none
+def env.sub.args(found: Maybe<&2, Sub>) -> List<&2, Arg>:
+  match found:
+    case None{}:
+      []
+    case Some{ss}:
+      Sub{_n, _a, args, _k} = ss
+      args
+
+# the subcommands of a found subcommand, or none
+def env.sub.kids(found: Maybe<&2, Sub>) -> List<&2, Sub>:
+  match found:
+    case None{}:
+      []
+    case Some{ss}:
+      Sub{_n, _a, _g, kids} = ss
+      kids
+
+# the first argument bound to an env value outside its choices, the command
+# first, then down the selected path
+def env.bad.go(
+  mm: Matched,
+  +args: List<&2, Arg>,
+  +subs: List<&2, Sub>,
+  +vars: List<&2, Var>
+) -> Maybe<&2, Var>:
+  match mm:
+    case Leaf{+bs}:
+      env.bad.args(args, vars, bs)
+    case Node{+bs, +name, next}:
+      env.first(env.bad.args(args, vars, bs),
+        env.bad.go(next, env.sub.args(find_sub(subs, name)), env.sub.kids(find_sub(subs, name)), vars))
+
+# a success, or the first env value outside its choices that it bound
+def env.check.done(bad: Maybe<&2, Var>, +mm: Matched) -> Result<&2, &2, ParseErr, Matched>:
+  match bad:
+    case None{}:
+      Done{mm}
+    case Some{pp}:
+      (+name, +vv) = pp
+      Fail{BadValue{path_of(mm), name, vv}}
+
+# a successful parse checked for env values outside their choices
+def env.check.ok(app: Cli, +vars: List<&2, Var>, +mm: Matched) -> Result<&2, &2, ParseErr, Matched>:
+  Cli{_n, _a, _v, +args, subs} = app
+  env.check.done(env.bad.go(mm, args, subs, vars), mm)
+
+# a failed parse as it is; a successful one checked for env values outside
+# their choices
+def env.check(
+  app: Cli,
+  +vars: List<&2, Var>,
+  got: Result<&2, &2, ParseErr, Matched>
+) -> Result<&2, &2, ParseErr, Matched>:
+  match got:
+    case Fail{ee}:
+      Fail{ee}
+    case Done{+mm}:
+      env.check.ok(app, vars, mm)
+
+# argv against a Cli, every argument falling back to its env value under
+# `vars`, then to its default
+def parse_env(
+  +app: Cli,
+  argv: List<&2, String>,
+  +vars: List<&2, Var>
+) -> Result<&2, &2, ParseErr, Matched>:
+  env.check(app, vars, parse(resolve(app, vars), argv))
+
+# an env var in front of the names, when there is one
+def env.names.put(ev: Maybe<&2, String>, rest: List<&2, String>) -> List<&2, String>:
+  match ev:
+    case None{}:
+      rest
+    case Some{var}:
+      var <> rest
+
+# the env vars of a command's arguments, in order
+def env.names.args(args: List<&2, Arg>) -> List<&2, String>:
+  match args:
+    case Nil{}:
+      []
+    case Con{hh, tt}:
+      Arg{_n, _s, _l, _k, _h, _r, Fallback{ev, _d}, _c} = hh
+      env.names.put(ev, env.names.args(tt))
+
+# the env vars of every subcommand's arguments, depth first
+def env.names.forest(subs: List<&2, Sub>) -> List<&2, String>:
+  match subs:
+    case Nil{}:
+      []
+    case Con{hh, tt}:
+      Sub{_n, _a, args, kids} = hh
+      List.append(&2, String, env.names.args(args),
+        List.append(&2, String, env.names.forest(kids), env.names.forest(tt)))
+
+# the env vars of a spec: the root's arguments', then every subcommand's
+def env.names(app: Cli) -> List<&2, String>:
+  Cli{_n, _a, _v, args, subs} = app
+  List.append(&2, String, env.names.args(args), env.names.forest(subs))
+
 # the short/long label of an option, plus a metavar for Opt
 def help.label.kind(kk: ArgKind, +name: String, +label: String) -> String:
   match kk:
@@ -1487,10 +1748,18 @@ def help.extra.go(+dd: String, +cs: List<&2, String>) -> String:
       " [default: " ++ dd ++ "] [possible values: " ++ String.join(cs, ", ") ++
         "]"))
 
-# extras after the help string
+# the env var after the help string, before the default
+def help.env(ev: Maybe<&2, String>) -> String:
+  match ev:
+    case None{}:
+      ""
+    case Some{var}:
+      " [env: " ++ var ++ "]"
+
+# extras after the help string: env var, default and choices
 def help.extra(aa: Arg) -> String:
-  Arg{_n, _s, _l, _k, _h, _r, Fallback{_e, default}, cs} = aa
-  help.extra.go(text.of(default, ""), cs)
+  Arg{_n, _s, _l, _k, _h, _r, Fallback{ev, default}, cs} = aa
+  help.env(ev) ++ help.extra.go(text.of(default, ""), cs)
 
 # one option line, given the label width
 def help.opt_line(+aa: Arg, ww: Nat) -> String:

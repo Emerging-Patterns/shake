@@ -9949,3 +9949,342 @@ def Laws.spec_err_where(err):
       ("the default '" ++ value ++ "' of '" ++ name ++ "' is not one of its choices", {==})
     case K.RequiredAfterOptional{+path, +name}:
       ("required positional '" ++ name ++ "' follows an optional one", {==})
+
+def Laws.env_sets(_nn, _sh, _lo, _kind, _hp, _req, _ev, _dd, _cs, _var):
+  {==}
+
+def Laws.env_of_none(_vars):
+  {==}
+
+def Laws.env_of_nil(_var):
+  {==}
+
+def Laws.env_of_hit(var, nn, vv, rest, h_eq, h_full):
+  e1 = Equal.sym(Bool, String.eq(nn, var), True{}, h_eq)
+  %e1 : {S.env.full(S.env.get.at(_, vv, S.env.get(rest, var))) == Some{vv} : Maybe<&2, String>}
+  e2 = Equal.sym(Bool, String.is_empty(vv), False{}, h_full)
+  %e2 : {Bool.pick(Maybe<&2, String>, _, None{}, Some{vv}) == Some{vv} : Maybe<&2, String>}
+  {==}
+
+def Laws.env_of_empty(var, nn, vv, rest, h_eq, h_empty):
+  e1 = Equal.sym(Bool, String.eq(nn, var), True{}, h_eq)
+  %e1 : {S.env.full(S.env.get.at(_, vv, S.env.get(rest, var))) == None{} : Maybe<&2, String>}
+  e2 = Equal.sym(Bool, String.is_empty(vv), True{}, h_empty)
+  %e2 : {Bool.pick(Maybe<&2, String>, _, None{}, Some{vv}) == None{} : Maybe<&2, String>}
+  {==}
+
+def Laws.env_of_skip(var, nn, vv, rest, h_eq):
+  e1 = Equal.sym(Bool, String.eq(nn, var), False{}, h_eq)
+  %e1 : {S.env.full(S.env.get.at(_, vv, S.env.get(rest, var))) == S.env.of(Some{var}, rest)
+    : Maybe<&2, String>}
+  {==}
+
+# that a kind is not a flag
+def fb.not_flag(kk: S.ArgKind) -> Type:
+  {S.env.flag.is(kk) == False{} : Bool}
+
+# what an env value gives an argument other than a flag is that value
+def fb.kind(
+  kk: S.ArgKind,
+  +vv: String,
+  hh: fb.not_flag(kk)
+) -> {S.env.kind(kk, vv) == Some{vv} : Maybe<&2, String>}:
+  match kk:
+    case S.Flag{}:
+      Empty.absurd({S.env.kind(S.Flag{}, vv) == Some{vv} : Maybe<&2, String>}, Walk.wk.true_false(hh))
+    case S.Opt{}:
+      {==}
+    case S.Many{}:
+      {==}
+    case S.Pos{}:
+      {==}
+    case S.Rest{}:
+      {==}
+
+def Laws.fallback_env(nn, sh, lo, kind, hp, req, ev, dd, cs, vars, vv, h_kind, h_env):
+  e1 = Equal.sym(Maybe<&2, String>, S.env.of(ev, vars), Some{vv}, h_env)
+  %e1 : {S.Arg{nn, sh, lo, kind, hp, req, S.resolve.with(_, kind, ev, dd), cs}
+    == S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{ev, Some{vv}}, cs} : S.Arg}
+  e2 = Equal.sym(Maybe<&2, String>, S.env.kind(kind, vv), Some{vv}, fb.kind(kind, vv, h_kind))
+  %e2 : {S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{ev, _}, cs}
+    == S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{ev, Some{vv}}, cs} : S.Arg}
+  {==}
+
+def Laws.fallback_flag_on(nn, sh, lo, hp, req, ev, dd, cs, vars, vv, h_env, h_on):
+  e1 = Equal.sym(Maybe<&2, String>, S.env.of(ev, vars), Some{vv}, h_env)
+  %e1 : {S.Arg{nn, sh, lo, S.Flag{}, hp, req, S.resolve.with(_, S.Flag{}, ev, dd), cs}
+    == S.Arg{nn, sh, lo, S.Flag{}, hp, req, S.Fallback{ev, Some{"true"}}, cs} : S.Arg}
+  e2 = Equal.sym(Bool, S.allowed.ok(Laws.off_words(), String.to_lower(vv)), False{}, h_on)
+  %e2 : {S.Arg{nn, sh, lo, S.Flag{}, hp, req, S.Fallback{ev, Bool.pick(Maybe<&2, String>, _, None{}, Some{"true"})}, cs}
+    == S.Arg{nn, sh, lo, S.Flag{}, hp, req, S.Fallback{ev, Some{"true"}}, cs} : S.Arg}
+  {==}
+
+def Laws.fallback_flag_off(nn, sh, lo, hp, req, ev, dd, cs, vars, vv, h_env, h_off):
+  e1 = Equal.sym(Maybe<&2, String>, S.env.of(ev, vars), Some{vv}, h_env)
+  %e1 : {S.Arg{nn, sh, lo, S.Flag{}, hp, req, S.resolve.with(_, S.Flag{}, ev, dd), cs}
+    == S.Arg{nn, sh, lo, S.Flag{}, hp, req, S.Fallback{ev, None{}}, cs} : S.Arg}
+  e2 = Equal.sym(Bool, S.allowed.ok(Laws.off_words(), String.to_lower(vv)), True{}, h_off)
+  %e2 : {S.Arg{nn, sh, lo, S.Flag{}, hp, req, S.Fallback{ev, Bool.pick(Maybe<&2, String>, _, None{}, Some{"true"})}, cs}
+    == S.Arg{nn, sh, lo, S.Flag{}, hp, req, S.Fallback{ev, None{}}, cs} : S.Arg}
+  {==}
+
+def Laws.fallback_default(nn, sh, lo, kind, hp, req, ev, dd, cs, vars, h_env):
+  e1 = Equal.sym(Maybe<&2, String>, S.env.of(ev, vars), None{}, h_env)
+  %e1 : {S.Arg{nn, sh, lo, kind, hp, req, S.resolve.with(_, kind, ev, dd), cs}
+    == S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{ev, dd}, cs} : S.Arg}
+  {==}
+
+def Laws.resolve_spec(_nn, _ab, _ver, _args, _subs, _vars):
+  {==}
+
+def Laws.resolve_args_con(_aa, _tt, _vars):
+  {==}
+
+def Laws.resolve_subs_con(_nn, _ab, _args, _kids, _tt, _vars):
+  {==}
+
+def Laws.env_parse(_spec, _ws, _vars):
+  {==}
+
+# an argument resolved under no pairs is unchanged
+def rs.arg_nil(aa: S.Arg) -> {S.resolve.arg(aa, []) == aa : S.Arg}:
+  match aa:
+    case S.Arg{+n, +s, +l, +kk, +h, +r, fb, +cs}:
+      match fb:
+        case S.Fallback{ev, +dd}:
+          match ev:
+            case None{}:
+              {==}
+            case Some{+var}:
+              {==}
+
+# arguments resolved under no pairs are unchanged
+def rs.args_nil(args: List<&2, S.Arg>) -> {S.resolve.args(args, []) == args : List<&2, S.Arg>}:
+  match args:
+    case Nil{}:
+      {==}
+    case Con{+hh, +tt}:
+      e1 = Equal.sym(S.Arg, S.resolve.arg(hh, []), hh, rs.arg_nil(hh))
+      %e1 : {_ <> S.resolve.args(tt, []) == hh <> tt : List<&2, S.Arg>}
+      e2 = Equal.sym(List<&2, S.Arg>, S.resolve.args(tt, []), tt, rs.args_nil(tt))
+      %e2 : {hh <> _ == hh <> tt : List<&2, S.Arg>}
+      {==}
+
+# subcommands resolved under no pairs are unchanged
+def rs.subs_nil(subs: List<&2, S.Sub>) -> {S.resolve.subs(subs, []) == subs : List<&2, S.Sub>}:
+  match subs:
+    case Nil{}:
+      {==}
+    case Con{hh, +tt}:
+      match hh:
+        case S.Sub{+n, +a, +args, +kids}:
+          e1 = Equal.sym(List<&2, S.Arg>, S.resolve.args(args, []), args, rs.args_nil(args))
+          %e1 : {S.Sub{n, a, _, S.resolve.subs(kids, [])} <> S.resolve.subs(tt, [])
+            == S.Sub{n, a, args, kids} <> tt : List<&2, S.Sub>}
+          e2 = Equal.sym(List<&2, S.Sub>, S.resolve.subs(kids, []), kids, rs.subs_nil(kids))
+          %e2 : {S.Sub{n, a, args, _} <> S.resolve.subs(tt, []) == S.Sub{n, a, args, kids} <> tt : List<&2, S.Sub>}
+          e3 = Equal.sym(List<&2, S.Sub>, S.resolve.subs(tt, []), tt, rs.subs_nil(tt))
+          %e3 : {S.Sub{n, a, args, kids} <> _ == S.Sub{n, a, args, kids} <> tt : List<&2, S.Sub>}
+          {==}
+
+# a spec resolved under no pairs is unchanged
+def rs.spec_nil(spec: S.Cli) -> {S.resolve(spec, []) == spec : S.Cli}:
+  match spec:
+    case S.Cli{+n, +a, +v, +args, +subs}:
+      e1 = Equal.sym(List<&2, S.Arg>, S.resolve.args(args, []), args, rs.args_nil(args))
+      %e1 : {S.Cli{n, a, v, _, S.resolve.subs(subs, [])} == S.Cli{n, a, v, args, subs} : S.Cli}
+      e2 = Equal.sym(List<&2, S.Sub>, S.resolve.subs(subs, []), subs, rs.subs_nil(subs))
+      %e2 : {S.Cli{n, a, v, args, _} == S.Cli{n, a, v, args, subs} : S.Cli}
+      {==}
+
+def Laws.bad_args_nil(args, bs):
+  match args:
+    case Nil{}:
+      {==}
+    case Con{hh, tt}:
+      match hh:
+        case S.Arg{_n, _s, _l, _k, _h, _r, fb, _c}:
+          match fb:
+            case S.Fallback{ev, _d}:
+              match ev:
+                case None{}:
+                  Laws.bad_args_nil(tt, bs)
+                case Some{_var}:
+                  Laws.bad_args_nil(tt, bs)
+
+# no command on the path has a bad argument under no pairs
+def ck.go_nil(
+  mm: S.Matched,
+  +args: List<&2, S.Arg>,
+  +subs: List<&2, S.Sub>
+) -> {S.env.bad.go(mm, args, subs, []) == None{} : Maybe<&2, S.Var>}:
+  match mm:
+    case S.Leaf{+bs}:
+      Laws.bad_args_nil(args, bs)
+    case S.Node{+bs, +name, next}:
+      e1 = Equal.sym(Maybe<&2, S.Var>, S.env.bad.args(args, [], bs), None{}, Laws.bad_args_nil(args, bs))
+      %e1 : {S.env.first(_,
+        S.env.bad.go(next, S.env.sub.args(S.find_sub(subs, name)), S.env.sub.kids(S.find_sub(subs, name)), []))
+        == None{} : Maybe<&2, S.Var>}
+      ck.go_nil(next, S.env.sub.args(S.find_sub(subs, name)), S.env.sub.kids(S.find_sub(subs, name)))
+
+# the check under no pairs leaves every result as it is
+def ck.nil(
+  spec: S.Cli,
+  got: Result<&2, &2, S.ParseErr, S.Matched>
+) -> {S.env.check(spec, [], got) == got : Result<&2, &2, S.ParseErr, S.Matched>}:
+  match spec:
+    case S.Cli{_n, _a, _v, +args, +subs}:
+      match got:
+        case Fail{_e}:
+          {==}
+        case Done{+mm}:
+          e1 = Equal.sym(Maybe<&2, S.Var>, S.env.bad.go(mm, args, subs, []), None{}, ck.go_nil(mm, args, subs))
+          %e1 : {S.env.check.done(_, mm) == Done{mm} : Result<&2, &2, S.ParseErr, S.Matched>}
+          {==}
+
+def Laws.env_none(spec, ws):
+  e1 = Equal.sym(S.Cli, S.resolve(spec, []), spec, rs.spec_nil(spec))
+  %e1 : {S.env.check(spec, [], S.parse(_, ws)) == S.parse(spec, ws) : Result<&2, &2, S.ParseErr, S.Matched>}
+  ck.nil(spec, S.parse(spec, ws))
+
+def Laws.env_check_fail(_spec, _vars, _ee):
+  {==}
+
+def Laws.env_check_good(_nn, _ab, _ver, args, subs, vars, mm, h_none):
+  e1 = Equal.sym(Maybe<&2, S.Var>, S.env.bad.go(mm, args, subs, vars), None{}, h_none)
+  %e1 : {S.env.check.done(_, mm) == Done{mm} : Result<&2, &2, S.ParseErr, S.Matched>}
+  {==}
+
+def Laws.env_check_bad(_nn, _ab, _ver, args, subs, vars, mm, name, vv, h_bad):
+  e1 = Equal.sym(Maybe<&2, S.Var>, S.env.bad.go(mm, args, subs, vars), Some{(name, vv)}, h_bad)
+  %e1 : {S.env.check.done(_, mm) == Fail{S.BadValue{S.path_of(mm), name, vv}}
+    : Result<&2, &2, S.ParseErr, S.Matched>}
+  {==}
+
+def Laws.bad_go_leaf(_bs, _args, _subs, _vars):
+  {==}
+
+def Laws.bad_go_root(bs, name, next, args, subs, vars, pp, h_here):
+  e1 = Equal.sym(Maybe<&2, S.Var>, S.env.bad.args(args, vars, bs), Some{pp}, h_here)
+  %e1 : {S.env.first(_,
+    S.env.bad.go(next, S.env.sub.args(S.find_sub(subs, name)), S.env.sub.kids(S.find_sub(subs, name)), vars))
+    == Some{pp} : Maybe<&2, S.Var>}
+  {==}
+
+def Laws.bad_go_down(bs, name, next, args, subs, vars, h_none):
+  e1 = Equal.sym(Maybe<&2, S.Var>, S.env.bad.args(args, vars, bs), None{}, h_none)
+  %e1 : {S.env.first(_,
+    S.env.bad.go(next, S.env.sub.args(S.find_sub(subs, name)), S.env.sub.kids(S.find_sub(subs, name)), vars))
+    == S.env.bad.go(next, S.env.sub.args(S.find_sub(subs, name)), S.env.sub.kids(S.find_sub(subs, name)), vars)
+    : Maybe<&2, S.Var>}
+  {==}
+
+def Laws.bad_args_here(aa, tt, vars, bs, pp, h_here):
+  e1 = Equal.sym(Maybe<&2, S.Var>, S.env.bad.arg(aa, vars, bs), Some{pp}, h_here)
+  %e1 : {S.env.first(_, S.env.bad.args(tt, vars, bs)) == Some{pp} : Maybe<&2, S.Var>}
+  {==}
+
+def Laws.bad_args_next(aa, tt, vars, bs, h_none):
+  e1 = Equal.sym(Maybe<&2, S.Var>, S.env.bad.arg(aa, vars, bs), None{}, h_none)
+  %e1 : {S.env.first(_, S.env.bad.args(tt, vars, bs)) == S.env.bad.args(tt, vars, bs) : Maybe<&2, S.Var>}
+  {==}
+
+# an `and` with a false right side is false
+def ba.and_false(bb: Bool) -> {Bool.and(bb, False{}) == False{} : Bool}:
+  match bb:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# a flag is never reported, whatever its env value
+def ba.flag(
+  found: Maybe<&2, String>,
+  +nn: String,
+  +cs: List<&2, String>,
+  +bs: List<&2, S.Bind>
+) -> {S.env.bad.val(found, S.Flag{}, nn, cs, bs) == None{} : Maybe<&2, S.Var>}:
+  match found:
+    case None{}:
+      {==}
+    case Some{_vv}:
+      {==}
+
+def Laws.bad_arg_some(nn, _sh, _lo, kind, _hp, _req, ev, _dd, cs, vars, bs, vv, h_env, h_kind, h_out, h_bound):
+  e1 = Equal.sym(Maybe<&2, String>, S.env.of(ev, vars), Some{vv}, h_env)
+  %e1 : {S.env.bad.val(_, kind, nn, cs, bs) == Some{(nn, vv)} : Maybe<&2, S.Var>}
+  e2 = Equal.sym(Bool, S.env.flag.is(kind), False{}, h_kind)
+  %e2 : {Bool.pick(Maybe<&2, S.Var>,
+    Bool.and(Bool.not(_), Bool.and(Bool.not(S.allowed(cs, vv)),
+      List.contains(~String, ~String.eq, S.get_all.bind(bs, nn), vv))),
+    Some{(nn, vv)}, None{}) == Some{(nn, vv)} : Maybe<&2, S.Var>}
+  e3 = Equal.sym(Bool, S.allowed(cs, vv), False{}, h_out)
+  %e3 : {Bool.pick(Maybe<&2, S.Var>,
+    Bool.and(Bool.not(_), List.contains(~String, ~String.eq, S.get_all.bind(bs, nn), vv)),
+    Some{(nn, vv)}, None{}) == Some{(nn, vv)} : Maybe<&2, S.Var>}
+  e4 = Equal.sym(Bool, List.contains(~String, ~String.eq, S.get_all.bind(bs, nn), vv), True{}, h_bound)
+  %e4 : {Bool.pick(Maybe<&2, S.Var>, _, Some{(nn, vv)}, None{}) == Some{(nn, vv)} : Maybe<&2, S.Var>}
+  {==}
+
+def Laws.bad_arg_unset(nn, _sh, _lo, kind, _hp, _req, ev, _dd, cs, vars, bs, h_env):
+  e1 = Equal.sym(Maybe<&2, String>, S.env.of(ev, vars), None{}, h_env)
+  %e1 : {S.env.bad.val(_, kind, nn, cs, bs) == None{} : Maybe<&2, S.Var>}
+  {==}
+
+def Laws.bad_arg_flag(nn, _sh, _lo, _hp, _req, ev, _dd, cs, vars, bs):
+  ba.flag(S.env.of(ev, vars), nn, cs, bs)
+
+def Laws.bad_arg_allowed(nn, _sh, _lo, kind, _hp, _req, ev, _dd, cs, vars, bs, vv, h_env, h_in):
+  e1 = Equal.sym(Maybe<&2, String>, S.env.of(ev, vars), Some{vv}, h_env)
+  %e1 : {S.env.bad.val(_, kind, nn, cs, bs) == None{} : Maybe<&2, S.Var>}
+  e2 = Equal.sym(Bool, S.allowed(cs, vv), True{}, h_in)
+  %e2 : {Bool.pick(Maybe<&2, S.Var>,
+    Bool.and(Bool.not(S.env.flag.is(kind)), Bool.and(Bool.not(_),
+      List.contains(~String, ~String.eq, S.get_all.bind(bs, nn), vv))),
+    Some{(nn, vv)}, None{}) == None{} : Maybe<&2, S.Var>}
+  e3 = Equal.sym(Bool, Bool.and(Bool.not(S.env.flag.is(kind)), False{}), False{},
+    ba.and_false(Bool.not(S.env.flag.is(kind))))
+  %e3 : {Bool.pick(Maybe<&2, S.Var>, _, Some{(nn, vv)}, None{}) == None{} : Maybe<&2, S.Var>}
+  {==}
+
+def Laws.bad_arg_unbound(nn, _sh, _lo, kind, _hp, _req, ev, _dd, cs, vars, bs, vv, h_env, h_free):
+  e1 = Equal.sym(Maybe<&2, String>, S.env.of(ev, vars), Some{vv}, h_env)
+  %e1 : {S.env.bad.val(_, kind, nn, cs, bs) == None{} : Maybe<&2, S.Var>}
+  e2 = Equal.sym(Bool, List.contains(~String, ~String.eq, S.get_all.bind(bs, nn), vv), False{}, h_free)
+  %e2 : {Bool.pick(Maybe<&2, S.Var>,
+    Bool.and(Bool.not(S.env.flag.is(kind)), Bool.and(Bool.not(S.allowed(cs, vv)), _)),
+    Some{(nn, vv)}, None{}) == None{} : Maybe<&2, S.Var>}
+  e3 = Equal.sym(Bool, Bool.and(Bool.not(S.allowed(cs, vv)), False{}), False{},
+    ba.and_false(Bool.not(S.allowed(cs, vv))))
+  %e3 : {Bool.pick(Maybe<&2, S.Var>,
+    Bool.and(Bool.not(S.env.flag.is(kind)), _),
+    Some{(nn, vv)}, None{}) == None{} : Maybe<&2, S.Var>}
+  e4 = Equal.sym(Bool, Bool.and(Bool.not(S.env.flag.is(kind)), False{}), False{},
+    ba.and_false(Bool.not(S.env.flag.is(kind))))
+  %e4 : {Bool.pick(Maybe<&2, S.Var>, _, Some{(nn, vv)}, None{}) == None{} : Maybe<&2, S.Var>}
+  {==}
+
+def Laws.help_env_shown(_nn, _sh, _lo, _kind, _hp, _req, _var, _dd, _cs):
+  {==}
+
+def Laws.help_env_none(_nn, _sh, _lo, _kind, _hp, _req, _dd, _cs):
+  {==}
+
+def Laws.env_names_root(_nn, _ab, _ver, _args, _subs):
+  {==}
+
+def Laws.env_names_forest(_nn, _ab, _args, _kids, _tt):
+  {==}
+
+def Laws.env_names_some(_nn, _sh, _lo, _kind, _hp, _req, _var, _dd, _cs, _tt):
+  {==}
+
+def Laws.env_names_none(_nn, _sh, _lo, _kind, _hp, _req, _dd, _cs, _tt):
+  {==}
+
+def Laws.kept_set(_nn, _vv, _rest):
+  {==}
+
+def Laws.kept_unset(_nn, _ee, _rest):
+  {==}
