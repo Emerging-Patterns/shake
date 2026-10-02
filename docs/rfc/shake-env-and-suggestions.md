@@ -35,7 +35,7 @@ def spec() -> Shake.Cli:
 def main() -> IO(Unit):
   do IO<Unit>:
     av : List<&2, String> <- Shake.argv()
-    ev : List<&2, String & String> <- Shake.env_vars(spec())
+    ev : List<&2, Shake.Var> <- Shake.env_vars(spec())
     IO.print(greet(Shake.parse_env(spec(), av, ev)))
 ```
 
@@ -68,12 +68,14 @@ type Fallback is Data:
 type Arg is Data:
   Arg{name, short, long, kind, help, required, fallback: Fallback, choices}
 
-# main.bend, new
-def env(+arg: S.Arg, +var: String) -> S.Arg
-def parse_env(spec: S.Cli, words: List<&2, String>, vars: List<&2, String & String>)
+# main.bend, new; a pair `String & String` is a Type, not Data, so a list
+# of them is a list of `Var`
+def Var() -> Data: Sigma<&2, &2, String, _ => String>
+def env(arg: S.Arg, +var: String) -> S.Arg
+def parse_env(+spec: S.Cli, words: List<&2, String>, +vars: List<&2, S.Var>)
   -> Result<&2, &2, S.ParseErr, S.Matched>
 def suggestion(+spec: S.Cli, err: S.ParseErr) -> Maybe<&2, String>
-def env_vars(spec: S.Cli) -> IO(List<&2, String & String>)
+def env_vars(spec: S.Cli) -> IO(List<&2, S.Var>)
 ```
 
 **The env var sits beside the default.** `Arg`'s seventh field, the default, becomes `Fallback{env, default}`: both say what an argument falls back to when the words leave it unbound, and keeping them together leaves `Arg` at eight fields, so a destructuring that ignores the default (`_d`) does not change. The builders keep their signatures and build `Fallback{None{}, default}`; `env(arg, var)` sets the env var, as clap's `.env(var)` does, so no caller of a builder breaks.
@@ -124,4 +126,4 @@ Three candidates were sketched: A (gpt-5.6), C (this author), and B (grok), whic
 
 ## Next implementation step
 
-Change `Arg`'s default to `Fallback{env, default}` through `src/` and the laws, with the gate green and no behavior change, before adding anything that reads `env`.
+Step 2 has landed. Next: `suggestion` and the tip in `err_text`, with the laws of SHAKE-ERR-3 and ERR-4.
