@@ -1979,11 +1979,234 @@ def err.hint(+path: List<&2, String>) -> String:
 def err.wrap(+app: Cli, +at: List<&2, String>, +msg: String) -> String:
   msg ++ "\n\n" ++ usage.at(app, at) ++ "\n\n" ++ err.hint(at)
 
+# the head of a row, or 0 past its end
+def osa.head(xs: List<&2, Nat>) -> Nat:
+  match xs:
+    case Nil{}:
+      0n
+    case Con{hh, _t}:
+      hh
+
+# a row after its head
+def osa.tail(xs: List<&2, Nat>) -> List<&2, Nat>:
+  match xs:
+    case Nil{}:
+      []
+    case Con{_h, tt}:
+      tt
+
+# the last cell of a row, `dd` for an empty one
+def osa.last(xs: List<&2, Nat>, dd: Nat) -> Nat:
+  match xs:
+    case Nil{}:
+      dd
+    case Con{hh, tt}:
+      osa.last(tt, hh)
+
+# the first row: `ii`, then one more for each char
+def osa.first(bs: List<&2, Char>, +ii: Nat) -> List<&2, Nat>:
+  match bs:
+    case Nil{}:
+      [ii]
+    case Con{_c, tt}:
+      ii <> osa.first(tt, 1n+ii)
+
+# whether the char before `cb` is `ca`, once the char before `ca` is `xa`
+def osa.swap.b(+xa: Char, pb: Maybe<&2, Char>, +ca: Char, +cb: Char) -> Bool:
+  match pb:
+    case None{}:
+      False{}
+    case Some{xb}:
+      Bool.and(Char.is_eq(ca, xb), Char.is_eq(xa, cb))
+
+# whether the two chars before these, swapped, are these two
+def osa.swap(pa: Maybe<&2, Char>, pb: Maybe<&2, Char>, +ca: Char, +cb: Char) -> Bool:
+  match pa:
+    case None{}:
+      False{}
+    case Some{xa}:
+      osa.swap.b(xa, pb, ca, cb)
+
+# the cheaper of a cell and a swap from two rows up and two cells left
+def osa.cell.swap(swap: Bool, +best: Nat, +far: Nat) -> Nat:
+  Bool.pick(Nat, swap, Nat.min(best, 1n+far), best)
+
+# one cell: the cheapest of a deletion, an insertion, a substitution and a
+# swap of two adjacent chars
+def osa.cell(
+  swap: Bool,
+  +up: Nat,
+  +left: Nat,
+  +diag: Nat,
+  +cost: Nat,
+  +far: Nat
+) -> Nat:
+  osa.cell.swap(swap, Nat.min(Nat.min(1n+up, 1n+left), Nat.add(diag, cost)), far)
+
+# the rest of a row for the char `ca`, whose char before is `pa`: `ps` is the
+# row above from the cell above-left on, `qs` the row two up from two cells
+# left on, `pb` the char of `bs` before its head
+def osa.row(
+  bs: List<&2, Char>,
+  +ca: Char,
+  +pa: Maybe<&2, Char>,
+  pb: Maybe<&2, Char>,
+  left: Nat,
+  +ps: List<&2, Nat>,
+  +qs: List<&2, Nat>
+) -> List<&2, Nat>:
+  match bs:
+    case Nil{}:
+      []
+    case Con{+cb, bt}:
+      +rr = osa.cell(osa.swap(pa, pb, ca, cb), osa.head(osa.tail(ps)), left, osa.head(ps),
+        Bool.pick(Nat, Char.is_eq(ca, cb), 0n, 1n), osa.head(qs))
+      rr <> osa.row(bt, ca, pa, Some{cb}, rr, osa.tail(ps), osa.tail(qs))
+
+# the rows for the chars of `as`, the last row `pp` and the one before `qq`,
+# down to the distance in the last row's last cell
+def osa.rows(
+  as: List<&2, Char>,
+  +bs: List<&2, Char>,
+  pa: Maybe<&2, Char>,
+  +ii: Nat,
+  +pp: List<&2, Nat>,
+  qq: List<&2, Nat>
+) -> Nat:
+  match as:
+    case Nil{}:
+      osa.last(pp, 0n)
+    case Con{+ca, at}:
+      osa.rows(at, bs, Some{ca}, 1n+ii, (1n+ii) <> osa.row(bs, ca, pa, None{}, 1n+ii, pp, 0n <> qq), pp)
+
+# the optimal string alignment distance from `aa` to `bb`: the fewest
+# insertions, deletions, substitutions and swaps of two adjacent chars, no
+# char edited twice
+def osa(aa: String, bb: String) -> Nat:
+  +bs = String.to_list(bb)
+  osa.rows(String.to_list(aa), bs, None{}, 0n, osa.first(bs, 0n), osa.first(bs, 0n))
+
+# whether a candidate is close to the typed spelling
+def sug.close.go(+dd: Nat, +room: Nat) -> Bool:
+  Bool.and(Nat.is_lt(0n, dd), Nat.is_le(Nat.mul(3n, dd), room))
+
+# whether `cc` is close to `typed`: some edits away, and at most a third of
+# the longer as many
+def sug.close(+typed: String, +cc: String) -> Bool:
+  sug.close.go(osa(typed, cc), Nat.max(String.length(typed), String.length(cc)))
+
+# a close candidate against the closest one after it: the earlier on a tie
+def sug.keep.rest(+typed: String, +cc: String, rest: Maybe<&2, String>) -> Maybe<&2, String>:
+  match rest:
+    case None{}:
+      Some{cc}
+    case Some{+ww}:
+      Bool.pick(Maybe<&2, String>, Nat.is_le(osa(typed, cc), osa(typed, ww)), Some{cc}, Some{ww})
+
+# a candidate, when it is close, against the closest one after it
+def sug.keep(close: Bool, +typed: String, +cc: String, rest: Maybe<&2, String>) -> Maybe<&2, String>:
+  match close:
+    case False{}:
+      rest
+    case True{}:
+      sug.keep.rest(typed, cc, rest)
+
+# the closest close candidate, the first among equals
+def sug.best(cands: List<&2, String>, +typed: String) -> Maybe<&2, String>:
+  match cands:
+    case Nil{}:
+      None{}
+    case Con{+cc, tt}:
+      sug.keep(sug.close(typed, cc), typed, cc, sug.best(tt, typed))
+
+# a long spelling in front of the rest, when there is one
+def sug.cands.put(long: Maybe<&2, String>, rest: List<&2, String>) -> List<&2, String>:
+  match long:
+    case None{}:
+      rest
+    case Some{ll}:
+      ll <> rest
+
+# the long spellings of a command's arguments, in order
+def sug.cands(args: List<&2, Arg>) -> List<&2, String>:
+  match args:
+    case Nil{}:
+      []
+    case Con{hh, tt}:
+      Arg{_n, _s, long, _k, _h, _r, _d, _c} = hh
+      sug.cands.put(long, sug.cands(tt))
+
+# the arguments of the page at the end of a shrinking path
+def sug.args.go(path: List<&2, String>, how: How) -> List<&2, Arg>:
+  match path:
+    case Nil{}:
+      How{_b, _a, _v, args, _s, _u} = how
+      args
+    case Con{+hh, tt}:
+      sug.args.go(tt, help.step(how, hh))
+
+# the arguments of the command at `path`, reached as `help` reaches it
+def sug.args(+app: Cli, path: List<&2, String>) -> List<&2, Arg>:
+  Cli{+name, +about, version, args, subs} = app
+  sug.args.go(path, How{name, about, version, args, subs, name})
+
+# the spelling a long option word was typed with: its chars up to `=`
+def sug.typed(cut: String & Maybe<&2, String>) -> String:
+  (nn, _v) = cut
+  nn
+
+# a candidate spelled as a long option word
+def sug.found(mm: Maybe<&2, String>) -> Maybe<&2, String>:
+  match mm:
+    case None{}:
+      None{}
+    case Some{cc}:
+      Some{"--" ++ cc}
+
+# the suggestion for a word, when it is a long option word
+def sug.word.go(long: Bool, +app: Cli, +at: List<&2, String>, +word: String) -> Maybe<&2, String>:
+  match long:
+    case False{}:
+      None{}
+    case True{}:
+      sug.found(sug.best(sug.cands(sug.args(app, at)), sug.typed(cut_eq(String.drop(word, 2n)))))
+
+# the long spelling a word refused at `at` was likely meant to be
+def sug.word(+app: Cli, +at: List<&2, String>, +word: String) -> Maybe<&2, String>:
+  sug.word.go(String.starts_with(word, "--"), app, at, word)
+
+# the long spelling an unknown long option was likely meant to be, as clap's
+# "a similar argument exists"; None for every other error
+def suggestion(+app: Cli, ee: ParseErr) -> Maybe<&2, String>:
+  match ee:
+    case UnknownFlag{+at, +word}:
+      sug.word(app, at, word)
+    case Missing{_at, _name}:
+      None{}
+    case NoValue{_at, _name}:
+      None{}
+    case BadValue{_at, _name, _value}:
+      None{}
+    case NeedHelp{_path}:
+      None{}
+    case Unexpected{_at, _arg}:
+      None{}
+    case Repeated{_at, _name}:
+      None{}
+
+# clap's tip line for a suggestion, or nothing
+def sug.tip(mm: Maybe<&2, String>) -> String:
+  match mm:
+    case None{}:
+      ""
+    case Some{ss}:
+      "\n\n  tip: a similar argument exists: '" ++ ss ++ "'"
+
 # error text; NeedHelp is empty (the caller prints `help`)
 def err_text(+app: Cli, ee: ParseErr) -> String:
   match ee:
-    case UnknownFlag{+at, word}:
-      err.wrap(app, at, "error: unexpected argument '" ++ word ++ "' found")
+    case UnknownFlag{+at, +word}:
+      err.wrap(app, at, "error: unexpected argument '" ++ word ++ "' found" ++ sug.tip(sug.word(app, at, word)))
     case Missing{+at, name}:
       err.wrap(app, at, "error: the following required argument was not provided:\n  " ++
         name)

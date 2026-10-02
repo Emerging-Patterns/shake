@@ -4922,8 +4922,8 @@ def et.some_none(+path: List<&2, String>, hh: {Some{path} == None{} : Maybe<&2, 
 def Laws.err_text_usage(spec, err, h_err):
   match err:
     case S.UnknownFlag{+at, +word}:
-      ("error: unexpected argument '" ++ word ++ "' found",
-        et.wrap(spec, at, "error: unexpected argument '" ++ word ++ "' found"))
+      ("error: unexpected argument '" ++ word ++ "' found" ++ S.sug.tip(S.sug.word(spec, at, word)),
+        et.wrap(spec, at, "error: unexpected argument '" ++ word ++ "' found" ++ S.sug.tip(S.sug.word(spec, at, word))))
     case S.Missing{+at, +name}:
       ("error: the following required argument was not provided:\n  " ++ name,
         et.wrap(spec, at, "error: the following required argument was not provided:\n  " ++ name))
@@ -10288,3 +10288,247 @@ def Laws.kept_set(_nn, _vv, _rest):
 
 def Laws.kept_unset(_nn, _ee, _rest):
   {==}
+
+def Laws.sug_other(spec, err, h_err):
+  match err:
+    case S.UnknownFlag{at, word}:
+      Empty.absurd({S.suggestion(spec, S.UnknownFlag{at, word}) == None{} : Maybe<&2, String>},
+        Walk.wk.true_false(h_err))
+    case S.Missing{_at, _name}:
+      {==}
+    case S.NoValue{_at, _name}:
+      {==}
+    case S.BadValue{_at, _name, _value}:
+      {==}
+    case S.NeedHelp{_path}:
+      {==}
+    case S.Unexpected{_at, _arg}:
+      {==}
+    case S.Repeated{_at, _name}:
+      {==}
+
+def Laws.sug_short(spec, at, word, h_word):
+  e1 = Equal.sym(Bool, String.starts_with(word, "--"), False{}, h_word)
+  %e1 : {S.sug.word.go(_, spec, at, word) == None{} : Maybe<&2, String>}
+  {==}
+
+# the arguments reached down a path are those of the page `help` reaches
+def sa.go(
+  path: List<&2, String>,
+  how: S.How
+) -> {S.sug.args.go(path, how) == Laws.how_args(Laws.reach(path, how)) : List<&2, S.Arg>}:
+  match path:
+    case Nil{}:
+      match how:
+        case S.How{_b, _a, _v, _g, _s, _u}:
+          {==}
+    case Con{+hh, tt}:
+      sa.go(tt, S.help.step(how, hh))
+
+# the arguments of the command at a path are those of its help page
+def sa.reach(
+  spec: S.Cli,
+  path: List<&2, String>
+) -> {S.sug.args(spec, path) == Laws.how_args(Laws.reach(path, Laws.root(spec))) : List<&2, S.Arg>}:
+  match spec:
+    case S.Cli{+n, a, v, args, subs}:
+      sa.go(path, S.How{n, a, v, args, subs, n})
+
+def Laws.sug_long(spec, at, body, name, val, h_cut):
+  e1 = Equal.sym(Bool, String.starts_with(body, ""), True{}, Laws.prefix_empty(body))
+  %e1 : {S.sug.word.go(_, spec, at, "--" ++ body)
+    == S.sug.found(S.sug.best(S.sug.cands(Laws.how_args(Laws.reach(at, Laws.root(spec)))), name))
+    : Maybe<&2, String>}
+  e2 = Equal.sym(String, String.drop(body, 0n), body, Laws.drop_zero(body))
+  %e2 : {S.sug.found(S.sug.best(S.sug.cands(S.sug.args(spec, at)), S.sug.typed(S.cut_eq(_))))
+    == S.sug.found(S.sug.best(S.sug.cands(Laws.how_args(Laws.reach(at, Laws.root(spec)))), name))
+    : Maybe<&2, String>}
+  e3 = Equal.sym(String & Maybe<&2, String>, S.cut_eq(body), (name, val), h_cut)
+  %e3 : {S.sug.found(S.sug.best(S.sug.cands(S.sug.args(spec, at)), S.sug.typed(_)))
+    == S.sug.found(S.sug.best(S.sug.cands(Laws.how_args(Laws.reach(at, Laws.root(spec)))), name))
+    : Maybe<&2, String>}
+  e4 = Equal.sym(List<&2, S.Arg>, S.sug.args(spec, at), Laws.how_args(Laws.reach(at, Laws.root(spec))),
+    sa.reach(spec, at))
+  %e4 : {S.sug.found(S.sug.best(S.sug.cands(_), name))
+    == S.sug.found(S.sug.best(S.sug.cands(Laws.how_args(Laws.reach(at, Laws.root(spec)))), name))
+    : Maybe<&2, String>}
+  {==}
+
+def Laws.sug_found_some(_cc):
+  {==}
+
+def Laws.cands_some(_nn, _sh, _ll, _kind, _hp, _req, _fb, _cs, _tt):
+  {==}
+
+def Laws.cands_none(_nn, _sh, _kind, _hp, _req, _fb, _cs, _tt):
+  {==}
+
+def Laws.sug_close(_typed, _cc):
+  {==}
+
+def Laws.best_nil(_typed):
+  {==}
+
+def Laws.best_far(cc, tt, typed, h_far):
+  e1 = Equal.sym(Bool, S.sug.close(typed, cc), False{}, h_far)
+  %e1 : {S.sug.keep(_, typed, cc, S.sug.best(tt, typed)) == S.sug.best(tt, typed) : Maybe<&2, String>}
+  {==}
+
+def Laws.best_only(cc, tt, typed, h_close, h_rest):
+  e1 = Equal.sym(Bool, S.sug.close(typed, cc), True{}, h_close)
+  %e1 : {S.sug.keep(_, typed, cc, S.sug.best(tt, typed)) == Some{cc} : Maybe<&2, String>}
+  e2 = Equal.sym(Maybe<&2, String>, S.sug.best(tt, typed), None{}, h_rest)
+  %e2 : {S.sug.keep(True{}, typed, cc, _) == Some{cc} : Maybe<&2, String>}
+  {==}
+
+def Laws.best_here(cc, tt, typed, ww, h_close, h_rest, h_le):
+  e1 = Equal.sym(Bool, S.sug.close(typed, cc), True{}, h_close)
+  %e1 : {S.sug.keep(_, typed, cc, S.sug.best(tt, typed)) == Some{cc} : Maybe<&2, String>}
+  e2 = Equal.sym(Maybe<&2, String>, S.sug.best(tt, typed), Some{ww}, h_rest)
+  %e2 : {S.sug.keep(True{}, typed, cc, _) == Some{cc} : Maybe<&2, String>}
+  e3 = Equal.sym(Bool, Nat.is_le(S.osa(typed, cc), S.osa(typed, ww)), True{}, h_le)
+  %e3 : {Bool.pick(Maybe<&2, String>, _, Some{cc}, Some{ww}) == Some{cc} : Maybe<&2, String>}
+  {==}
+
+def Laws.best_there(cc, tt, typed, ww, h_close, h_rest, h_le):
+  e1 = Equal.sym(Bool, S.sug.close(typed, cc), True{}, h_close)
+  %e1 : {S.sug.keep(_, typed, cc, S.sug.best(tt, typed)) == Some{ww} : Maybe<&2, String>}
+  e2 = Equal.sym(Maybe<&2, String>, S.sug.best(tt, typed), Some{ww}, h_rest)
+  %e2 : {S.sug.keep(True{}, typed, cc, _) == Some{ww} : Maybe<&2, String>}
+  e3 = Equal.sym(Bool, Nat.is_le(S.osa(typed, cc), S.osa(typed, ww)), False{}, h_le)
+  %e3 : {Bool.pick(Maybe<&2, String>, _, Some{cc}, Some{ww}) == Some{ww} : Maybe<&2, String>}
+  {==}
+
+# that `qq` contains `ss`
+def ct.has(qq: String, ss: String) -> Type:
+  {String.contains(qq, ss) == True{} : Bool}
+
+# appending is associative
+def ct.assoc(aa: String, +bb: String, +cc: String) -> {(aa ++ bb) ++ cc == aa ++ (bb ++ cc) : String}:
+  match aa:
+    case SNil{}:
+      {==}
+    case SCon{+hh, tt}:
+      Equal.cong(String, String, ys => SCon{hh, ys}, (tt ++ bb) ++ cc, tt ++ (bb ++ cc), ct.assoc(tt, bb, cc))
+
+# a string starts with itself, whatever follows
+def ct.starts(ss: String, +post: String) -> {String.starts_with(ss ++ post, ss) == True{} : Bool}:
+  match ss:
+    case SNil{}:
+      Laws.prefix_empty(post)
+    case SCon{+hh, tt}:
+      e1 = Equal.sym(Bool, Char.is_eq(hh, hh), True{}, Eq.char_eq_self(hh))
+      %e1 : {String.starts_with.if(tt ++ post, tt, _) == True{} : Bool}
+      ct.starts(tt, post)
+
+# every string contains the empty one
+def ct.nil(post: String) -> ct.has(post, ""):
+  match post:
+    case SNil{}:
+      {==}
+    case SCon{_h, _t}:
+      {==}
+
+# a string contains itself, whatever follows
+def ct.front(ss: String, +post: String) -> ct.has(ss ++ post, ss):
+  match ss:
+    case SNil{}:
+      ct.nil(post)
+    case SCon{+hh, +tt}:
+      e1 = Equal.sym(Bool, String.starts_with(SCon{hh, tt ++ post}, SCon{hh, tt}), True{},
+        ct.starts(SCon{hh, tt}, post))
+      %e1 : {String.contains.if(tt ++ post, SCon{hh, tt}, _) == True{} : Bool}
+      {==}
+
+# a contained string stays contained, here or further on
+def ct.if(
+  tt: String,
+  +ss: String,
+  here: Bool,
+  hh: ct.has(tt, ss)
+) -> {String.contains.if(tt, ss, here) == True{} : Bool}:
+  match here:
+    case False{}:
+      hh
+    case True{}:
+      {==}
+
+# what a string contains, it contains after anything
+def ct.after(pre: String, +qq: String, +ss: String, hh: ct.has(qq, ss)) -> ct.has(pre ++ qq, ss):
+  match pre:
+    case SNil{}:
+      hh
+    case SCon{+ch, +tt}:
+      ct.if(tt ++ qq, ss, String.starts_with(SCon{ch, tt ++ qq}, ss), ct.after(tt, qq, ss, hh))
+
+# a string contained in the part after `pp` is contained in the whole
+def ct.step(
+  +pp: String,
+  +qq: String,
+  +rr: String,
+  +ss: String,
+  hh: ct.has(qq ++ rr, ss)
+) -> ct.has((pp ++ qq) ++ rr, ss):
+  e1 = Equal.sym(String, (pp ++ qq) ++ rr, pp ++ (qq ++ rr), ct.assoc(pp, qq, rr))
+  %e1 : {String.contains(_, ss) == True{} : Bool}
+  ct.after(pp, qq ++ rr, ss, hh)
+
+# a string is contained where it leads
+def ct.lead(+ss: String, +qq: String, +rr: String) -> ct.has((ss ++ qq) ++ rr, ss):
+  e1 = Equal.sym(String, (ss ++ qq) ++ rr, ss ++ (qq ++ rr), ct.assoc(ss, qq, rr))
+  %e1 : {String.contains(_, ss) == True{} : Bool}
+  ct.front(ss, qq ++ rr)
+
+# the type that is empty exactly where a Maybe is Some
+def mb.emp(mm: Maybe<&2, String>) -> Type:
+  match mm:
+    case None{}:
+      Unit
+    case Some{_s}:
+      Empty
+
+# that None is Some
+def mb.none_some(ss: String) -> Type:
+  {None{} == Some{ss} : Maybe<&2, String>}
+
+# None is not Some
+def mb.clash(+ss: String, eq: mb.none_some(ss)) -> Empty:
+  %eq : mb.emp(_)
+  Unit{}
+
+# an error with no suggestion proves anything about its text
+def tp.none(
+  +spec: S.Cli,
+  +err: S.ParseErr,
+  +ss: String,
+  eq: mb.none_some(ss)
+) -> ct.has(S.err_text(spec, err), ss):
+  Empty.absurd(ct.has(S.err_text(spec, err), ss), mb.clash(ss, eq))
+
+def Laws.err_text_tip(spec, err, ss, h_sug):
+  match err:
+    case S.UnknownFlag{+at, +word}:
+      e1 = Equal.sym(Maybe<&2, String>, S.sug.word(spec, at, word), Some{ss}, h_sug)
+      %e1 : {String.contains(S.err.wrap(spec, at, "error: unexpected argument '" ++ word ++ "' found" ++ S.sug.tip(_)),
+        ss) == True{} : Bool}
+      ct.step("error: unexpected argument '", word ++ "' found" ++ "\n\n  tip: a similar argument exists: '" ++ ss ++ "'",
+        "\n\n" ++ S.usage.at(spec, at) ++ "\n\n" ++ S.err.hint(at), ss,
+        ct.step(word, "' found" ++ "\n\n  tip: a similar argument exists: '" ++ ss ++ "'",
+          "\n\n" ++ S.usage.at(spec, at) ++ "\n\n" ++ S.err.hint(at), ss,
+          ct.step("' found", "\n\n  tip: a similar argument exists: '" ++ ss ++ "'",
+            "\n\n" ++ S.usage.at(spec, at) ++ "\n\n" ++ S.err.hint(at), ss,
+            ct.step("\n\n  tip: a similar argument exists: '", ss ++ "'",
+              "\n\n" ++ S.usage.at(spec, at) ++ "\n\n" ++ S.err.hint(at), ss,
+              ct.lead(ss, "'", "\n\n" ++ S.usage.at(spec, at) ++ "\n\n" ++ S.err.hint(at))))))
+    case S.Missing{+at, +name}:
+      tp.none(spec, S.Missing{at, name}, ss, h_sug)
+    case S.NoValue{+at, +name}:
+      tp.none(spec, S.NoValue{at, name}, ss, h_sug)
+    case S.BadValue{+at, +name, +value}:
+      tp.none(spec, S.BadValue{at, name, value}, ss, h_sug)
+    case S.NeedHelp{+path}:
+      tp.none(spec, S.NeedHelp{path}, ss, h_sug)
+    case S.Unexpected{+at, +arg}:
+      tp.none(spec, S.Unexpected{at, arg}, ss, h_sug)
+    case S.Repeated{+at, +name}:
+      tp.none(spec, S.Repeated{at, name}, ss, h_sug)

@@ -193,6 +193,12 @@ def help(+spec: S.Cli, path: List<&2, String>) -> String:
 def err_text(+spec: S.Cli, err: S.ParseErr) -> String:
   S.err_text(spec, err)
 
+# for an unknown long option, the long option word of the current command it
+# was likely meant to be, as `--name` for `--nmae`, which `err_text` shows as
+# clap's tip; None for every other error and when nothing is close
+def suggestion(+spec: S.Cli, err: S.ParseErr) -> Maybe<&2, String>:
+  S.suggestion(spec, err)
+
 # the command path where the parse failed: the path selected when it did, or
 # for a request for help the path it asks about
 def err_path(err: S.ParseErr) -> List<&2, String>:

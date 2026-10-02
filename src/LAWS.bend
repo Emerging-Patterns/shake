@@ -2370,7 +2370,7 @@ law err_path_at:
 # then where to look for more
 # SHAKE-ERR-2
 law err_text_usage:
-  for spec: Shake.Cli
+  for +spec: Shake.Cli
   for +err: Shake.ParseErr
   for h_err: {Shake.help_path(err) == None{} : Maybe<&2, List<&2, String>>}
   exs msg: String
@@ -3358,3 +3358,149 @@ law kept_unset:
   for ee: U32 & String
   for rest: List<&2, Shake.Var>
   {Args.kept(nn, Fail{ee}, rest) == rest : List<&2, Shake.Var>}
+
+# whether an error is an unknown option
+def unknown.is(err: Shake.ParseErr) -> Bool:
+  match err:
+    case S.UnknownFlag{_at, _word}:
+      True{}
+    case _other:
+      False{}
+
+# the arguments of a page's command
+def how_args(how: S.How) -> List<&2, S.Arg>:
+  S.How{_b, _a, _v, args, _s, _u} = how
+  args
+
+# LAW: only an unknown option can get a suggestion
+# SHAKE-ERR-3
+law sug_other:
+  for spec: Shake.Cli
+  for +err: Shake.ParseErr
+  for h_err: {unknown.is(err) == False{} : Bool}
+  {Shake.suggestion(spec, err) == None{} : Maybe<&2, String>}
+
+# LAW: a word that does not start with `--` gets no suggestion
+# SHAKE-ERR-3
+law sug_short:
+  for +spec: Shake.Cli
+  for +at: List<&2, String>
+  for +word: String
+  for h_word: {String.starts_with(word, "--") == False{} : Bool}
+  {Shake.suggestion(spec, S.UnknownFlag{at, word}) == None{} : Maybe<&2, String>}
+
+# LAW: a long option word's suggestion is the closest close candidate to its
+# spelling up to `=`, among the long spellings of the command at `at`, reached
+# as `help` reaches it, as a long option word
+# SHAKE-ERR-3
+law sug_long:
+  for +spec: Shake.Cli
+  for +at: List<&2, String>
+  for +body: String
+  for +name: String
+  for val: Maybe<&2, String>
+  for h_cut: {S.cut_eq(body) == (name, val) : String & Maybe<&2, String>}
+  {Shake.suggestion(spec, S.UnknownFlag{at, "--" ++ body})
+    == S.sug.found(S.sug.best(S.sug.cands(how_args(reach(at, root(spec)))), name)) : Maybe<&2, String>}
+
+# LAW: a candidate is suggested as its long option word
+# SHAKE-ERR-3
+law sug_found_some:
+  for cc: String
+  {S.sug.found(Some{cc}) == Some{"--" ++ cc} : Maybe<&2, String>}
+
+# LAW: an argument with a long spelling is a candidate, in spec order
+# SHAKE-ERR-3
+law cands_some:
+  for nn: String
+  for sh: Maybe<&2, String>
+  for ll: String
+  for kind: S.ArgKind
+  for hp: String
+  for req: Bool
+  for fb: S.Fallback
+  for cs: List<&2, String>
+  for tt: List<&2, S.Arg>
+  {S.sug.cands(S.Arg{nn, sh, Some{ll}, kind, hp, req, fb, cs} <> tt) == ll <> S.sug.cands(tt) : List<&2, String>}
+
+# LAW: an argument with no long spelling is not a candidate
+# SHAKE-ERR-3
+law cands_none:
+  for nn: String
+  for sh: Maybe<&2, String>
+  for kind: S.ArgKind
+  for hp: String
+  for req: Bool
+  for fb: S.Fallback
+  for cs: List<&2, String>
+  for tt: List<&2, S.Arg>
+  {S.sug.cands(S.Arg{nn, sh, None{}, kind, hp, req, fb, cs} <> tt) == S.sug.cands(tt) : List<&2, String>}
+
+# LAW: a candidate is close when it is some edits away, and three times as
+# many is at most the longer length
+# SHAKE-ERR-3
+law sug_close:
+  for +typed: String
+  for +cc: String
+  {S.sug.close(typed, cc)
+    == Bool.and(Nat.is_lt(0n, S.osa(typed, cc)),
+      Nat.is_le(Nat.mul(3n, S.osa(typed, cc)), Nat.max(String.length(typed), String.length(cc)))) : Bool}
+
+# LAW: no candidates, no closest one
+# SHAKE-ERR-3
+law best_nil:
+  for typed: String
+  {S.sug.best([], typed) == None{} : Maybe<&2, String>}
+
+# LAW: a candidate that is not close is passed over
+# SHAKE-ERR-3
+law best_far:
+  for +cc: String
+  for +tt: List<&2, String>
+  for +typed: String
+  for h_far: {S.sug.close(typed, cc) == False{} : Bool}
+  {S.sug.best(cc <> tt, typed) == S.sug.best(tt, typed) : Maybe<&2, String>}
+
+# LAW: a close candidate with none close after it is the closest
+# SHAKE-ERR-3
+law best_only:
+  for +cc: String
+  for +tt: List<&2, String>
+  for +typed: String
+  for h_close: {S.sug.close(typed, cc) == True{} : Bool}
+  for h_rest: {S.sug.best(tt, typed) == None{} : Maybe<&2, String>}
+  {S.sug.best(cc <> tt, typed) == Some{cc} : Maybe<&2, String>}
+
+# LAW: a close candidate no farther than the closest after it is the closest:
+# the first wins a tie
+# SHAKE-ERR-3
+law best_here:
+  for +cc: String
+  for +tt: List<&2, String>
+  for +typed: String
+  for +ww: String
+  for h_close: {S.sug.close(typed, cc) == True{} : Bool}
+  for h_rest: {S.sug.best(tt, typed) == Some{ww} : Maybe<&2, String>}
+  for h_le: {Nat.is_le(S.osa(typed, cc), S.osa(typed, ww)) == True{} : Bool}
+  {S.sug.best(cc <> tt, typed) == Some{cc} : Maybe<&2, String>}
+
+# LAW: a close candidate farther than the closest after it is passed over
+# SHAKE-ERR-3
+law best_there:
+  for +cc: String
+  for +tt: List<&2, String>
+  for +typed: String
+  for +ww: String
+  for h_close: {S.sug.close(typed, cc) == True{} : Bool}
+  for h_rest: {S.sug.best(tt, typed) == Some{ww} : Maybe<&2, String>}
+  for h_le: {Nat.is_le(S.osa(typed, cc), S.osa(typed, ww)) == False{} : Bool}
+  {S.sug.best(cc <> tt, typed) == Some{ww} : Maybe<&2, String>}
+
+# LAW: the error text shows the suggestion, when there is one
+# SHAKE-ERR-4
+law err_text_tip:
+  for +spec: Shake.Cli
+  for +err: Shake.ParseErr
+  for +ss: String
+  for h_sug: {Shake.suggestion(spec, err) == Some{ss} : Maybe<&2, String>}
+  {String.contains(Shake.err_text(spec, err), ss) == True{} : Bool}
