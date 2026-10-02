@@ -62,6 +62,17 @@ def char_cmp_self(cc):  # noqa: L001 a proof of this file's law
       Equal.cong(Cmp, (Char & Char) & Cmp, rr => ((Chr{xx}, Chr{xx}), rr),
         U32.cmp(xx, xx), EQ{}, u32_cmp_self(xx))
 
+# LAW: a char equals itself
+law char_eq_self:
+  for +cc: Char
+  {Char.is_eq(cc, cc) == True{} : Bool}
+
+# a char is a code point, and equality is the comparison's verdict
+def char_eq_self(cc):  # noqa: L001 a proof of this file's law
+  match cc:
+    case Chr{+xx}:
+      Equal.cong(Cmp, Bool, rr => Cmp.is_eq(rr), U32.cmp(xx, xx), EQ{}, u32_cmp_self(xx))
+
 # LAW: a string compares equal to itself
 law string_cmp_self:
   for +ss: String

@@ -1,13 +1,16 @@
 # shake: a proven command-line argument parser for Bend 2, with subcommands and help.
 #
 # Describe a program with `app`, `sub`, `flag`, `opt`, `many`, `pos` and
-# `rest`; `parse` binds argv against it, and
+# `rest`, and give an argument an env var to fall back to with `env`; `parse`
+# binds argv against it (`parse_env` also takes the values of the env vars,
+# which `env_vars` reads), and
 # the result is read one command at a time, as clap's: `get`, `get_all` and
 # `on` read a command's own bindings, and `sub_name`, `sub_of`, `at` and
 # `path_of` reach the subcommands selected under it. `help` writes the usage
 # page for a command path. For a failed parse, `help_path` tells a request for help
 # from an error, `err_text` writes the message and `err_path` names the command
-# it failed in. `check` reports a spec that contradicts itself. `argv` is the
+# it failed in, and `suggestion` the long spelling a mistyped one was likely
+# meant to be. `check` reports a spec that contradicts itself. `argv` is the
 # process's arguments. This file is the interface: everything under src/ is
 # internal.
 import Base
@@ -31,6 +34,11 @@ def Arg() -> Data:  # noqa: L001 a type alias of the interface
 # and the subcommand selected under it with its own Matched
 def Matched() -> Data:
   S.Matched
+
+# an env var's name and its value, a pair `(name, value)`: `parse_env` takes a
+# list of them, and `env_vars` reads one for each env var that is set
+def Var() -> Data:
+  S.Var
 
 # a failed parse
 def ParseErr() -> Data:
@@ -113,6 +121,12 @@ def rest(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothin
 ) -> S.Arg:
   S.rest(name, help, required, default, choices)
 
+# this argument, falling back to the env var `var` when the words leave it
+# unbound, before its default, as clap's `.env(var)`: `parse_env` reads it,
+# and help shows `[env: VAR]`
+def env(arg: S.Arg, +var: String) -> S.Arg:
+  S.env(arg, var)
+
 # every way a spec contradicts itself: a rest positional that is not the
 # last, a repeated argument name or spelling, a repeated subcommand name, a
 # subcommand named `help`, a default outside its choices, a required
@@ -128,6 +142,16 @@ def spec_err_text(err: K.SpecErr) -> String:
 # argv against a program spec
 def parse(spec: S.Cli, words: List<&2, String>) -> Result<&2, &2, S.ParseErr, S.Matched>:
   S.parse(spec, words)
+
+# argv against a program spec, with `vars`, name and value pairs, for the env
+# vars: an argument the words leave unbound falls back to its env var's value
+# when it is set and not empty, then to its default
+def parse_env(
+  +spec: S.Cli,
+  words: List<&2, String>,
+  +vars: List<&2, S.Var>
+) -> Result<&2, &2, S.ParseErr, S.Matched>:
+  S.parse_env(spec, words, vars)
 
 # the value this command bound to `name` last, or None when it bound none
 def get(found: S.Matched, +name: String) -> Maybe<&2, String>:
@@ -169,6 +193,12 @@ def help(+spec: S.Cli, path: List<&2, String>) -> String:
 def err_text(+spec: S.Cli, err: S.ParseErr) -> String:
   S.err_text(spec, err)
 
+# for an unknown long option, the long option word of the current command it
+# was likely meant to be, as `--name` for `--nmae`, which `err_text` shows as
+# clap's tip; None for every other error and when nothing is close
+def suggestion(+spec: S.Cli, err: S.ParseErr) -> Maybe<&2, String>:
+  S.suggestion(spec, err)
+
 # the command path where the parse failed: the path selected when it did, or
 # for a request for help the path it asks about
 def err_path(err: S.ParseErr) -> List<&2, String>:
@@ -207,6 +237,11 @@ def help_path(err: S.ParseErr) -> Maybe<&2, List<&2, String>>:
       None{}
     case S.Repeated{_at, _name}:
       None{}
+
+# the env vars `spec` gives its arguments, each that is set with its value,
+# for `parse_env`
+def env_vars(spec: S.Cli) -> IO(List<&2, S.Var>):  # noqa: L001 IO: reads env vars
+  Args.env_vars(spec)
 
 # the process's arguments, each word reusable, without the program name
 # that `IO.args` starts with (bend 2.0.32 and later). A compiled program's

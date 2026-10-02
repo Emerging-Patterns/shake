@@ -528,7 +528,7 @@ law choice_refused:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for +rest: List<&2, S.Arg>
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
@@ -586,7 +586,7 @@ law flag_long_valued:
   for +lo: Maybe<&2, String>
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
     == S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
@@ -728,7 +728,7 @@ law repeated_long_flag:
   for +lo: Maybe<&2, String>
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
     == S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
@@ -765,7 +765,7 @@ law repeated_long_opt:
   for +lo: Maybe<&2, String>
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
     == S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
@@ -902,7 +902,7 @@ law pos_next:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for +rest: List<&2, S.Arg>
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
@@ -942,7 +942,7 @@ law pos_binds:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for +rest: List<&2, S.Arg>
   for +found: Shake.Matched
@@ -1001,7 +1001,7 @@ law raw_next:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for +rest: List<&2, S.Arg>
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
@@ -1036,7 +1036,7 @@ law raw_binds:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for +rest: List<&2, S.Arg>
   for +found: Shake.Matched
@@ -1095,7 +1095,7 @@ law raw_refused:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for +rest: List<&2, S.Arg>
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
@@ -1144,7 +1144,7 @@ law long_binds:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for +found: Shake.Matched
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
@@ -1215,7 +1215,7 @@ law long_refused:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
     == S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
@@ -1281,7 +1281,7 @@ law rest_next:
   for +lo: Maybe<&2, String>
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
     == S.St{S.Free{}, args, up, subs, path, bs, [S.Arg{nm, sh, lo, S.Rest{}, hp, req, dflt, cs}], False{}, seen}
@@ -1315,7 +1315,7 @@ law rest_binds:
   for +lo: Maybe<&2, String>
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for +found: Shake.Matched
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
@@ -1352,7 +1352,7 @@ law rest_raw_next:
   for +lo: Maybe<&2, String>
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
     == S.St{S.Free{}, args, up, subs, path, bs, [S.Arg{nm, sh, lo, S.Rest{}, hp, req, dflt, cs}], True{}, seen}
@@ -1384,7 +1384,7 @@ law rest_raw_binds:
   for +lo: Maybe<&2, String>
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for +found: Shake.Matched
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
@@ -1450,6 +1450,7 @@ law default_filled:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
+  for +ev: Maybe<&2, String>
   for +dd: String
   for +cs: List<&2, String>
   for +bs: List<&2, S.Bind>
@@ -1459,7 +1460,8 @@ law default_filled:
   for h_done: {Shake.parse(spec, ws) == Done{found} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
   for h_fr: {Grow.gw.frame(S.parse.walk(ws, S.parse.start(spec)))
     == Grow.Frame{List.append(&2, S.Level, qs,
-      S.Level{List.append(&2, S.Arg, pa, S.Arg{nn, sh, lo, kind, hp, req, Some{dd}, cs} <> qa), bs} <> up),
+      S.Level{List.append(&2, S.Arg, pa, S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{ev, Some{dd}}, cs} <> qa),
+          bs} <> up),
       List.append(&2, String, path, ms)} : Grow.Frame}
   for h_len: {List.length(&2, S.Level, up) == List.length(&2, String, path) : Nat}
   for h_pa: {none_named(pa, nn) == True{} : Bool}
@@ -1484,7 +1486,7 @@ law bound_kept:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for +bs: List<&2, S.Bind>
   for +up: List<&2, S.Level>
@@ -1517,6 +1519,7 @@ law no_default:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
+  for +ev: Maybe<&2, String>
   for +cs: List<&2, String>
   for +bs: List<&2, S.Bind>
   for +up: List<&2, S.Level>
@@ -1525,7 +1528,8 @@ law no_default:
   for h_done: {Shake.parse(spec, ws) == Done{found} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
   for h_fr: {Grow.gw.frame(S.parse.walk(ws, S.parse.start(spec)))
     == Grow.Frame{List.append(&2, S.Level, qs,
-      S.Level{List.append(&2, S.Arg, pa, S.Arg{nn, sh, lo, kind, hp, req, None{}, cs} <> qa), bs} <> up),
+      S.Level{List.append(&2, S.Arg, pa, S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{ev, None{}}, cs} <> qa),
+          bs} <> up),
       List.append(&2, String, path, ms)} : Grow.Frame}
   for h_len: {List.length(&2, S.Level, up) == List.length(&2, String, path) : Nat}
   for h_pa: {none_named(pa, nn) == True{} : Bool}
@@ -1569,7 +1573,7 @@ law required_present:
   for +lo: Maybe<&2, String>
   for +kind: S.ArgKind
   for +hp: String
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for +bs: List<&2, S.Bind>
   for +up: List<&2, S.Level>
@@ -1599,7 +1603,7 @@ law required_missing:
   for +lo: Maybe<&2, String>
   for +kind: S.ArgKind
   for +hp: String
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for +bs: List<&2, S.Bind>
   for +up: List<&2, S.Level>
@@ -1617,7 +1621,7 @@ law required_missing:
 # whether a pending positional blocks a subcommand: required, with no
 # default, and not a rest
 def blocks(aa: S.Arg) -> Bool:
-  S.Arg{_n, _s, _l, kind, _h, req, dflt, _c} = aa
+  S.Arg{_n, _s, _l, kind, _h, req, S.Fallback{_e, dflt}, _c} = aa
   Bool.and(Bool.not(S.rest.is.kind(kind)), Bool.and(req, Maybe.is_none(&2, String, dflt)))
 
 # whether no pending positional blocks a subcommand
@@ -1646,11 +1650,13 @@ law first_blocking:
   for +lo: Maybe<&2, String>
   for +kind: S.ArgKind
   for +hp: String
+  for +ev: Maybe<&2, String>
   for +cs: List<&2, String>
   for +qa: List<&2, S.Arg>
   for +h_pa: {none_block(pa) == True{} : Bool}
   for h_kind: {S.rest.is.kind(kind) == False{} : Bool}
-  {S.parse.first_req(List.append(&2, S.Arg, pa, S.Arg{nm, sh, lo, kind, hp, True{}, None{}, cs} <> qa)) == Some{nm}
+  {S.parse.first_req(List.append(&2, S.Arg, pa, S.Arg{nm, sh, lo, kind, hp, True{}, S.Fallback{ev, None{}},
+      cs} <> qa)) == Some{nm}
     : Maybe<&2, String>}
 
 # LAW: wherever the words before it leave the walker free before `--`, a plain
@@ -1894,7 +1900,7 @@ law help_word_next:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for +rest: List<&2, S.Arg>
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
@@ -1925,7 +1931,7 @@ law help_word_binds:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for +rest: List<&2, S.Arg>
   for +found: Shake.Matched
@@ -1999,7 +2005,7 @@ law letter_flag:
   for +lo: Maybe<&2, String>
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for h_found: {S.by_short(args, SCon{cc, SNil{}}) == Some{S.Arg{nn, sh, lo, S.Flag{}, hp, req, dflt, cs}}
     : Maybe<&2, S.Arg>}
@@ -2030,7 +2036,7 @@ law letter_flag_eq:
   for +lo: Maybe<&2, String>
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for h_found: {S.by_short(args, SCon{cc, SNil{}}) == Some{S.Arg{nn, sh, lo, S.Flag{}, hp, req, dflt, cs}}
     : Maybe<&2, S.Arg>}
@@ -2081,7 +2087,7 @@ law letter_flag_again:
   for +lo: Maybe<&2, String>
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for h_found: {S.by_short(args, SCon{cc, SNil{}}) == Some{S.Arg{nn, sh, lo, S.Flag{}, hp, req, dflt, cs}}
     : Maybe<&2, S.Arg>}
@@ -2110,7 +2116,7 @@ law letter_opt_again:
   for +lo: Maybe<&2, String>
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for h_found: {S.by_short(args, SCon{cc, SNil{}}) == Some{S.Arg{nn, sh, lo, S.Opt{}, hp, req, dflt, cs}}
     : Maybe<&2, S.Arg>}
@@ -2142,7 +2148,7 @@ law letter_value:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for h_found: {S.by_short(args, SCon{cc, SNil{}}) == Some{S.Arg{nn, sh, lo, kind, hp, req, dflt, cs}}
     : Maybe<&2, S.Arg>}
@@ -2177,7 +2183,7 @@ law letter_value_eq:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for h_found: {S.by_short(args, SCon{cc, SNil{}}) == Some{S.Arg{nn, sh, lo, kind, hp, req, dflt, cs}}
     : Maybe<&2, S.Arg>}
@@ -2206,7 +2212,7 @@ law letter_value_next:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for h_found: {S.by_short(args, SCon{cc, SNil{}}) == Some{S.Arg{nn, sh, lo, kind, hp, req, dflt, cs}}
     : Maybe<&2, S.Arg>}
@@ -2236,7 +2242,7 @@ law letter_value_bad:
   for +kind: S.ArgKind
   for +hp: String
   for +req: Bool
-  for +dflt: Maybe<&2, String>
+  for +dflt: S.Fallback
   for +cs: List<&2, String>
   for h_found: {S.by_short(args, SCon{cc, SNil{}}) == Some{S.Arg{nn, sh, lo, kind, hp, req, dflt, cs}}
     : Maybe<&2, S.Arg>}
@@ -2364,7 +2370,7 @@ law err_path_at:
 # then where to look for more
 # SHAKE-ERR-2
 law err_text_usage:
-  for spec: Shake.Cli
+  for +spec: Shake.Cli
   for +err: Shake.ParseErr
   for h_err: {Shake.help_path(err) == None{} : Maybe<&2, List<&2, String>>}
   exs msg: String
@@ -2510,7 +2516,7 @@ def arg_reports(
   aa: S.Arg,
   after: List<&2, K.SpecErr>
 ) -> List<&2, K.SpecErr>:
-  S.Arg{+name, +short, +long, _k, _h, _r, dflt, +cs} = aa
+  S.Arg{+name, +short, +long, _k, _h, _r, S.Fallback{_e, dflt}, +cs} = aa
   K.both(K.one(List.contains(~String, ~String.eq, arg_names(before), name), K.SameName{path, name}),
     K.both(K.one(K.spelled.seen(short, arg_shorts(before)), K.SameShort{path, S.text.of(short, "")}),
       K.both(K.one(K.spelled.seen(long, arg_longs(before)), K.SameLong{path, S.text.of(long, "")}),
@@ -2646,7 +2652,7 @@ def is_default(args: List<&2, S.Arg>, +name: String, +vv: String) -> Bool:
     case Nil{}:
       False{}
     case Con{hh, tt}:
-      S.Arg{nn, _s, _l, _k, _h, _r, dd, _c} = hh
+      S.Arg{nn, _s, _l, _k, _h, _r, S.Fallback{_e, dd}, _c} = hh
       Bool.or(Bool.and(String.eq(nn, name), default_is(dd, vv)), is_default(tt, name, vv))
 
 # whether a binding's value is `true`, which a flag binds, a piece of one of
@@ -2856,3 +2862,645 @@ law spec_err_where:
   for +err: K.SpecErr
   exs msg: String
   {Shake.spec_err_text(err) == K.at(spec_path(err)) ++ msg : String}
+
+# LAW: `env` gives an argument its env var and keeps the rest of it
+# SHAKE-PARSE-11
+law env_sets:
+  for +nn: String
+  for +sh: Maybe<&2, String>
+  for +lo: Maybe<&2, String>
+  for +kind: S.ArgKind
+  for +hp: String
+  for +req: Bool
+  for ev: Maybe<&2, String>
+  for +dd: Maybe<&2, String>
+  for +cs: List<&2, String>
+  for +var: String
+  {Shake.env(S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{ev, dd}, cs}, var)
+    == S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{Some{var}, dd}, cs} : S.Arg}
+
+# LAW: an argument with no env var has no env value
+# SHAKE-PARSE-11
+law env_of_none:
+  for vars: List<&2, Shake.Var>
+  {S.env.of(None{}, vars) == None{} : Maybe<&2, String>}
+
+# LAW: an env var no pair names has no env value
+# SHAKE-PARSE-11
+law env_of_nil:
+  for var: String
+  {S.env.of(Some{var}, []) == None{} : Maybe<&2, String>}
+
+# LAW: the first pair an env var names gives its env value, when its value
+# is not empty
+# SHAKE-PARSE-11
+law env_of_hit:
+  for +var: String
+  for +nn: String
+  for +vv: String
+  for rest: List<&2, Shake.Var>
+  for h_eq: {String.eq(nn, var) == True{} : Bool}
+  for h_full: {String.is_empty(vv) == False{} : Bool}
+  {S.env.of(Some{var}, (nn, vv) <> rest) == Some{vv} : Maybe<&2, String>}
+
+# LAW: an empty value in the first pair an env var names gives no env value,
+# whatever later pairs hold
+# SHAKE-PARSE-11
+law env_of_empty:
+  for +var: String
+  for +nn: String
+  for +vv: String
+  for rest: List<&2, Shake.Var>
+  for h_eq: {String.eq(nn, var) == True{} : Bool}
+  for h_empty: {String.is_empty(vv) == True{} : Bool}
+  {S.env.of(Some{var}, (nn, vv) <> rest) == None{} : Maybe<&2, String>}
+
+# LAW: a pair named otherwise is passed over
+# SHAKE-PARSE-11
+law env_of_skip:
+  for +var: String
+  for +nn: String
+  for +vv: String
+  for +rest: List<&2, Shake.Var>
+  for h_eq: {String.eq(nn, var) == False{} : Bool}
+  {S.env.of(Some{var}, (nn, vv) <> rest) == S.env.of(Some{var}, rest) : Maybe<&2, String>}
+
+# the env values that turn a flag off, lowercased
+def off_words() -> List<&2, String>:
+  ["0", "false", "no", "off", "n", "f"]
+
+# LAW: an argument other than a flag that has an env value falls back to it
+# SHAKE-PARSE-11
+law fallback_env:
+  for +nn: String
+  for +sh: Maybe<&2, String>
+  for +lo: Maybe<&2, String>
+  for +kind: S.ArgKind
+  for +hp: String
+  for +req: Bool
+  for +ev: Maybe<&2, String>
+  for dd: Maybe<&2, String>
+  for +cs: List<&2, String>
+  for +vars: List<&2, Shake.Var>
+  for +vv: String
+  for h_kind: {S.env.flag.is(kind) == False{} : Bool}
+  for h_env: {S.env.of(ev, vars) == Some{vv} : Maybe<&2, String>}
+  {S.resolve.arg(S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{ev, dd}, cs}, vars)
+    == S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{ev, Some{vv}}, cs} : S.Arg}
+
+# LAW: a flag with an env value that, lowercased, is not an off word falls
+# back to `true`
+# SHAKE-PARSE-11
+law fallback_flag_on:
+  for +nn: String
+  for +sh: Maybe<&2, String>
+  for +lo: Maybe<&2, String>
+  for +hp: String
+  for +req: Bool
+  for +ev: Maybe<&2, String>
+  for dd: Maybe<&2, String>
+  for +cs: List<&2, String>
+  for +vars: List<&2, Shake.Var>
+  for +vv: String
+  for h_env: {S.env.of(ev, vars) == Some{vv} : Maybe<&2, String>}
+  for h_on: {S.allowed.ok(off_words(), String.to_lower(vv)) == False{} : Bool}
+  {S.resolve.arg(S.Arg{nn, sh, lo, S.Flag{}, hp, req, S.Fallback{ev, dd}, cs}, vars)
+    == S.Arg{nn, sh, lo, S.Flag{}, hp, req, S.Fallback{ev, Some{"true"}}, cs} : S.Arg}
+
+# LAW: a flag with an env value that, lowercased, is an off word has no
+# fallback
+# SHAKE-PARSE-11
+law fallback_flag_off:
+  for +nn: String
+  for +sh: Maybe<&2, String>
+  for +lo: Maybe<&2, String>
+  for +hp: String
+  for +req: Bool
+  for +ev: Maybe<&2, String>
+  for dd: Maybe<&2, String>
+  for +cs: List<&2, String>
+  for +vars: List<&2, Shake.Var>
+  for +vv: String
+  for h_env: {S.env.of(ev, vars) == Some{vv} : Maybe<&2, String>}
+  for h_off: {S.allowed.ok(off_words(), String.to_lower(vv)) == True{} : Bool}
+  {S.resolve.arg(S.Arg{nn, sh, lo, S.Flag{}, hp, req, S.Fallback{ev, dd}, cs}, vars)
+    == S.Arg{nn, sh, lo, S.Flag{}, hp, req, S.Fallback{ev, None{}}, cs} : S.Arg}
+
+# LAW: an argument with no env value falls back to its default
+# SHAKE-PARSE-11
+law fallback_default:
+  for +nn: String
+  for +sh: Maybe<&2, String>
+  for +lo: Maybe<&2, String>
+  for +kind: S.ArgKind
+  for +hp: String
+  for +req: Bool
+  for +ev: Maybe<&2, String>
+  for +dd: Maybe<&2, String>
+  for +cs: List<&2, String>
+  for +vars: List<&2, Shake.Var>
+  for h_env: {S.env.of(ev, vars) == None{} : Maybe<&2, String>}
+  {S.resolve.arg(S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{ev, dd}, cs}, vars)
+    == S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{ev, dd}, cs} : S.Arg}
+
+# LAW: a spec's arguments are resolved in the root command and below it
+# SHAKE-PARSE-11
+law resolve_spec:
+  for +nn: String
+  for +ab: String
+  for +ver: Maybe<&2, String>
+  for args: List<&2, S.Arg>
+  for subs: List<&2, S.Sub>
+  for +vars: List<&2, Shake.Var>
+  {S.resolve(S.Cli{nn, ab, ver, args, subs}, vars)
+    == S.Cli{nn, ab, ver, S.resolve.args(args, vars), S.resolve.subs(subs, vars)} : S.Cli}
+
+# LAW: a command's arguments are resolved one by one, in order
+# SHAKE-PARSE-11
+law resolve_args_con:
+  for aa: S.Arg
+  for tt: List<&2, S.Arg>
+  for +vars: List<&2, Shake.Var>
+  {S.resolve.args(aa <> tt, vars) == S.resolve.arg(aa, vars) <> S.resolve.args(tt, vars) : List<&2, S.Arg>}
+
+# LAW: a subcommand's arguments are resolved, and every subcommand under it
+# SHAKE-PARSE-11
+law resolve_subs_con:
+  for +nn: String
+  for +ab: String
+  for args: List<&2, S.Arg>
+  for kids: List<&2, S.Sub>
+  for tt: List<&2, S.Sub>
+  for +vars: List<&2, Shake.Var>
+  {S.resolve.subs(S.Sub{nn, ab, args, kids} <> tt, vars)
+    == S.Sub{nn, ab, S.resolve.args(args, vars), S.resolve.subs(kids, vars)} <> S.resolve.subs(tt, vars)
+    : List<&2, S.Sub>}
+
+# LAW: `parse_env` is `parse` against the spec with every default replaced by
+# its fallback, then the check SHAKE-PARSE-12 describes
+# SHAKE-PARSE-11
+law env_parse:
+  for +spec: Shake.Cli
+  for ws: List<&2, String>
+  for +vars: List<&2, Shake.Var>
+  {Shake.parse_env(spec, ws, vars) == S.env.check(spec, vars, Shake.parse(S.resolve(spec, vars), ws))
+    : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+
+# LAW: with no pairs, `parse_env` is `parse`
+# SHAKE-PARSE-11
+law env_none:
+  for +spec: Shake.Cli
+  for ws: List<&2, String>
+  {Shake.parse_env(spec, ws, []) == Shake.parse(spec, ws) : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+
+# LAW: a failed parse fails `parse_env` with the same error
+# SHAKE-PARSE-12
+law env_check_fail:
+  for spec: Shake.Cli
+  for vars: List<&2, Shake.Var>
+  for ee: Shake.ParseErr
+  {S.env.check(spec, vars, Fail{ee}) == Fail{ee} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+
+# LAW: a successful parse that bound no env value outside its choices is
+# what `parse_env` answers
+# SHAKE-PARSE-12
+law env_check_good:
+  for nn: String
+  for ab: String
+  for ver: Maybe<&2, String>
+  for +args: List<&2, S.Arg>
+  for +subs: List<&2, S.Sub>
+  for +vars: List<&2, Shake.Var>
+  for +mm: Shake.Matched
+  for h_none: {S.env.bad.go(mm, args, subs, vars) == None{} : Maybe<&2, Shake.Var>}
+  {S.env.check(S.Cli{nn, ab, ver, args, subs}, vars, Done{mm}) == Done{mm}
+    : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+
+# LAW: a successful parse that bound an env value outside its choices fails
+# with BadValue at the selected path
+# SHAKE-PARSE-12
+law env_check_bad:
+  for nn: String
+  for ab: String
+  for ver: Maybe<&2, String>
+  for +args: List<&2, S.Arg>
+  for +subs: List<&2, S.Sub>
+  for +vars: List<&2, Shake.Var>
+  for +mm: Shake.Matched
+  for +name: String
+  for +vv: String
+  for h_bad: {S.env.bad.go(mm, args, subs, vars) == Some{(name, vv)} : Maybe<&2, Shake.Var>}
+  {S.env.check(S.Cli{nn, ab, ver, args, subs}, vars, Done{mm}) == Fail{S.BadValue{Shake.path_of(mm), name, vv}}
+    : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+
+# LAW: the last command on the path is checked among its own arguments and
+# bindings
+# SHAKE-PARSE-12
+law bad_go_leaf:
+  for +bs: List<&2, S.Bind>
+  for +args: List<&2, S.Arg>
+  for subs: List<&2, S.Sub>
+  for +vars: List<&2, Shake.Var>
+  {S.env.bad.go(S.Leaf{bs}, args, subs, vars) == S.env.bad.args(args, vars, bs) : Maybe<&2, Shake.Var>}
+
+# LAW: a command's own arguments come before the subcommand selected under it
+# SHAKE-PARSE-12
+law bad_go_root:
+  for +bs: List<&2, S.Bind>
+  for +name: String
+  for +next: Shake.Matched
+  for +args: List<&2, S.Arg>
+  for +subs: List<&2, S.Sub>
+  for +vars: List<&2, Shake.Var>
+  for +pp: Shake.Var
+  for h_here: {S.env.bad.args(args, vars, bs) == Some{pp} : Maybe<&2, Shake.Var>}
+  {S.env.bad.go(S.Node{bs, name, next}, args, subs, vars) == Some{pp} : Maybe<&2, Shake.Var>}
+
+# LAW: with none among a command's own arguments, the subcommand selected
+# under it is checked among its arguments and bindings
+# SHAKE-PARSE-12
+law bad_go_down:
+  for +bs: List<&2, S.Bind>
+  for +name: String
+  for +next: Shake.Matched
+  for +args: List<&2, S.Arg>
+  for +subs: List<&2, S.Sub>
+  for +vars: List<&2, Shake.Var>
+  for h_none: {S.env.bad.args(args, vars, bs) == None{} : Maybe<&2, Shake.Var>}
+  {S.env.bad.go(S.Node{bs, name, next}, args, subs, vars)
+    == S.env.bad.go(next, S.env.sub.args(S.find_sub(subs, name)), S.env.sub.kids(S.find_sub(subs, name)), vars)
+    : Maybe<&2, Shake.Var>}
+
+# LAW: within a command, the first argument in spec order is the one reported
+# SHAKE-PARSE-12
+law bad_args_here:
+  for +aa: S.Arg
+  for +tt: List<&2, S.Arg>
+  for +vars: List<&2, Shake.Var>
+  for +bs: List<&2, S.Bind>
+  for +pp: Shake.Var
+  for h_here: {S.env.bad.arg(aa, vars, bs) == Some{pp} : Maybe<&2, Shake.Var>}
+  {S.env.bad.args(aa <> tt, vars, bs) == Some{pp} : Maybe<&2, Shake.Var>}
+
+# LAW: an argument that is fine passes the check on to the next
+# SHAKE-PARSE-12
+law bad_args_next:
+  for +aa: S.Arg
+  for +tt: List<&2, S.Arg>
+  for +vars: List<&2, Shake.Var>
+  for +bs: List<&2, S.Bind>
+  for h_none: {S.env.bad.arg(aa, vars, bs) == None{} : Maybe<&2, Shake.Var>}
+  {S.env.bad.args(aa <> tt, vars, bs) == S.env.bad.args(tt, vars, bs) : Maybe<&2, Shake.Var>}
+
+# LAW: no command has a bad argument when there are no pairs
+# SHAKE-PARSE-12
+law bad_args_nil:
+  for args: List<&2, S.Arg>
+  for +bs: List<&2, S.Bind>
+  {S.env.bad.args(args, [], bs) == None{} : Maybe<&2, Shake.Var>}
+
+# LAW: an argument other than a flag whose env value is outside its choices
+# and bound in its command is reported with that value
+# SHAKE-PARSE-12
+law bad_arg_some:
+  for +nn: String
+  for sh: Maybe<&2, String>
+  for lo: Maybe<&2, String>
+  for +kind: S.ArgKind
+  for hp: String
+  for req: Bool
+  for +ev: Maybe<&2, String>
+  for dd: Maybe<&2, String>
+  for +cs: List<&2, String>
+  for +vars: List<&2, Shake.Var>
+  for +bs: List<&2, S.Bind>
+  for +vv: String
+  for h_env: {S.env.of(ev, vars) == Some{vv} : Maybe<&2, String>}
+  for h_kind: {S.env.flag.is(kind) == False{} : Bool}
+  for h_out: {S.allowed(cs, vv) == False{} : Bool}
+  for h_bound: {List.contains(~String, ~String.eq, S.get_all.bind(bs, nn), vv) == True{} : Bool}
+  {S.env.bad.arg(S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{ev, dd}, cs}, vars, bs) == Some{(nn, vv)}
+    : Maybe<&2, Shake.Var>}
+
+# LAW: an argument with no env value is never reported
+# SHAKE-PARSE-12
+law bad_arg_unset:
+  for nn: String
+  for sh: Maybe<&2, String>
+  for lo: Maybe<&2, String>
+  for kind: S.ArgKind
+  for hp: String
+  for req: Bool
+  for +ev: Maybe<&2, String>
+  for dd: Maybe<&2, String>
+  for cs: List<&2, String>
+  for +vars: List<&2, Shake.Var>
+  for bs: List<&2, S.Bind>
+  for h_env: {S.env.of(ev, vars) == None{} : Maybe<&2, String>}
+  {S.env.bad.arg(S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{ev, dd}, cs}, vars, bs) == None{}
+    : Maybe<&2, Shake.Var>}
+
+# LAW: a flag is never reported
+# SHAKE-PARSE-12
+law bad_arg_flag:
+  for nn: String
+  for sh: Maybe<&2, String>
+  for lo: Maybe<&2, String>
+  for hp: String
+  for req: Bool
+  for ev: Maybe<&2, String>
+  for dd: Maybe<&2, String>
+  for cs: List<&2, String>
+  for vars: List<&2, Shake.Var>
+  for bs: List<&2, S.Bind>
+  {S.env.bad.arg(S.Arg{nn, sh, lo, S.Flag{}, hp, req, S.Fallback{ev, dd}, cs}, vars, bs) == None{}
+    : Maybe<&2, Shake.Var>}
+
+# LAW: an env value its choices allow is never reported
+# SHAKE-PARSE-12
+law bad_arg_allowed:
+  for +nn: String
+  for sh: Maybe<&2, String>
+  for lo: Maybe<&2, String>
+  for +kind: S.ArgKind
+  for hp: String
+  for req: Bool
+  for +ev: Maybe<&2, String>
+  for dd: Maybe<&2, String>
+  for +cs: List<&2, String>
+  for +vars: List<&2, Shake.Var>
+  for +bs: List<&2, S.Bind>
+  for +vv: String
+  for h_env: {S.env.of(ev, vars) == Some{vv} : Maybe<&2, String>}
+  for h_in: {S.allowed(cs, vv) == True{} : Bool}
+  {S.env.bad.arg(S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{ev, dd}, cs}, vars, bs) == None{}
+    : Maybe<&2, Shake.Var>}
+
+# LAW: an env value its command does not bind is never reported
+# SHAKE-PARSE-12
+law bad_arg_unbound:
+  for +nn: String
+  for sh: Maybe<&2, String>
+  for lo: Maybe<&2, String>
+  for +kind: S.ArgKind
+  for hp: String
+  for req: Bool
+  for +ev: Maybe<&2, String>
+  for dd: Maybe<&2, String>
+  for +cs: List<&2, String>
+  for +vars: List<&2, Shake.Var>
+  for +bs: List<&2, S.Bind>
+  for +vv: String
+  for h_env: {S.env.of(ev, vars) == Some{vv} : Maybe<&2, String>}
+  for h_free: {List.contains(~String, ~String.eq, S.get_all.bind(bs, nn), vv) == False{} : Bool}
+  {S.env.bad.arg(S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{ev, dd}, cs}, vars, bs) == None{}
+    : Maybe<&2, Shake.Var>}
+
+# LAW: an option line shows the env var after the help text, before the
+# default and the possible values
+# SHAKE-HELP-3
+law help_env_shown:
+  for nn: String
+  for sh: Maybe<&2, String>
+  for lo: Maybe<&2, String>
+  for kind: S.ArgKind
+  for hp: String
+  for req: Bool
+  for +var: String
+  for +dd: Maybe<&2, String>
+  for +cs: List<&2, String>
+  {S.help.extra(S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{Some{var}, dd}, cs})
+    == (" [env: " ++ var ++ "]") ++ S.help.extra.go(S.text.of(dd, ""), cs) : String}
+
+# LAW: an option line with no env var shows only the default and the possible
+# values, as before
+# SHAKE-HELP-3
+law help_env_none:
+  for nn: String
+  for sh: Maybe<&2, String>
+  for lo: Maybe<&2, String>
+  for kind: S.ArgKind
+  for hp: String
+  for req: Bool
+  for +dd: Maybe<&2, String>
+  for +cs: List<&2, String>
+  {S.help.extra(S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{None{}, dd}, cs})
+    == S.help.extra.go(S.text.of(dd, ""), cs) : String}
+
+# LAW: `env_vars` asks for the root command's env vars, then its
+# subcommands'
+# SHAKE-ARGS-2
+law env_names_root:
+  for nn: String
+  for ab: String
+  for ver: Maybe<&2, String>
+  for args: List<&2, S.Arg>
+  for subs: List<&2, S.Sub>
+  {S.env.names(S.Cli{nn, ab, ver, args, subs})
+    == List.append(&2, String, S.env.names.args(args), S.env.names.forest(subs)) : List<&2, String>}
+
+# LAW: a subcommand's env vars come before those of the subcommands under it,
+# and those before its next sibling's
+# SHAKE-ARGS-2
+law env_names_forest:
+  for nn: String
+  for ab: String
+  for args: List<&2, S.Arg>
+  for kids: List<&2, S.Sub>
+  for tt: List<&2, S.Sub>
+  {S.env.names.forest(S.Sub{nn, ab, args, kids} <> tt)
+    == List.append(&2, String, S.env.names.args(args),
+      List.append(&2, String, S.env.names.forest(kids), S.env.names.forest(tt))) : List<&2, String>}
+
+# LAW: an argument with an env var names it, in spec order
+# SHAKE-ARGS-2
+law env_names_some:
+  for nn: String
+  for sh: Maybe<&2, String>
+  for lo: Maybe<&2, String>
+  for kind: S.ArgKind
+  for hp: String
+  for req: Bool
+  for +var: String
+  for dd: Maybe<&2, String>
+  for cs: List<&2, String>
+  for tt: List<&2, S.Arg>
+  {S.env.names.args(S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{Some{var}, dd}, cs} <> tt)
+    == var <> S.env.names.args(tt) : List<&2, String>}
+
+# LAW: an argument with no env var names none
+# SHAKE-ARGS-2
+law env_names_none:
+  for nn: String
+  for sh: Maybe<&2, String>
+  for lo: Maybe<&2, String>
+  for kind: S.ArgKind
+  for hp: String
+  for req: Bool
+  for dd: Maybe<&2, String>
+  for cs: List<&2, String>
+  for tt: List<&2, S.Arg>
+  {S.env.names.args(S.Arg{nn, sh, lo, kind, hp, req, S.Fallback{None{}, dd}, cs} <> tt)
+    == S.env.names.args(tt) : List<&2, String>}
+
+# LAW: a name `IO.get_env` found a value for is kept with that value, in front
+# of the rest (a lemma for SHAKE-TRUST-5's reading)
+law kept_set:
+  for +nn: String
+  for vv: String
+  for rest: List<&2, Shake.Var>
+  {Args.kept(nn, Done{vv}, rest) == (nn, vv) <> rest : List<&2, Shake.Var>}
+
+# LAW: a name `IO.get_env` failed for gives no pair (a lemma for
+# SHAKE-TRUST-5's reading)
+law kept_unset:
+  for nn: String
+  for ee: U32 & String
+  for rest: List<&2, Shake.Var>
+  {Args.kept(nn, Fail{ee}, rest) == rest : List<&2, Shake.Var>}
+
+# whether an error is an unknown option
+def unknown.is(err: Shake.ParseErr) -> Bool:
+  match err:
+    case S.UnknownFlag{_at, _word}:
+      True{}
+    case _other:
+      False{}
+
+# the arguments of a page's command
+def how_args(how: S.How) -> List<&2, S.Arg>:
+  S.How{_b, _a, _v, args, _s, _u} = how
+  args
+
+# LAW: only an unknown option can get a suggestion
+# SHAKE-ERR-3
+law sug_other:
+  for spec: Shake.Cli
+  for +err: Shake.ParseErr
+  for h_err: {unknown.is(err) == False{} : Bool}
+  {Shake.suggestion(spec, err) == None{} : Maybe<&2, String>}
+
+# LAW: a word that does not start with `--` gets no suggestion
+# SHAKE-ERR-3
+law sug_short:
+  for +spec: Shake.Cli
+  for +at: List<&2, String>
+  for +word: String
+  for h_word: {String.starts_with(word, "--") == False{} : Bool}
+  {Shake.suggestion(spec, S.UnknownFlag{at, word}) == None{} : Maybe<&2, String>}
+
+# LAW: a long option word's suggestion is the closest close candidate to its
+# spelling up to `=`, among the long spellings of the command at `at`, reached
+# as `help` reaches it, as a long option word
+# SHAKE-ERR-3
+law sug_long:
+  for +spec: Shake.Cli
+  for +at: List<&2, String>
+  for +body: String
+  for +name: String
+  for val: Maybe<&2, String>
+  for h_cut: {S.cut_eq(body) == (name, val) : String & Maybe<&2, String>}
+  {Shake.suggestion(spec, S.UnknownFlag{at, "--" ++ body})
+    == S.sug.found(S.sug.best(S.sug.cands(how_args(reach(at, root(spec)))), name)) : Maybe<&2, String>}
+
+# LAW: a candidate is suggested as its long option word
+# SHAKE-ERR-3
+law sug_found_some:
+  for cc: String
+  {S.sug.found(Some{cc}) == Some{"--" ++ cc} : Maybe<&2, String>}
+
+# LAW: an argument with a long spelling is a candidate, in spec order
+# SHAKE-ERR-3
+law cands_some:
+  for nn: String
+  for sh: Maybe<&2, String>
+  for ll: String
+  for kind: S.ArgKind
+  for hp: String
+  for req: Bool
+  for fb: S.Fallback
+  for cs: List<&2, String>
+  for tt: List<&2, S.Arg>
+  {S.sug.cands(S.Arg{nn, sh, Some{ll}, kind, hp, req, fb, cs} <> tt) == ll <> S.sug.cands(tt) : List<&2, String>}
+
+# LAW: an argument with no long spelling is not a candidate
+# SHAKE-ERR-3
+law cands_none:
+  for nn: String
+  for sh: Maybe<&2, String>
+  for kind: S.ArgKind
+  for hp: String
+  for req: Bool
+  for fb: S.Fallback
+  for cs: List<&2, String>
+  for tt: List<&2, S.Arg>
+  {S.sug.cands(S.Arg{nn, sh, None{}, kind, hp, req, fb, cs} <> tt) == S.sug.cands(tt) : List<&2, String>}
+
+# LAW: a candidate is close when it is some edits away, and three times as
+# many is at most the longer length
+# SHAKE-ERR-3
+law sug_close:
+  for +typed: String
+  for +cc: String
+  {S.sug.close(typed, cc)
+    == Bool.and(Nat.is_lt(0n, S.osa(typed, cc)),
+      Nat.is_le(Nat.mul(3n, S.osa(typed, cc)), Nat.max(String.length(typed), String.length(cc)))) : Bool}
+
+# LAW: no candidates, no closest one
+# SHAKE-ERR-3
+law best_nil:
+  for typed: String
+  {S.sug.best([], typed) == None{} : Maybe<&2, String>}
+
+# LAW: a candidate that is not close is passed over
+# SHAKE-ERR-3
+law best_far:
+  for +cc: String
+  for +tt: List<&2, String>
+  for +typed: String
+  for h_far: {S.sug.close(typed, cc) == False{} : Bool}
+  {S.sug.best(cc <> tt, typed) == S.sug.best(tt, typed) : Maybe<&2, String>}
+
+# LAW: a close candidate with none close after it is the closest
+# SHAKE-ERR-3
+law best_only:
+  for +cc: String
+  for +tt: List<&2, String>
+  for +typed: String
+  for h_close: {S.sug.close(typed, cc) == True{} : Bool}
+  for h_rest: {S.sug.best(tt, typed) == None{} : Maybe<&2, String>}
+  {S.sug.best(cc <> tt, typed) == Some{cc} : Maybe<&2, String>}
+
+# LAW: a close candidate no farther than the closest after it is the closest:
+# the first wins a tie
+# SHAKE-ERR-3
+law best_here:
+  for +cc: String
+  for +tt: List<&2, String>
+  for +typed: String
+  for +ww: String
+  for h_close: {S.sug.close(typed, cc) == True{} : Bool}
+  for h_rest: {S.sug.best(tt, typed) == Some{ww} : Maybe<&2, String>}
+  for h_le: {Nat.is_le(S.osa(typed, cc), S.osa(typed, ww)) == True{} : Bool}
+  {S.sug.best(cc <> tt, typed) == Some{cc} : Maybe<&2, String>}
+
+# LAW: a close candidate farther than the closest after it is passed over
+# SHAKE-ERR-3
+law best_there:
+  for +cc: String
+  for +tt: List<&2, String>
+  for +typed: String
+  for +ww: String
+  for h_close: {S.sug.close(typed, cc) == True{} : Bool}
+  for h_rest: {S.sug.best(tt, typed) == Some{ww} : Maybe<&2, String>}
+  for h_le: {Nat.is_le(S.osa(typed, cc), S.osa(typed, ww)) == False{} : Bool}
+  {S.sug.best(cc <> tt, typed) == Some{ww} : Maybe<&2, String>}
+
+# LAW: the error text shows the suggestion, when there is one
+# SHAKE-ERR-4
+law err_text_tip:
+  for +spec: Shake.Cli
+  for +err: Shake.ParseErr
+  for +ss: String
+  for h_sug: {Shake.suggestion(spec, err) == Some{ss} : Maybe<&2, String>}
+  {String.contains(Shake.err_text(spec, err), ss) == True{} : Bool}

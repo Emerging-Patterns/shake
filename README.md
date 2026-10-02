@@ -64,11 +64,13 @@ On bend 2.0.32 and later, `IO.args()` starts with the program as invoked
 does it for you. shake needs bend 2.0.32 or later for that reason.
 
 `main.bend` is the whole interface: the types (`Shake.Cli`, `Shake.Sub`,
-`Shake.Arg`, `Shake.Matched`, `Shake.ParseErr`, `Shake.SpecErr`), the
-builders (`app`, `sub`, `flag`, `opt`, `many`, `pos`, `rest`), `check` and
-`spec_err_text`, `parse`, the readers (`get`, `get_all`, `on`, `sub_name`,
-`sub_of`, `at`, `path_of`), `help`, `err_text`, `help_path`, `err_path` and
-`argv`. Everything under `src/` is
+`Shake.Arg`, `Shake.Matched`, `Shake.ParseErr`, `Shake.SpecErr`,
+`Shake.Var`), the builders (`app`, `sub`, `flag`, `opt`, `many`, `pos`,
+`rest`, `env`), `check` and `spec_err_text`, `parse` and `parse_env`, the
+readers (`get`, `get_all`, `on`, `sub_name`, `sub_of`, `at`, `path_of`),
+`help`, `err_text`, `help_path`, `err_path`, `suggestion`, `argv` and
+`env_vars`.
+Everything under `src/` is
 internal and may change in any release; import only `main.bend`.
 [SPEC.md](SPEC.md) lists what shake guarantees, and which of it is proved.
 
@@ -82,7 +84,11 @@ passes, so check yours once, at start or in your own laws.
 `tool --help` or `tool <command> --help` (a command that declares its own
 long `help` gets `--help` as that argument instead): `help_path` gives its
 command path, for `help` to print, and is `None` for every other error,
-which `err_text` describes.
+which `err_text` describes. For a mistyped long option, `err_text` adds
+clap's tip (`tip: a similar argument exists: '--name'` for `--nmae`), and
+`suggestion` gives that long option word on its own. It picks the closest
+long spelling of the current command's flags and options, and nothing when
+none is close.
 A successful parse is read one command at a time, as clap's `ArgMatches`
 is: `get`, `get_all` and `on` read the bindings a command made, and
 `sub_name(m)` and `sub_of(m, name)` give the subcommand selected under it and
@@ -92,6 +98,25 @@ a flag or `opt` option given twice to one command is refused. A rest
 positional keeps every leftover word under one name; `get_all` reads that
 list, and `get` still reads one value. `argv` is the process's
 arguments, each word reusable.
+
+`env(arg, "NAME")` gives an argument an env var to fall back to, as clap's
+`.env("NAME")`: `parse_env(spec, words, vars)` binds what the words give,
+then fills an argument they left unbound from its env var, then from its
+default. `env_vars(spec)` reads the env vars the spec names, as
+`(name, value)` pairs; a test passes its own, as in
+`parse_env(spec(), [], [("HI_NAME", "Ada")])`. An env var set to the empty
+string counts as unset. A flag's env var sets it unless its value, in any
+case, is `0`, `false`, `no`, `off`, `n` or `f`. An env value outside the
+argument's choices fails the parse with `BadValue`. Help shows
+`[env: NAME]` after the argument's help text. `parse` ignores env vars.
+
+```bend
+def main() -> IO(Unit):
+  do IO<Unit>:
+    av : List<&2, String> <- Shake.argv()
+    ev : List<&2, Shake.Var> <- Shake.env_vars(spec())
+    IO.print(greet(Shake.parse_env(spec(), av, ev)))
+```
 
 A compiled Bend program's runtime reads the command line before shake does
 (bend 2.0.34):

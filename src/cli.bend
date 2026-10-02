@@ -14,6 +14,11 @@ type ArgKind is Data:
   Rest{}
   Many{}
 
+# what an argument the words leave unbound falls back to: the value of its
+# env var, when `parse_env` is given one, else its default
+type Fallback is Data:
+  Fallback{env: Maybe<&2, String>, default: Maybe<&2, String>}
+
 # one argument: name is the binding key; short/long are the CLI spellings
 type Arg is Data:
   Arg{
@@ -23,7 +28,7 @@ type Arg is Data:
     kind: ArgKind,
     help: String,
     required: Bool,
-    default: Maybe<&2, String>,
+    fallback: Fallback,
     choices: List<&2, String>
   }
 
@@ -45,6 +50,10 @@ type Cli is Data:
     args: List<&2, Arg>,
     subcommands: List<&2, Sub>
   }
+
+# an env var's name and its value, as `parse_env` is given them
+def Var() -> Data:
+  Sigma<&2, &2, String, _ => String>
 
 # one bound name and its text
 type Bind is Data:
@@ -135,7 +144,7 @@ def flag(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothin
   long: Maybe<&2, String>,
   +help: String
 ) -> Arg:
-  Arg{name, short, long, Flag{}, help, False{}, None{}, []}
+  Arg{name, short, long, Flag{}, help, False{}, Fallback{None{}, None{}}, []}
 
 # a valued option
 def opt(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothing to state
@@ -147,7 +156,7 @@ def opt(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothing
   default: Maybe<&2, String>,
   choices: List<&2, String>
 ) -> Arg:
-  Arg{name, short, long, Opt{}, help, required, default, choices}
+  Arg{name, short, long, Opt{}, help, required, Fallback{None{}, default}, choices}
 
 # an option that may be given more than once; `get_all` reads every value
 def many(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothing to state
@@ -159,7 +168,7 @@ def many(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothin
   default: Maybe<&2, String>,
   choices: List<&2, String>
 ) -> Arg:
-  Arg{name, short, long, Many{}, help, required, default, choices}
+  Arg{name, short, long, Many{}, help, required, Fallback{None{}, default}, choices}
 
 # a positional
 def pos(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothing to state
@@ -169,7 +178,7 @@ def pos(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothing
   default: Maybe<&2, String>,
   choices: List<&2, String>
 ) -> Arg:
-  Arg{name, None{}, None{}, Pos{}, help, required, default, choices}
+  Arg{name, None{}, None{}, Pos{}, help, required, Fallback{None{}, default}, choices}
 
 # a rest positional: every leftover word, as one name
 def rest(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothing to state
@@ -179,7 +188,12 @@ def rest(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothin
   default: Maybe<&2, String>,
   choices: List<&2, String>
 ) -> Arg:
-  Arg{name, None{}, None{}, Rest{}, help, required, default, choices}
+  Arg{name, None{}, None{}, Rest{}, help, required, Fallback{None{}, default}, choices}
+
+# this argument, falling back to the env var `var` (clap's `.env`)
+def env(aa: Arg, +var: String) -> Arg:
+  Arg{+n, +s, +l, kk, +h, +r, Fallback{_e, dd}, cs} = aa
+  Arg{n, s, l, kk, h, r, Fallback{Some{var}, dd}, cs}
 
 # the larger of two Nats
 def help.max(+aa: Nat, +bb: Nat) -> Nat:
@@ -1009,7 +1023,7 @@ def parse.req.go(req: Bool, bare: Bool, +nn: String) -> Maybe<&2, String>:
 
 # a required Arg without a default, as a missing name
 def parse.req(aa: Arg) -> Maybe<&2, String>:
-  Arg{+n, _s, _l, _k, _h, +req, default, _c} = aa
+  Arg{+n, _s, _l, _k, _h, +req, Fallback{_e, default}, _c} = aa
   parse.req.go(req, Maybe.is_none(&2, String, default), n)
 
 # this missing name, else the rest
@@ -1328,7 +1342,7 @@ def fill.arg.go(
 
 # this Arg's default, when it has one and is not bound
 def fill.arg(aa: Arg, +binds: List<&2, Bind>) -> List<&2, Bind>:
-  Arg{+n, _s, _l, _k, _h, _r, default, _c} = aa
+  Arg{+n, _s, _l, _k, _h, _r, Fallback{_e, default}, _c} = aa
   fill.arg.go(default, n, binds)
 
 # defaults of every spec Arg
@@ -1446,6 +1460,258 @@ def parse.finish(st: St) -> Result<&2, &2, ParseErr, Matched>:
 def parse(app: Cli, argv: List<&2, String>) -> Result<&2, &2, ParseErr, Matched>:
   parse.finish(parse.walk(argv, parse.start(app)))
 
+# this pair's value when its name matches, else the rest
+def env.get.at(hit: Bool, +vv: String, rest: Maybe<&2, String>) -> Maybe<&2, String>:
+  match hit:
+    case True{}:
+      Some{vv}
+    case False{}:
+      rest
+
+# the value of the first pair named `name`
+def env.get(vars: List<&2, Var>, +name: String) -> Maybe<&2, String>:
+  match vars:
+    case Nil{}:
+      None{}
+    case Con{hh, tt}:
+      (+nn, +vv) = hh
+      env.get.at(String.eq(nn, name), vv, env.get(tt, name))
+
+# a value that is not empty
+def env.full(mv: Maybe<&2, String>) -> Maybe<&2, String>:
+  match mv:
+    case None{}:
+      None{}
+    case Some{+vv}:
+      Bool.pick(Maybe<&2, String>, String.is_empty(vv), None{}, Some{vv})
+
+# the env value of an env var: its first pair's value, when that is not empty
+def env.of(ev: Maybe<&2, String>, vars: List<&2, Var>) -> Maybe<&2, String>:
+  match ev:
+    case None{}:
+      None{}
+    case Some{+var}:
+      env.full(env.get(vars, var))
+
+# whether an env value turns a flag off, as clap's `SetTrue` reads it
+def env.off(+vv: String) -> Bool:
+  allowed.ok(["0", "false", "no", "off", "n", "f"], String.to_lower(vv))
+
+# the default an env value gives an argument of this kind: a flag is set
+# unless the value turns it off; every other kind takes the value
+def env.kind(kk: ArgKind, +vv: String) -> Maybe<&2, String>:
+  match kk:
+    case Flag{}:
+      Bool.pick(Maybe<&2, String>, env.off(vv), None{}, Some{"true"})
+    case Opt{}:
+      Some{vv}
+    case Many{}:
+      Some{vv}
+    case Pos{}:
+      Some{vv}
+    case Rest{}:
+      Some{vv}
+
+# a fallback with its default replaced by what the env value gives, when
+# there is one
+def resolve.with(
+  found: Maybe<&2, String>,
+  kk: ArgKind,
+  ev: Maybe<&2, String>,
+  dd: Maybe<&2, String>
+) -> Fallback:
+  match found:
+    case None{}:
+      Fallback{ev, dd}
+    case Some{+vv}:
+      Fallback{ev, env.kind(kk, vv)}
+
+# an argument whose default is its fallback under `vars`
+def resolve.arg(aa: Arg, vars: List<&2, Var>) -> Arg:
+  Arg{+n, +s, +l, +kk, +h, +r, Fallback{+ev, dd}, +cs} = aa
+  Arg{n, s, l, kk, h, r, resolve.with(env.of(ev, vars), kk, ev, dd), cs}
+
+# every argument's default is its fallback
+def resolve.args(args: List<&2, Arg>, +vars: List<&2, Var>) -> List<&2, Arg>:
+  match args:
+    case Nil{}:
+      []
+    case Con{hh, tt}:
+      resolve.arg(hh, vars) <> resolve.args(tt, vars)
+
+# every argument of every subcommand, its default its fallback
+def resolve.subs(subs: List<&2, Sub>, +vars: List<&2, Var>) -> List<&2, Sub>:
+  match subs:
+    case Nil{}:
+      []
+    case Con{hh, tt}:
+      Sub{+n, +a, args, kids} = hh
+      Sub{n, a, resolve.args(args, vars), resolve.subs(kids, vars)} <> resolve.subs(tt, vars)
+
+# the spec whose every argument's default is its fallback under `vars`
+def resolve(app: Cli, +vars: List<&2, Var>) -> Cli:
+  Cli{+n, +a, +v, args, subs} = app
+  Cli{n, a, v, resolve.args(args, vars), resolve.subs(subs, vars)}
+
+# whether this kind is a flag
+def env.flag.is(kk: ArgKind) -> Bool:
+  match kk:
+    case Flag{}:
+      True{}
+    case Opt{}:
+      False{}
+    case Many{}:
+      False{}
+    case Pos{}:
+      False{}
+    case Rest{}:
+      False{}
+
+# an argument bound to an env value outside its choices: never a flag, and
+# only for a value its command's bindings hold
+def env.bad.val(
+  found: Maybe<&2, String>,
+  kk: ArgKind,
+  +name: String,
+  +cs: List<&2, String>,
+  +binds: List<&2, Bind>
+) -> Maybe<&2, Var>:
+  match found:
+    case None{}:
+      None{}
+    case Some{+vv}:
+      Bool.pick(Maybe<&2, Var>,
+        Bool.and(Bool.not(env.flag.is(kk)), Bool.and(Bool.not(allowed(cs, vv)),
+          List.contains(~String, ~String.eq, get_all.bind(binds, name), vv))),
+        Some{(name, vv)}, None{})
+
+# this argument's name and env value, when its command's bindings hold that
+# value and its choices do not
+def env.bad.arg(aa: Arg, vars: List<&2, Var>, +binds: List<&2, Bind>) -> Maybe<&2, Var>:
+  Arg{+n, _s, _l, kk, _h, _r, Fallback{ev, _d}, +cs} = aa
+  env.bad.val(env.of(ev, vars), kk, n, cs, binds)
+
+# the first of two answers that is one
+def env.first(here: Maybe<&2, Var>, rest: Maybe<&2, Var>) -> Maybe<&2, Var>:
+  match here:
+    case None{}:
+      rest
+    case Some{pp}:
+      Some{pp}
+
+# the first argument of a command bound to an env value outside its choices
+def env.bad.args(
+  args: List<&2, Arg>,
+  +vars: List<&2, Var>,
+  +binds: List<&2, Bind>
+) -> Maybe<&2, Var>:
+  match args:
+    case Nil{}:
+      None{}
+    case Con{hh, tt}:
+      env.first(env.bad.arg(hh, vars, binds), env.bad.args(tt, vars, binds))
+
+# the arguments of a found subcommand, or none
+def env.sub.args(found: Maybe<&2, Sub>) -> List<&2, Arg>:
+  match found:
+    case None{}:
+      []
+    case Some{ss}:
+      Sub{_n, _a, args, _k} = ss
+      args
+
+# the subcommands of a found subcommand, or none
+def env.sub.kids(found: Maybe<&2, Sub>) -> List<&2, Sub>:
+  match found:
+    case None{}:
+      []
+    case Some{ss}:
+      Sub{_n, _a, _g, kids} = ss
+      kids
+
+# the first argument bound to an env value outside its choices, the command
+# first, then down the selected path
+def env.bad.go(
+  mm: Matched,
+  +args: List<&2, Arg>,
+  +subs: List<&2, Sub>,
+  +vars: List<&2, Var>
+) -> Maybe<&2, Var>:
+  match mm:
+    case Leaf{+bs}:
+      env.bad.args(args, vars, bs)
+    case Node{+bs, +name, next}:
+      env.first(env.bad.args(args, vars, bs),
+        env.bad.go(next, env.sub.args(find_sub(subs, name)), env.sub.kids(find_sub(subs, name)), vars))
+
+# a success, or the first env value outside its choices that it bound
+def env.check.done(bad: Maybe<&2, Var>, +mm: Matched) -> Result<&2, &2, ParseErr, Matched>:
+  match bad:
+    case None{}:
+      Done{mm}
+    case Some{pp}:
+      (+name, +vv) = pp
+      Fail{BadValue{path_of(mm), name, vv}}
+
+# a successful parse checked for env values outside their choices
+def env.check.ok(app: Cli, +vars: List<&2, Var>, +mm: Matched) -> Result<&2, &2, ParseErr, Matched>:
+  Cli{_n, _a, _v, +args, subs} = app
+  env.check.done(env.bad.go(mm, args, subs, vars), mm)
+
+# a failed parse as it is; a successful one checked for env values outside
+# their choices
+def env.check(
+  app: Cli,
+  +vars: List<&2, Var>,
+  got: Result<&2, &2, ParseErr, Matched>
+) -> Result<&2, &2, ParseErr, Matched>:
+  match got:
+    case Fail{ee}:
+      Fail{ee}
+    case Done{+mm}:
+      env.check.ok(app, vars, mm)
+
+# argv against a Cli, every argument falling back to its env value under
+# `vars`, then to its default
+def parse_env(
+  +app: Cli,
+  argv: List<&2, String>,
+  +vars: List<&2, Var>
+) -> Result<&2, &2, ParseErr, Matched>:
+  env.check(app, vars, parse(resolve(app, vars), argv))
+
+# an env var in front of the names, when there is one
+def env.names.put(ev: Maybe<&2, String>, rest: List<&2, String>) -> List<&2, String>:
+  match ev:
+    case None{}:
+      rest
+    case Some{var}:
+      var <> rest
+
+# the env vars of a command's arguments, in order
+def env.names.args(args: List<&2, Arg>) -> List<&2, String>:
+  match args:
+    case Nil{}:
+      []
+    case Con{hh, tt}:
+      Arg{_n, _s, _l, _k, _h, _r, Fallback{ev, _d}, _c} = hh
+      env.names.put(ev, env.names.args(tt))
+
+# the env vars of every subcommand's arguments, depth first
+def env.names.forest(subs: List<&2, Sub>) -> List<&2, String>:
+  match subs:
+    case Nil{}:
+      []
+    case Con{hh, tt}:
+      Sub{_n, _a, args, kids} = hh
+      List.append(&2, String, env.names.args(args),
+        List.append(&2, String, env.names.forest(kids), env.names.forest(tt)))
+
+# the env vars of a spec: the root's arguments', then every subcommand's
+def env.names(app: Cli) -> List<&2, String>:
+  Cli{_n, _a, _v, args, subs} = app
+  List.append(&2, String, env.names.args(args), env.names.forest(subs))
+
 # the short/long label of an option, plus a metavar for Opt
 def help.label.kind(kk: ArgKind, +name: String, +label: String) -> String:
   match kk:
@@ -1482,10 +1748,18 @@ def help.extra.go(+dd: String, +cs: List<&2, String>) -> String:
       " [default: " ++ dd ++ "] [possible values: " ++ String.join(cs, ", ") ++
         "]"))
 
-# extras after the help string
+# the env var after the help string, before the default
+def help.env(ev: Maybe<&2, String>) -> String:
+  match ev:
+    case None{}:
+      ""
+    case Some{var}:
+      " [env: " ++ var ++ "]"
+
+# extras after the help string: env var, default and choices
 def help.extra(aa: Arg) -> String:
-  Arg{_n, _s, _l, _k, _h, _r, default, cs} = aa
-  help.extra.go(text.of(default, ""), cs)
+  Arg{_n, _s, _l, _k, _h, _r, Fallback{ev, default}, cs} = aa
+  help.env(ev) ++ help.extra.go(text.of(default, ""), cs)
 
 # one option line, given the label width
 def help.opt_line(+aa: Arg, ww: Nat) -> String:
@@ -1705,11 +1979,234 @@ def err.hint(+path: List<&2, String>) -> String:
 def err.wrap(+app: Cli, +at: List<&2, String>, +msg: String) -> String:
   msg ++ "\n\n" ++ usage.at(app, at) ++ "\n\n" ++ err.hint(at)
 
+# the head of a row, or 0 past its end
+def osa.head(xs: List<&2, Nat>) -> Nat:
+  match xs:
+    case Nil{}:
+      0n
+    case Con{hh, _t}:
+      hh
+
+# a row after its head
+def osa.tail(xs: List<&2, Nat>) -> List<&2, Nat>:
+  match xs:
+    case Nil{}:
+      []
+    case Con{_h, tt}:
+      tt
+
+# the last cell of a row, `dd` for an empty one
+def osa.last(xs: List<&2, Nat>, dd: Nat) -> Nat:
+  match xs:
+    case Nil{}:
+      dd
+    case Con{hh, tt}:
+      osa.last(tt, hh)
+
+# the first row: `ii`, then one more for each char
+def osa.first(bs: List<&2, Char>, +ii: Nat) -> List<&2, Nat>:
+  match bs:
+    case Nil{}:
+      [ii]
+    case Con{_c, tt}:
+      ii <> osa.first(tt, 1n+ii)
+
+# whether the char before `cb` is `ca`, once the char before `ca` is `xa`
+def osa.swap.b(+xa: Char, pb: Maybe<&2, Char>, +ca: Char, +cb: Char) -> Bool:
+  match pb:
+    case None{}:
+      False{}
+    case Some{xb}:
+      Bool.and(Char.is_eq(ca, xb), Char.is_eq(xa, cb))
+
+# whether the two chars before these, swapped, are these two
+def osa.swap(pa: Maybe<&2, Char>, pb: Maybe<&2, Char>, +ca: Char, +cb: Char) -> Bool:
+  match pa:
+    case None{}:
+      False{}
+    case Some{xa}:
+      osa.swap.b(xa, pb, ca, cb)
+
+# the cheaper of a cell and a swap from two rows up and two cells left
+def osa.cell.swap(swap: Bool, +best: Nat, +far: Nat) -> Nat:
+  Bool.pick(Nat, swap, Nat.min(best, 1n+far), best)
+
+# one cell: the cheapest of a deletion, an insertion, a substitution and a
+# swap of two adjacent chars
+def osa.cell(
+  swap: Bool,
+  +up: Nat,
+  +left: Nat,
+  +diag: Nat,
+  +cost: Nat,
+  +far: Nat
+) -> Nat:
+  osa.cell.swap(swap, Nat.min(Nat.min(1n+up, 1n+left), Nat.add(diag, cost)), far)
+
+# the rest of a row for the char `ca`, whose char before is `pa`: `ps` is the
+# row above from the cell above-left on, `qs` the row two up from two cells
+# left on, `pb` the char of `bs` before its head
+def osa.row(
+  bs: List<&2, Char>,
+  +ca: Char,
+  +pa: Maybe<&2, Char>,
+  pb: Maybe<&2, Char>,
+  left: Nat,
+  +ps: List<&2, Nat>,
+  +qs: List<&2, Nat>
+) -> List<&2, Nat>:
+  match bs:
+    case Nil{}:
+      []
+    case Con{+cb, bt}:
+      +rr = osa.cell(osa.swap(pa, pb, ca, cb), osa.head(osa.tail(ps)), left, osa.head(ps),
+        Bool.pick(Nat, Char.is_eq(ca, cb), 0n, 1n), osa.head(qs))
+      rr <> osa.row(bt, ca, pa, Some{cb}, rr, osa.tail(ps), osa.tail(qs))
+
+# the rows for the chars of `as`, the last row `pp` and the one before `qq`,
+# down to the distance in the last row's last cell
+def osa.rows(
+  as: List<&2, Char>,
+  +bs: List<&2, Char>,
+  pa: Maybe<&2, Char>,
+  +ii: Nat,
+  +pp: List<&2, Nat>,
+  qq: List<&2, Nat>
+) -> Nat:
+  match as:
+    case Nil{}:
+      osa.last(pp, 0n)
+    case Con{+ca, at}:
+      osa.rows(at, bs, Some{ca}, 1n+ii, (1n+ii) <> osa.row(bs, ca, pa, None{}, 1n+ii, pp, 0n <> qq), pp)
+
+# the optimal string alignment distance from `aa` to `bb`: the fewest
+# insertions, deletions, substitutions and swaps of two adjacent chars, no
+# char edited twice
+def osa(aa: String, bb: String) -> Nat:
+  +bs = String.to_list(bb)
+  osa.rows(String.to_list(aa), bs, None{}, 0n, osa.first(bs, 0n), osa.first(bs, 0n))
+
+# whether a candidate is close to the typed spelling
+def sug.close.go(+dd: Nat, +room: Nat) -> Bool:
+  Bool.and(Nat.is_lt(0n, dd), Nat.is_le(Nat.mul(3n, dd), room))
+
+# whether `cc` is close to `typed`: some edits away, and at most a third of
+# the longer as many
+def sug.close(+typed: String, +cc: String) -> Bool:
+  sug.close.go(osa(typed, cc), Nat.max(String.length(typed), String.length(cc)))
+
+# a close candidate against the closest one after it: the earlier on a tie
+def sug.keep.rest(+typed: String, +cc: String, rest: Maybe<&2, String>) -> Maybe<&2, String>:
+  match rest:
+    case None{}:
+      Some{cc}
+    case Some{+ww}:
+      Bool.pick(Maybe<&2, String>, Nat.is_le(osa(typed, cc), osa(typed, ww)), Some{cc}, Some{ww})
+
+# a candidate, when it is close, against the closest one after it
+def sug.keep(close: Bool, +typed: String, +cc: String, rest: Maybe<&2, String>) -> Maybe<&2, String>:
+  match close:
+    case False{}:
+      rest
+    case True{}:
+      sug.keep.rest(typed, cc, rest)
+
+# the closest close candidate, the first among equals
+def sug.best(cands: List<&2, String>, +typed: String) -> Maybe<&2, String>:
+  match cands:
+    case Nil{}:
+      None{}
+    case Con{+cc, tt}:
+      sug.keep(sug.close(typed, cc), typed, cc, sug.best(tt, typed))
+
+# a long spelling in front of the rest, when there is one
+def sug.cands.put(long: Maybe<&2, String>, rest: List<&2, String>) -> List<&2, String>:
+  match long:
+    case None{}:
+      rest
+    case Some{ll}:
+      ll <> rest
+
+# the long spellings of a command's arguments, in order
+def sug.cands(args: List<&2, Arg>) -> List<&2, String>:
+  match args:
+    case Nil{}:
+      []
+    case Con{hh, tt}:
+      Arg{_n, _s, long, _k, _h, _r, _d, _c} = hh
+      sug.cands.put(long, sug.cands(tt))
+
+# the arguments of the page at the end of a shrinking path
+def sug.args.go(path: List<&2, String>, how: How) -> List<&2, Arg>:
+  match path:
+    case Nil{}:
+      How{_b, _a, _v, args, _s, _u} = how
+      args
+    case Con{+hh, tt}:
+      sug.args.go(tt, help.step(how, hh))
+
+# the arguments of the command at `path`, reached as `help` reaches it
+def sug.args(+app: Cli, path: List<&2, String>) -> List<&2, Arg>:
+  Cli{+name, +about, version, args, subs} = app
+  sug.args.go(path, How{name, about, version, args, subs, name})
+
+# the spelling a long option word was typed with: its chars up to `=`
+def sug.typed(cut: String & Maybe<&2, String>) -> String:
+  (nn, _v) = cut
+  nn
+
+# a candidate spelled as a long option word
+def sug.found(mm: Maybe<&2, String>) -> Maybe<&2, String>:
+  match mm:
+    case None{}:
+      None{}
+    case Some{cc}:
+      Some{"--" ++ cc}
+
+# the suggestion for a word, when it is a long option word
+def sug.word.go(long: Bool, +app: Cli, +at: List<&2, String>, +word: String) -> Maybe<&2, String>:
+  match long:
+    case False{}:
+      None{}
+    case True{}:
+      sug.found(sug.best(sug.cands(sug.args(app, at)), sug.typed(cut_eq(String.drop(word, 2n)))))
+
+# the long spelling a word refused at `at` was likely meant to be
+def sug.word(+app: Cli, +at: List<&2, String>, +word: String) -> Maybe<&2, String>:
+  sug.word.go(String.starts_with(word, "--"), app, at, word)
+
+# the long spelling an unknown long option was likely meant to be, as clap's
+# "a similar argument exists"; None for every other error
+def suggestion(+app: Cli, ee: ParseErr) -> Maybe<&2, String>:
+  match ee:
+    case UnknownFlag{+at, +word}:
+      sug.word(app, at, word)
+    case Missing{_at, _name}:
+      None{}
+    case NoValue{_at, _name}:
+      None{}
+    case BadValue{_at, _name, _value}:
+      None{}
+    case NeedHelp{_path}:
+      None{}
+    case Unexpected{_at, _arg}:
+      None{}
+    case Repeated{_at, _name}:
+      None{}
+
+# clap's tip line for a suggestion, or nothing
+def sug.tip(mm: Maybe<&2, String>) -> String:
+  match mm:
+    case None{}:
+      ""
+    case Some{ss}:
+      "\n\n  tip: a similar argument exists: '" ++ ss ++ "'"
+
 # error text; NeedHelp is empty (the caller prints `help`)
 def err_text(+app: Cli, ee: ParseErr) -> String:
   match ee:
-    case UnknownFlag{+at, word}:
-      err.wrap(app, at, "error: unexpected argument '" ++ word ++ "' found")
+    case UnknownFlag{+at, +word}:
+      err.wrap(app, at, "error: unexpected argument '" ++ word ++ "' found" ++ sug.tip(sug.word(app, at, word)))
     case Missing{+at, name}:
       err.wrap(app, at, "error: the following required argument was not provided:\n  " ++
         name)

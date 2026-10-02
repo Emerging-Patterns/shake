@@ -1291,7 +1291,7 @@ law gw.fill_arg:
 
 def gw.fill_arg(aa, binds):
   match aa:
-    case Shake.Arg{+name, _s, _l, _k, _h, _r, dflt, _c}:
+    case Shake.Arg{+name, _s, _l, _k, _h, _r, Shake.Fallback{_e, dflt}, _c}:
       gw.fill_go(dflt, name, binds)
 
 # LAW: filling defaults only puts bindings in front
