@@ -4,7 +4,7 @@ Read at `f142895` on `main`, bend 2.0.34, bolt v1.11.0. Requested by the maintai
 
 ## Draft Status
 
-**State:** Accepted; the rows are in SPEC.md as pending, and each turns proved as its laws land (see [Rollout](#rollout)).
+**State:** Accepted and implemented; every row it adds to SPEC.md is proved (see [Rollout](#rollout)).
 
 - [x] <!-- REVIEW-E1 (resolved): `parse` keeps its signature. Env values reach the parser through a new pure `parse_env(spec, words, vars)`, and the process's variables through a new IO `env_vars(spec)`, beside `argv`. The alternative, a third argument on `parse`, breaks every caller to add something most programs do not use. -->
 - [x] <!-- REVIEW-E2 (resolved): an env var set to the empty string gives no env value, as if it were unset, so `NAME= tool` falls back to the default (the shell's `${NAME:-default}`). A word still binds an empty value (`--name=`, SHAKE-TOK-1). clap 4 binds the empty value; we do not follow it, because an empty variable is how a shell user clears one. -->
@@ -126,4 +126,4 @@ Three candidates were sketched: A (gpt-5.6), C (this author), and B (grok), whic
 
 ## Next implementation step
 
-Step 2 has landed. Next: `suggestion` and the tip in `err_text`, with the laws of SHAKE-ERR-3 and ERR-4.
+All three steps have landed and every row is proved. Next, if wanted: an Arguments block in help (see [Open questions](#open-questions-and-risks)).

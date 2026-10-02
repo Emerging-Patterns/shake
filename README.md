@@ -68,7 +68,8 @@ does it for you. shake needs bend 2.0.32 or later for that reason.
 `Shake.Var`), the builders (`app`, `sub`, `flag`, `opt`, `many`, `pos`,
 `rest`, `env`), `check` and `spec_err_text`, `parse` and `parse_env`, the
 readers (`get`, `get_all`, `on`, `sub_name`, `sub_of`, `at`, `path_of`),
-`help`, `err_text`, `help_path`, `err_path`, `argv` and `env_vars`.
+`help`, `err_text`, `help_path`, `err_path`, `suggestion`, `argv` and
+`env_vars`.
 Everything under `src/` is
 internal and may change in any release; import only `main.bend`.
 [SPEC.md](SPEC.md) lists what shake guarantees, and which of it is proved.
@@ -83,7 +84,11 @@ passes, so check yours once, at start or in your own laws.
 `tool --help` or `tool <command> --help` (a command that declares its own
 long `help` gets `--help` as that argument instead): `help_path` gives its
 command path, for `help` to print, and is `None` for every other error,
-which `err_text` describes.
+which `err_text` describes. For a mistyped long option, `err_text` adds
+clap's tip (`tip: a similar argument exists: '--name'` for `--nmae`), and
+`suggestion` gives that long option word on its own. It picks the closest
+long spelling of the current command's flags and options, and nothing when
+none is close.
 A successful parse is read one command at a time, as clap's `ArgMatches`
 is: `get`, `get_all` and `on` read the bindings a command made, and
 `sub_name(m)` and `sub_of(m, name)` give the subcommand selected under it and
