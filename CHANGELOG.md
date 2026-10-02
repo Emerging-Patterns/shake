@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/Emerging-Patterns/shake/compare/v0.4.0...v0.5.0) (2026-10-02)
+
+
+### Features
+
+* env-var fallbacks and did-you-mean for unknown flags ([#57](https://github.com/Emerging-Patterns/shake/issues/57)) ([24d4c82](https://github.com/Emerging-Patterns/shake/commit/24d4c8298af9c8a4cfdd0f4994c62985a487399e))
+
 ## [0.4.0](https://github.com/Emerging-Patterns/shake/compare/v0.3.0...v0.4.0) (2026-09-30)
 
 
