@@ -219,9 +219,17 @@ def text.of(mm: Maybe<&2, String>, +dd: String) -> String:
 def looks_flag(+ss: String) -> Bool:
   Bool.and(String.starts_with(ss, "-"), Bool.not(String.eq(ss, "-")))
 
+# a buffer of chars consed on the front (the last read first), folded onto acc
+def from.rev.go(cs: List<&2, Char>, acc: String) -> String:
+  match cs:
+    case Nil{}:
+      acc
+    case Con{+h, t}:
+      from.rev.go(t, SCon{h, acc})
+
 # chars reversed into a string
 def from.rev(cs: List<&2, Char>) -> String:
-  String.from_list(List.reverse(&2, Char, cs))
+  from.rev.go(cs, SNil{})
 
 # `name` and an optional `=value`, once the next char is known
 def cut_eq.pick(
