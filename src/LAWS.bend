@@ -60,13 +60,28 @@ law err_text_help:
   for path: List<&2, String>
   {Shake.err_text(spec, S.NeedHelp{path}) == "" : String}
 
-# LAW: the error text is empty exactly when the parse asked for help
+# LAW: a request for the version has no error text, for every spec
+# SHAKE-ERR-1
+law err_text_version:
+  for spec: Shake.Cli
+  {Shake.err_text(spec, S.NeedVersion{}) == "" : String}
+
+# whether an error is a request for the version
+def version.is(err: Shake.ParseErr) -> Bool:
+  match err:
+    case S.NeedVersion{}:
+      True{}
+    case _other:
+      False{}
+
+# LAW: the error text is empty exactly when the parse asked for help or for
+# the version
 # SHAKE-ERR-1
 law err_text_iff:
   for +spec: Shake.Cli
   for +err: Shake.ParseErr
   {String.is_empty(Shake.err_text(spec, err))
-    == Maybe.is_some(&2, List<&2, String>, Shake.help_path(err)) : Bool}
+    == Bool.or(Maybe.is_some(&2, List<&2, String>, Shake.help_path(err)), version.is(err)) : Bool}
 
 # LAW: a flag binding's hit keeps whatever list follows it (a lemma)
 law hit_append:
@@ -300,16 +315,16 @@ law fail_from:
   {S.parse.finish(S.parse.walk(more, st)) == Fail{err}
     : Result<&2, &2, S.ParseErr, S.Matched>}
 
-# LAW: once a word makes the parse fail, the words after it do not change the
-# error
+# LAW: once a word makes the parse fail, the words after it do not change
+# what the parse answers
 # SHAKE-PARSE-9
 law fail_stays:
   for +spec: Shake.Cli
   for +ws: List<&2, String>
   for +more: List<&2, String>
   for +err: Shake.ParseErr
-  for died: {dead_of(S.parse.walk(ws, S.parse.start(spec))) == Some{err} : Maybe<&2, S.ParseErr>}
-  {Shake.parse(spec, List.append(&2, String, ws, more)) == Fail{err}
+  for +died: {dead_of(S.parse.walk(ws, S.parse.start(spec))) == Some{err} : Maybe<&2, S.ParseErr>}
+  {Shake.parse(spec, List.append(&2, String, ws, more)) == Shake.parse(spec, ws)
     : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
 
 # LAW: every string starts with the empty string (a lemma)
@@ -395,6 +410,7 @@ law unknown_long:
   for h_name: {String.is_empty(name) == False{} : Bool}
   for h_none: {S.by_long(args, name) == None{} : Maybe<&2, S.Arg>}
   for h_lh: {S.long_help(name, val, seen) == False{} : Bool}
+  for h_ver: {S.version.asks(spec, path, "--" ++ body) == False{} : Bool}
   {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, ["--" ++ body]), more))
     == Fail{S.UnknownFlag{path, "--" ++ body}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
 
@@ -412,8 +428,9 @@ law step_dies:
     == Some{err} : Maybe<&2, S.ParseErr>}
 
 # LAW: when the words before `tok` reach a state where `tok` fails the walk,
-# the parse fails with that error, whatever follows (a lemma: every refusal
-# row is its step fact through this)
+# the parse fails with that error, read as a request for the version when it
+# is one, whatever follows (a lemma: every refusal row is its step fact
+# through this)
 law refused:
   for +spec: Shake.Cli
   for +pre: List<&2, String>
@@ -424,7 +441,7 @@ law refused:
   for h_at: {S.parse.walk(pre, S.parse.start(spec)) == st : S.St}
   for h_step: {dead_of(S.parse.step(tok, st)) == Some{err} : Maybe<&2, S.ParseErr>}
   {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, [tok]), more))
-    == Fail{err} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+    == Fail{S.version.err(spec, err)} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
 
 # LAW: once a short cluster has ended, the letters left change nothing (a
 # lemma)
@@ -478,6 +495,7 @@ law unknown_short:
   for h_dash: {Char.is_eq(cc, '-') == False{} : Bool}
   for h_none: {S.by_short(args, SCon{cc, SNil{}}) == None{} : Maybe<&2, S.Arg>}
   for h_help: {S.short_help(SCon{cc, rest}, args, seen) == False{} : Bool}
+  for h_ver: {S.version.asks(spec, path, "-" ++ SCon{cc, rest}) == False{} : Bool}
   {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, ["-" ++ SCon{cc, rest}]), more))
     == Fail{S.UnknownFlag{path, "-" ++ SCon{cc, rest}}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
 
@@ -693,8 +711,8 @@ law long_no_name:
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
     == S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   for h_dd: {String.eq("--" ++ body, "--") == False{} : Bool}
-  for h_cut: {S.cut_eq(body) == (name, val) : String & Maybe<&2, String>}
-  for h_empty: {String.is_empty(name) == True{} : Bool}
+  for +h_cut: {S.cut_eq(body) == (name, val) : String & Maybe<&2, String>}
+  for +h_empty: {String.is_empty(name) == True{} : Bool}
   {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, ["--" ++ body]), more))
     == Fail{S.UnknownFlag{path, "--" ++ body}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
 
@@ -2404,7 +2422,8 @@ law reach_skip:
     == S.How{bin, about, version, args, subs, usage} : S.How}
 
 # LAW: every error but a request for help names the command path where the
-# parse failed, and `err_path` reads it
+# parse failed, and `err_path` reads it; a request for the version names the
+# root
 # SHAKE-ERR-2
 law err_path_at:
   for +at: List<&2, String>
@@ -2413,17 +2432,18 @@ law err_path_at:
   for +value: String
   {[Shake.err_path(S.UnknownFlag{at, word}), Shake.err_path(S.Missing{at, name}), Shake.err_path(S.NoValue{at, name}),
       Shake.err_path(S.BadValue{at, name, value}), Shake.err_path(S.Unexpected{at, word}),
-      Shake.err_path(S.Repeated{at, name})]
-    == [at, at, at, at, at, at] : List<&2, List<&2, String>>}
+      Shake.err_path(S.Repeated{at, name}), Shake.err_path(S.NeedVersion{})]
+    == [at, at, at, at, at, at, []] : List<&2, List<&2, String>>}
 
-# LAW: the text of every error but a request for help is a message, then the
-# usage line of the command at its path, as that command's help page shows it,
-# then where to look for more
+# LAW: the text of every error but a request for help or for the version is a
+# message, then the usage line of the command at its path, as that command's
+# help page shows it, then where to look for more
 # SHAKE-ERR-2
 law err_text_usage:
   for +spec: Shake.Cli
   for +err: Shake.ParseErr
   for h_err: {Shake.help_path(err) == None{} : Maybe<&2, List<&2, String>>}
+  for h_ver: {version.is(err) == False{} : Bool}
   exs msg: String
   {Shake.err_text(spec, err)
     == msg ++ "\n\n" ++ usage_line(reach(Shake.err_path(err), root(spec))) ++ "\n\n" ++ S.err.hint(Shake.err_path(err))
@@ -3793,3 +3813,96 @@ law err_text_tip:
   for +ss: String
   for h_sug: {Shake.suggestion(spec, err) == Some{ss} : Maybe<&2, String>}
   {String.contains(Shake.err_text(spec, err), ss) == True{} : Bool}
+
+# whether a word refused at `at` asks for the version: `--version`, or `-V`
+# when the root does not spell `--version`, refused at the root of a spec
+# with a version
+def asks_version(spec: Shake.Cli, +at: List<&2, String>, +word: String) -> Bool:
+  S.Cli{_n, _a, version, args, _s} = spec
+  Bool.and(Bool.or(String.eq(word, "--version"),
+      Bool.and(String.eq(word, "-V"), Maybe.is_none(&2, S.Arg, S.by_long(args, "version")))),
+    Bool.and(List.is_empty(&2, String, at), Maybe.is_some(&2, String, version)))
+
+# whether a parse's answer refuses an unknown option
+def unknown.res(rr: Result<&2, &2, Shake.ParseErr, Shake.Matched>) -> Bool:
+  match rr:
+    case Done{_m}:
+      False{}
+    case Fail{ee}:
+      unknown.is(ee)
+
+# LAW: where the walk would refuse a word that asks for the version, the
+# parse fails with a request for the version
+# SHAKE-VER-1
+law version_asked:
+  for +spec: Shake.Cli
+  for +ws: List<&2, String>
+  for +at: List<&2, String>
+  for +word: String
+  for h_walk: {S.parse.finish(S.parse.walk(ws, S.parse.start(spec))) == Fail{S.UnknownFlag{at, word}}
+    : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+  for h_asks: {asks_version(spec, at, word) == True{} : Bool}
+  {Shake.parse(spec, ws) == Fail{S.NeedVersion{}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+
+# LAW: where the walk would refuse a word that does not ask for the version,
+# the parse refuses it
+# SHAKE-VER-1
+law version_unasked:
+  for +spec: Shake.Cli
+  for +ws: List<&2, String>
+  for +at: List<&2, String>
+  for +word: String
+  for h_walk: {S.parse.finish(S.parse.walk(ws, S.parse.start(spec))) == Fail{S.UnknownFlag{at, word}}
+    : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+  for h_asks: {asks_version(spec, at, word) == False{} : Bool}
+  {Shake.parse(spec, ws) == Fail{S.UnknownFlag{at, word}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+
+# LAW: every other answer of the walk is the parse's
+# SHAKE-VER-1
+law version_other:
+  for +spec: Shake.Cli
+  for +ws: List<&2, String>
+  for +rr: Result<&2, &2, Shake.ParseErr, Shake.Matched>
+  for h_walk: {S.parse.finish(S.parse.walk(ws, S.parse.start(spec))) == rr
+    : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+  for h_rr: {unknown.res(rr) == False{} : Bool}
+  {Shake.parse(spec, ws) == rr : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+
+# LAW: resolving the env vars keeps the version and every long spelling, so
+# `parse_env`'s parse asks for the version where `parse`'s does
+# SHAKE-VER-1
+law resolve_asks:
+  for +spec: Shake.Cli
+  for +vars: List<&2, Shake.Var>
+  for +at: List<&2, String>
+  for +word: String
+  {asks_version(S.resolve(spec, vars), at, word) == asks_version(spec, at, word) : Bool}
+
+# LAW: a request for the version reads as the root's name and the version
+# SHAKE-VER-2
+law version_of_some:
+  for +name: String
+  for about: String
+  for +ver: String
+  for args: List<&2, S.Arg>
+  for subs: List<&2, S.Sub>
+  {Shake.version_of(S.Cli{name, about, Some{ver}, args, subs}, S.NeedVersion{}) == Some{name ++ " " ++ ver}
+    : Maybe<&2, String>}
+
+# LAW: a spec with no version reads no version, whatever the error
+# SHAKE-VER-2
+law version_of_none:
+  for +name: String
+  for about: String
+  for args: List<&2, S.Arg>
+  for subs: List<&2, S.Sub>
+  for err: Shake.ParseErr
+  {Shake.version_of(S.Cli{name, about, None{}, args, subs}, err) == None{} : Maybe<&2, String>}
+
+# LAW: an error that is no request for the version reads no version
+# SHAKE-VER-2
+law version_of_other:
+  for +spec: Shake.Cli
+  for err: Shake.ParseErr
+  for h_err: {version.is(err) == False{} : Bool}
+  {Shake.version_of(spec, err) == None{} : Maybe<&2, String>}

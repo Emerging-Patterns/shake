@@ -101,15 +101,23 @@ def fail.err(+app: Shake.Cli, ee: Shake.ParseErr) -> IO(Unit):
     IO.print_err(Shake.err_text(app, ee))
     IO.die(Unit, 1, "")
 
-# help text for a request for help, else the error
-def fail.at(+app: Shake.Cli, ask: Maybe<&2, List<&2, String>>, ee: Shake.ParseErr) -> IO(Unit):
+# the version for a request for the version, else the error
+def fail.ver(+app: Shake.Cli, ver: Maybe<&2, String>, ee: Shake.ParseErr) -> IO(Unit):
+  match ver:
+    case Some{text}:
+      IO.print(text)
+    case None{}:
+      fail.err(app, ee)
+
+# help text for a request for help, else the version or the error
+def fail.at(+app: Shake.Cli, ask: Maybe<&2, List<&2, String>>, +ee: Shake.ParseErr) -> IO(Unit):
   match ask:
     case Some{path}:
       IO.write(Shake.help(app, path))
     case None{}:
-      fail.err(app, ee)
+      fail.ver(app, Shake.version_of(app, ee), ee)
 
-# a failed parse: help text, or an error
+# a failed parse: help text, the version, or an error
 def fail(+app: Shake.Cli, +ee: Shake.ParseErr) -> IO(Unit):  # noqa: L001 IO
   fail.at(app, Shake.help_path(ee), ee)
 

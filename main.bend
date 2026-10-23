@@ -199,8 +199,14 @@ def err_text(+spec: S.Cli, err: S.ParseErr) -> String:
 def suggestion(+spec: S.Cli, err: S.ParseErr) -> Maybe<&2, String>:
   S.suggestion(spec, err)
 
+# `name version` when the parse failed with a request for the version
+# (`--version`, `-V`) and the spec has a version, else None
+def version_of(+spec: S.Cli, err: S.ParseErr) -> Maybe<&2, String>:
+  S.version_of(spec, err)
+
 # the command path where the parse failed: the path selected when it did, or
-# for a request for help the path it asks about
+# for a request for help the path it asks about; the root for a request for
+# the version
 def err_path(err: S.ParseErr) -> List<&2, String>:
   match err:
     case S.UnknownFlag{at, _flag}:
@@ -217,10 +223,11 @@ def err_path(err: S.ParseErr) -> List<&2, String>:
       at
     case S.Repeated{at, _name}:
       at
+    case S.NeedVersion{}:
+      []
 
-# the command path of a request for help (`help`, `help <path>`, `--help`),
-# or None
-# when the parse failed for another reason
+# the command path of a request for help (`help`, `help <path>`, `--help`,
+# `-h`), or None when the parse failed for another reason
 def help_path(err: S.ParseErr) -> Maybe<&2, List<&2, String>>:
   match err:
     case S.NeedHelp{path}:
@@ -236,6 +243,8 @@ def help_path(err: S.ParseErr) -> Maybe<&2, List<&2, String>>:
     case S.Unexpected{_at, _arg}:
       None{}
     case S.Repeated{_at, _name}:
+      None{}
+    case S.NeedVersion{}:
       None{}
 
 # the env vars `spec` gives its arguments, each that is set with its value,

@@ -101,7 +101,7 @@ def read_err_text(err: K.ReadErr) -> String
 
 **`-h` sits beside `--help` in the walker.** `parse.take_short` reads a body that is exactly `h` as `--help` is read when the current command spells neither `-h` nor `--help` and no positional is bound: the walker enters `Help{}` and the words after it are a help path (SHAKE-PARSE-8). Every other short word goes to `cluster` as today.
 
-**`--version` is decided after the walk.** The walker does not know the spec's version, and its nine-field state is matched at several hundred proof sites, so the version is not threaded through it. `parse` turns a failure `UnknownFlag{[], "--version"}` into `NeedVersion{}` when the spec has a version (and `UnknownFlag{[], "-V"}` when the root also declares no long `version`), and leaves every other result alone. Since the first failure sticks (SHAKE-PARSE-9), this is exactly "the first word that fails the parse is `--version` read at the root". `parse_env` runs `parse`, so it answers the version the same way. The rows that promise `UnknownFlag` (SHAKE-TOK-2, TOK-7) name the exception, and their laws gain a premise that the word is not a version request.
+**`--version` is decided after the walk.** The walker does not know the spec's version, and its nine-field state is matched at several hundred proof sites, so the version is not threaded through it. `parse` turns a failure `UnknownFlag{[], "--version"}` into `NeedVersion{}` when the spec has a version (and `UnknownFlag{[], "-V"}` when the root also declares no long `version`), and leaves every other result alone. Since the first failure sticks (SHAKE-PARSE-9), this is exactly "the first word that fails the parse is `--version` read at the root". SHAKE-PARSE-9 itself is reworded to say that the words after a failure do not change what `parse` answers, rather than that its answer is the walk's own error, since a root `--version` failure is now answered as `NeedVersion`. Proving that a word `--=...` (SHAKE-TOK-1) is never `--version` needs string equality to be sound; `src/eq.bend` takes `string_eq_true` and the chain below it from ez's `check/str.bend`. `parse_env` runs `parse`, so it answers the version the same way. The rows that promise `UnknownFlag` (SHAKE-TOK-2, TOK-7) name the exception, and their laws gain a premise that the word is not a version request.
 
 **Built-in rows are arguments the page adds.** A page renders its Options block, and its `[OPTIONS]` hint, from the command's arguments followed by synthetic flags for the spellings shake answers there (`help.builtins`). The existing renderers and their laws (`opts_listed`, `usage_listed`) are unchanged; what changes is the list a page gives them. The Arguments block is a new renderer over the positionals with the same line shape as an option line.
 
@@ -123,8 +123,8 @@ def read_err_text(err: K.ReadErr) -> String
 | Step | What lands | Rows after |
 | :---- | :---- | :---- |
 | 1 | this RFC; the rows in SPEC.md as pending | SHAKE-HELP-2, HELP-3, HELP-4, ERR-5, PARSE-8, TOK-2, TOK-7, VER-1, VER-2, ERR-1, ERR-2, READ-1 pending |
-| 2 | the Arguments block | SHAKE-HELP-2, HELP-3 proved |
+| 2 | the Arguments block | SHAKE-HELP-3 proved |
 | 3 | display forms in errors | SHAKE-ERR-5 proved |
-| 4 | `-h`, the help row | SHAKE-PARSE-8, TOK-2, TOK-7 (help part), HELP-4 (help part) |
-| 5 | `--version`, `-V`, `version_of`, the version row | SHAKE-VER-1, VER-2, ERR-1, ERR-2, TOK-2, TOK-7, HELP-4 proved |
+| 4 | `-h`, the help and version rows | SHAKE-PARSE-8, HELP-2, HELP-4 proved |
+| 5 | `--version`, `-V`, `version_of`; SHAKE-PARSE-9 reworded | SHAKE-VER-1, VER-2, ERR-1, ERR-2, TOK-2, TOK-7, PARSE-9 proved |
 | 6 | `check_reads` | SHAKE-READ-1 proved; no pending rows |

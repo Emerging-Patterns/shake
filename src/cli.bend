@@ -71,10 +71,10 @@ type Matched is Data:
   Leaf{+binds: List<&2, Bind>}
   Node{+binds: List<&2, Bind>, +name: String, +sub: Matched}
 
-# a failed parse. NeedHelp is `help` / `help <path>` (or `--help`); NoValue
-# is an option whose value never came, Missing a required argument nothing
-# bound. Every error but NeedHelp carries `at`, the command path selected
-# where it failed
+# a failed parse. NeedHelp is `help` / `help <path>` (or `--help`, `-h`),
+# NeedVersion `--version` (or `-V`); NoValue is an option whose value never
+# came, Missing a required argument nothing bound. Every error but NeedHelp
+# and NeedVersion carries `at`, the command path selected where it failed
 type ParseErr is Data:
   UnknownFlag{at: List<&2, String>, flag: String}
   Missing{at: List<&2, String>, name: String}
@@ -83,6 +83,7 @@ type ParseErr is Data:
   NeedHelp{path: List<&2, String>}
   Unexpected{at: List<&2, String>, arg: String}
   Repeated{at: List<&2, String>, name: String}
+  NeedVersion{}
 
 # how the next token is read
 type Mode is Data:
@@ -1492,9 +1493,56 @@ def parse.finish(st: St) -> Result<&2, &2, ParseErr, Matched>:
   St{mode, args, up, _s, path, binds, _p, _r, _n} = st
   parse.finish.mode(mode, args, up, path, binds)
 
+# whether a word refused at `at` asks for the version: `--version`, or `-V`
+# when the root does not spell `--version`, refused at the root of a spec
+# with a version
+def version.asks(+app: Cli, +at: List<&2, String>, +word: String) -> Bool:
+  Cli{_n, _a, version, args, _s} = app
+  Bool.and(Bool.or(String.eq(word, "--version"),
+      Bool.and(String.eq(word, "-V"), Maybe.is_none(&2, Arg, by_long(args, "version")))),
+    Bool.and(List.is_empty(&2, String, at), Maybe.is_some(&2, String, version)))
+
+# an error, or a request for the version when it is one
+def version.err(+app: Cli, ee: ParseErr) -> ParseErr:
+  match ee:
+    case UnknownFlag{+at, +word}:
+      Bool.pick(ParseErr, version.asks(app, at, word), NeedVersion{}, UnknownFlag{at, word})
+    case other:
+      other
+
+# a parse's answer, its failure read as a request for the version when it is
+# one
+def version.res(+app: Cli, rr: Result<&2, &2, ParseErr, Matched>) -> Result<&2, &2, ParseErr, Matched>:
+  match rr:
+    case Done{mm}:
+      Done{mm}
+    case Fail{ee}:
+      Fail{version.err(app, ee)}
+
 # argv against a Cli
-def parse(app: Cli, argv: List<&2, String>) -> Result<&2, &2, ParseErr, Matched>:
-  parse.finish(parse.walk(argv, parse.start(app)))
+def parse(+app: Cli, argv: List<&2, String>) -> Result<&2, &2, ParseErr, Matched>:
+  version.res(app, parse.finish(parse.walk(argv, parse.start(app))))
+
+# `name version`, when there is a version
+def version_of.text(+name: String, version: Maybe<&2, String>) -> Maybe<&2, String>:
+  match version:
+    case None{}:
+      None{}
+    case Some{vv}:
+      Some{name ++ " " ++ vv}
+
+# a spec's `name version`, when it has a version
+def version_of.cli(app: Cli) -> Maybe<&2, String>:
+  Cli{+name, _a, version, _g, _s} = app
+  version_of.text(name, version)
+
+# `name version` for a request for the version, of a spec that has one
+def version_of(+app: Cli, ee: ParseErr) -> Maybe<&2, String>:
+  match ee:
+    case NeedVersion{}:
+      version_of.cli(app)
+    case _other:
+      None{}
 
 # this pair's value when its name matches, else the rest
 def env.get.at(hit: Bool, +vv: String, rest: Maybe<&2, String>) -> Maybe<&2, String>:
@@ -2387,6 +2435,8 @@ def suggestion(+app: Cli, ee: ParseErr) -> Maybe<&2, String>:
       None{}
     case Repeated{_at, _name}:
       None{}
+    case NeedVersion{}:
+      None{}
 
 # clap's tip line for a suggestion, or nothing
 def sug.tip(mm: Maybe<&2, String>) -> String:
@@ -2396,7 +2446,8 @@ def sug.tip(mm: Maybe<&2, String>) -> String:
     case Some{ss}:
       "\n\n  tip: a similar argument exists: '" ++ ss ++ "'"
 
-# error text; NeedHelp is empty (the caller prints `help`)
+# error text; NeedHelp and NeedVersion are empty (the caller prints `help`,
+# or `version_of`)
 def err_text(+app: Cli, ee: ParseErr) -> String:
   match ee:
     case UnknownFlag{+at, +word}:
@@ -2415,3 +2466,5 @@ def err_text(+app: Cli, ee: ParseErr) -> String:
       err.wrap(app, at, "error: unexpected argument '" ++ arg ++ "' found")
     case Repeated{+at, +name}:
       err.wrap(app, at, "error: the argument '" ++ err.name(app, at, name) ++ "' cannot be used multiple times")
+    case NeedVersion{}:
+      ""
