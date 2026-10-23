@@ -65,11 +65,12 @@ does it for you. shake needs bend 2.0.32 or later for that reason.
 
 `main.bend` is the whole interface: the types (`Shake.Cli`, `Shake.Sub`,
 `Shake.Arg`, `Shake.Matched`, `Shake.ParseErr`, `Shake.SpecErr`,
-`Shake.Var`), the builders (`app`, `sub`, `flag`, `opt`, `many`, `pos`,
-`rest`, `env`), `check` and `spec_err_text`, `parse` and `parse_env`, the
-readers (`get`, `get_all`, `on`, `sub_name`, `sub_of`, `at`, `path_of`),
-`help`, `err_text`, `help_path`, `err_path`, `suggestion`, `argv` and
-`env_vars`.
+`Shake.Var`, `Shake.Read`, `Shake.ReadErr`), the builders (`app`, `sub`,
+`flag`, `opt`, `many`, `pos`, `rest`, `env`, `read_flag`, `read_value`),
+`check` and `spec_err_text`, `check_reads` and `read_err_text`, `parse` and
+`parse_env`, the readers (`get`, `get_all`, `on`, `sub_name`, `sub_of`, `at`,
+`path_of`), `help`, `err_text`, `help_path`, `version_of`, `err_path`,
+`suggestion`, `argv` and `env_vars`.
 Everything under `src/` is
 internal and may change in any release; import only `main.bend`.
 [SPEC.md](SPEC.md) lists what shake guarantees, and which of it is proved.
@@ -80,11 +81,33 @@ that is not the last, a repeated name or spelling, a subcommand named
 optional one). `parse` does not call it; the guarantees hold for a spec it
 passes, so check yours once, at start or in your own laws.
 
+`get(m, "nmae")` answers `None` for a misspelled name, just as for an option
+the user left out. To catch that, list what your program reads, and check
+the list against the spec the same way:
+
+```bend
+def reads() -> List<&2, Shake.Read>:
+  [Shake.read_flag([], "verbose"),
+   Shake.read_value(["greet"], "name"), Shake.read_value(["greet"], "tag")]
+```
+
+`check_reads(spec(), reads())` is `[]` when every read fits. Otherwise it
+reports, in order, a path that names no command, a name no argument of that
+command has, an `on` of an argument that is not a flag, and a `get` of a
+flag; `read_err_text` writes a report as one line.
+
 `parse` fails with a request for help on `tool help`, `tool help <command>`,
-`tool --help` or `tool <command> --help` (a command that declares its own
-long `help` gets `--help` as that argument instead): `help_path` gives its
-command path, for `help` to print, and is `None` for every other error,
-which `err_text` describes. For a mistyped long option, `err_text` adds
+`tool --help`, `tool -h` or `tool <command> --help` (a command that declares
+its own long `help` gets `--help` as that argument instead, and one that
+declares a short `h` or a long `help` gets `-h`): `help_path` gives its
+command path, for `help` to print. A spec with a version answers
+`tool --version` and `tool -V` at the root with `NeedVersion{}` (unless the
+root declares its own `--version`), and `version_of` gives `name version` to
+print. Both are `None` for every other error, which `err_text` describes,
+naming an argument as clap does (`'--base <BASE>'`, `<B>`) and listing the
+choices of a value outside them. A help page lists the positionals under
+`Arguments:`, and ends its Options with the `-h, --help` row, and the root's
+with `-V, --version`, for the spellings shake answers there. For a mistyped long option, `err_text` adds
 clap's tip (`tip: a similar argument exists: '--name'` for `--nmae`), and
 `suggestion` gives that long option word on its own. It picks the closest
 long spelling of the current command's flags and options, and nothing when
