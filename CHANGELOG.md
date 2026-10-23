@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.6.0](https://github.com/Emerging-Patterns/shake/compare/v0.5.0...v0.6.0) (2026-10-23)
+
+
+### ⚠ BREAKING CHANGES
+
+* on bend 2.0.38 a compiled shake program receives a plain `--` itself, so `tool add -- -5 3` binds `-5` and `3` (the doubled `-- --` the README asked for now binds a literal `--`), and `--threads`, `--gpu`, `--gpu-build` and `--bend-help` reach the parser as the program's own words; runtime options go inside `+RTS ... -RTS`.
+
+### Bug Fixes
+
+* port to bend 2.0.38 ([#61](https://github.com/Emerging-Patterns/shake/issues/61)) ([381d299](https://github.com/Emerging-Patterns/shake/commit/381d29954ead0ac747839cd221c7ee24f8cd3ee8))
+
 ## [0.5.0](https://github.com/Emerging-Patterns/shake/compare/v0.4.0...v0.5.0) (2026-10-02)
 
 
