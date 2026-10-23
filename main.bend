@@ -8,11 +8,12 @@
 # `on` read a command's own bindings, and `sub_name`, `sub_of`, `at` and
 # `path_of` reach the subcommands selected under it. `help` writes the usage
 # page for a command path. For a failed parse, `help_path` tells a request for help
-# from an error, `err_text` writes the message and `err_path` names the command
-# it failed in, and `suggestion` the long spelling a mistyped one was likely
-# meant to be. `check` reports a spec that contradicts itself. `argv` is the
-# process's arguments. This file is the interface: everything under src/ is
-# internal.
+# from an error, `version_of` gives the version a request for it asks for,
+# `err_text` writes the message and `err_path` names the command it failed
+# in, and `suggestion` the long spelling a mistyped one was likely meant to
+# be. `check` reports a spec that contradicts itself, and `check_reads` the
+# reads of a program that do not fit it. `argv` is the process's arguments.
+# This file is the interface: everything under src/ is internal.
 import Base
 import ./src/cli.bend as S
 import ./src/args.bend as Args
@@ -138,6 +139,40 @@ def check(spec: S.Cli) -> List<&2, K.SpecErr>:
 # a report of `check` as one line
 def spec_err_text(err: K.SpecErr) -> String:
   K.text(err)
+
+# one read a program makes of an argument, for `check_reads`
+def Read() -> Data:  # noqa: L001 a type alias of the interface
+  K.Read
+
+# one read that does not fit the spec
+def ReadErr() -> Data:  # noqa: L001 a type alias of the interface
+  K.ReadErr
+
+# a read of the flag named `name` of the command `path` names, with `on`
+def read_flag(  # noqa: L001 a builder: its result is the Read it names
+  path: List<&2, String>,
+  +name: String
+) -> K.Read:
+  K.Read{path, name, K.WantFlag{}}
+
+# a read of the values of the argument named `name` of the command `path`
+# names, with `get` or `get_all`
+def read_value(  # noqa: L001 a builder: its result is the Read it names
+  path: List<&2, String>,
+  +name: String
+) -> K.Read:
+  K.Read{path, name, K.WantValue{}}
+
+# every read that does not fit the spec, in order: a path that names no
+# command, a name no argument of that command has, a flag read of an argument
+# that is not a flag, a value read of a flag. Empty when every read fits;
+# a program checks its reads once, as it checks its spec
+def check_reads(+spec: S.Cli, reads: List<&2, K.Read>) -> List<&2, K.ReadErr>:
+  K.check_reads(spec, reads)
+
+# a report of `check_reads` as one line
+def read_err_text(err: K.ReadErr) -> String:  # noqa: L001 a message: its words are not a guarantee
+  K.read_text(err)
 
 # argv against a program spec
 def parse(spec: S.Cli, words: List<&2, String>) -> Result<&2, &2, S.ParseErr, S.Matched>:

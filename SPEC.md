@@ -74,7 +74,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 
 | ID | Requirement | Level | Status | Law |
 | :---- | :---- | :---- | :---- | :---- |
-| SHAKE-READ-1 | `check_reads(spec, reads)` reports exactly one error for each read in `reads` that is wrong, in the order of `reads`, and nothing for a read that is right: `NoCommand{path}` when a name of its path is not a subcommand of the command before it, the root first; otherwise `NoArg{path, name}` when the command its path names has no argument named `name`; otherwise, for a flag read (`read_flag`), `NotFlag{path, name}` when that argument is not a flag, and for a value read (`read_value`), `IsFlag{path, name}` when it is one. It reports nothing else. | Proved | pending |  |
+| SHAKE-READ-1 | `check_reads(spec, reads)` reports exactly one error for each read in `reads` that is wrong, in the order of `reads`, and nothing for a read that is right: `NoCommand{path}` when a name of its path is not a subcommand of the command before it, the root first; otherwise `NoArg{path, name}` when the command its path names has no argument named `name`; otherwise, for a flag read (`read_flag`), `NotFlag{path, name}` when that argument is not a flag, and for a value read (`read_value`), `IsFlag{path, name}` when it is one. It reports nothing else. | Proved | proved | src/LAWS.bend reads_nil; src/LAWS.bend reads_con; src/LAWS.bend read_no_command; src/LAWS.bend read_no_arg; src/LAWS.bend read_flag; src/LAWS.bend read_value |
 
 ### Reading a result (SHAKE-GET)
 
@@ -111,7 +111,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 
 ## Left to prove
 
-The rows of [docs/rfc/shake-clap-parity.md](docs/rfc/shake-clap-parity.md) are pending until its rollout lands: SHAKE-READ-1. The laws each reworded row names still hold of the code; what is missing is the new behavior. The RFC's Rollout and [docs/rfc/shake-walker-proofs.md](docs/rfc/shake-walker-proofs.md) say in which phase each row's laws land. Every walker law holds wherever the words before the word it is about leave the walker in the state its premise names.
+No row is pending. The RFCs' Rollouts and [docs/rfc/shake-walker-proofs.md](docs/rfc/shake-walker-proofs.md) say in which phase each row's laws landed. Every walker law holds wherever the words before the word it is about leave the walker in the state its premise names.
 
 ## Trust boundary
 
