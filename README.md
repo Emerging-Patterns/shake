@@ -7,15 +7,15 @@ commands; `help` writes usage.
 ## Install
 
 With [Bend](https://github.com/bendlang/bend) alone there is nothing to
-install: import shake by its hub name, at v0.4.0, and `bend` fetches it from
+install: import shake by its hub name, at v0.6.0, and `bend` fetches it from
 [the hub](https://hub.bend-lang.com) into `~/.bend/lib` on the first run.
 
 ```bend
-import shake@0.4.0.0/main.bend as Shake
+import shake@0.6.0.0/main.bend as Shake
 ```
 
-`shake@0.4.0.0` resolves to `0xcab8a7a189cec2b51e8db0484f69c593`;
-`import 0xcab8a7a189cec2b51e8db0484f69c593/main.bend` pins it by content.
+`shake@0.6.0.0` resolves to `0xa383b26a5a0ef35663b3615d7aedf9e3`;
+`import 0xa383b26a5a0ef35663b3615d7aedf9e3/main.bend` pins it by content.
 shake needs bend 2.0.32 or later (see below), and is built and checked on
 bend 2.0.38.
 
@@ -33,7 +33,7 @@ the program name; `parse` answers `Done` with what the words bound, or
 `Fail` with why they could not be bound:
 
 ```bend
-import shake@0.4.0.0/main.bend as Shake
+import shake@0.6.0.0/main.bend as Shake
 
 def spec() -> Shake.Cli:
   Shake.app("hi", "Say hello.", None{},
