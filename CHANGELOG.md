@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.7.0](https://github.com/Emerging-Patterns/shake/compare/v0.6.0...v0.7.0) (2026-10-23)
+
+
+### ⚠ BREAKING CHANGES
+
+* ParseErr has a new constructor, NeedVersion{}; a program that matches on ParseErr exhaustively needs a case for it.
+
+### Features
+
+* clap's -h and --version, an Arguments block, argument names in errors, checked reads ([#66](https://github.com/Emerging-Patterns/shake/issues/66)) ([2b8a804](https://github.com/Emerging-Patterns/shake/commit/2b8a80486548fde544b941fdfa1acbc2601332a5))
+
 ## [0.6.0](https://github.com/Emerging-Patterns/shake/compare/v0.5.0...v0.6.0) (2026-10-23)
 
 
