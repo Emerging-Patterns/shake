@@ -539,6 +539,29 @@ def gw.cluster(body, orig, st, done):
         gw.letter(done, cc, rest, orig, st),
         gw.cluster(rest, orig, next, Shake.cluster.done(done, cc, rest, st)))
 
+# a short option word: a request for help, or a cluster
+law gw.sgo:
+  for hit: Bool
+  for +body: String
+  for +orig: String
+  for +args: List<&2, Shake.Arg>
+  for +up: List<&2, Shake.Level>
+  for +subs: List<&2, Shake.Sub>
+  for +path: List<&2, String>
+  for +binds: List<&2, Shake.Bind>
+  for +pos: List<&2, Shake.Arg>
+  for +raw: Bool
+  for +seen: Bool
+  gw.Stay(Shake.parse.take_short.go(hit, body, orig, args, up, subs, path, binds, pos, raw, seen),
+    View{args, up, path, binds})
+
+def gw.sgo(hit, body, orig, args, up, subs, path, binds, pos, raw, seen):
+  match hit:
+    case True{}:
+      ([], {==})
+    case False{}:
+      gw.cluster(body, orig, Shake.St{Shake.Free{}, args, up, subs, path, binds, pos, raw, seen}, False{})
+
 # a short option word
 law gw.short:
   for +body: String
@@ -554,7 +577,7 @@ law gw.short:
   gw.Stay(Shake.parse.take_short(body, orig, args, up, subs, path, binds, pos, raw, seen), View{args, up, path, binds})
 
 def gw.short(body, orig, args, up, subs, path, binds, pos, raw, seen):
-  gw.cluster(body, orig, Shake.St{Shake.Free{}, args, up, subs, path, binds, pos, raw, seen}, False{})
+  gw.sgo(Shake.short_help(body, args, seen), body, orig, args, up, subs, path, binds, pos, raw, seen)
 
 # a plain word bound to the next positional, or refused
 law gw.pos:

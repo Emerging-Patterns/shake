@@ -138,7 +138,7 @@ def sub(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothing
   Sub{name, about, args, subs}
 
 # a boolean flag
-def flag(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothing to state
+def flag(
   +name: String,
   short: Maybe<&2, String>,
   long: Maybe<&2, String>,
@@ -969,8 +969,17 @@ def cluster(body: String, +orig: String, +st: St, +done: Bool) -> St:
     case SCon{+cc, +rest}:
       cluster(rest, orig, cluster.letter(done, cc, rest, orig, st), cluster.done(done, cc, rest, st))
 
-# a short option body after `-`
-def parse.take_short(
+# whether a short option word is a request for help: `-h` alone, before any
+# positional of the current command is bound, when the command spells
+# neither `-h` nor `--help`
+def short_help(+body: String, +args: List<&2, Arg>, seen: Bool) -> Bool:
+  Bool.and(String.eq(body, "h"),
+    Bool.and(Bool.not(seen),
+      Bool.and(Maybe.is_none(&2, Arg, by_short(args, "h")), Maybe.is_none(&2, Arg, by_long(args, "help")))))
+
+# a request for help (`-h`, as `help`), or a cluster of short options
+def parse.take_short.go(
+  hit: Bool,
   body: String,
   +orig: String,
   +args: List<&2, Arg>,
@@ -982,7 +991,26 @@ def parse.take_short(
   +raw: Bool,
   +seen: Bool
 ) -> St:
-  cluster(body, orig, St{Free{}, args, up, subs, path, binds, pos, raw, seen}, False{})
+  match hit:
+    case True{}:
+      St{Help{}, args, up, subs, path, binds, pos, raw, seen}
+    case False{}:
+      cluster(body, orig, St{Free{}, args, up, subs, path, binds, pos, raw, seen}, False{})
+
+# a short option body after `-`
+def parse.take_short(
+  +body: String,
+  +orig: String,
+  +args: List<&2, Arg>,
+  +up: List<&2, Level>,
+  +subs: List<&2, Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, Bind>,
+  +pos: List<&2, Arg>,
+  +raw: Bool,
+  +seen: Bool
+) -> St:
+  parse.take_short.go(short_help(body, args, seen), body, orig, args, up, subs, path, binds, pos, raw, seen)
 
 # a rest positional stays; a plain one is consumed
 def parse.take_pos.keep(keep: Bool, hh: Arg, tt: List<&2, Arg>) -> List<&2, Arg>:
@@ -1956,6 +1984,46 @@ def title.go(+name: String, vv: Maybe<&2, String>) -> String:
     case Some{ver}:
       name ++ " " ++ ver
 
+# a built-in spelling a page lists, unless the command spells it itself
+def help.spell(taken: Maybe<&2, Arg>, +sp: String) -> Maybe<&2, String>:
+  match taken:
+    case None{}:
+      Some{sp}
+    case Some{_a}:
+      None{}
+
+# the row for `--help`, and `-h` when the command does not spell it; none
+# when the command spells long `help`
+def help.help_row(long: Maybe<&2, Arg>, short: Maybe<&2, Arg>) -> List<&2, Arg>:
+  match long:
+    case None{}:
+      [flag("help", help.spell(short, "h"), Some{"help"}, "Print help")]
+    case Some{_a}:
+      []
+
+# the row for `--version`, and `-V` when the command does not spell it, on a
+# page with a version; none when the command spells long `version`
+def help.version_row(version: Maybe<&2, String>, long: Maybe<&2, Arg>, short: Maybe<&2, Arg>) -> List<&2, Arg>:
+  match version:
+    case None{}:
+      []
+    case Some{_v}:
+      match long:
+        case None{}:
+          [flag("version", help.spell(short, "V"), Some{"version"}, "Print version")]
+        case Some{_a}:
+          []
+
+# the built-in flags a page lists after its command's own: help, then the
+# version on the root page
+def help.builtins(+args: List<&2, Arg>, version: Maybe<&2, String>) -> List<&2, Arg>:
+  List.append(&2, Arg, help.help_row(by_long(args, "help"), by_short(args, "h")),
+    help.version_row(version, by_long(args, "version"), by_short(args, "V")))
+
+# a command's arguments, then the built-in flags its page lists
+def help.with(+args: List<&2, Arg>, version: Maybe<&2, String>) -> List<&2, Arg>:
+  List.append(&2, Arg, args, help.builtins(args, version))
+
 # one help page
 def help.page(
   +title: String,
@@ -1995,9 +2063,9 @@ def help.step(how: How, +name: String) -> How:
 def help.go(path: List<&2, String>, how: How) -> String:
   match path:
     case Nil{}:
-      How{+bin, +about, version, +args, +subs, +usage} = how
-      help.page(title.go(bin, version), about, help.usage(usage, args, subs),
-        args, subs)
+      How{+bin, +about, +version, +args, +subs, +usage} = how
+      +all = help.with(args, version)
+      help.page(title.go(bin, version), about, help.usage(usage, all, subs), all, subs)
     case Con{+h, t}:
       help.go(t, help.step(how, h))
 
@@ -2010,8 +2078,8 @@ def help(+app: Cli, path: List<&2, String>) -> String:
 def usage.go(path: List<&2, String>, how: How) -> String:
   match path:
     case Nil{}:
-      How{_b, _a, _v, +args, +subs, +usage} = how
-      help.usage(usage, args, subs)
+      How{_b, _a, version, +args, +subs, +usage} = how
+      help.usage(usage, help.with(args, version), subs)
     case Con{+hh, tt}:
       usage.go(tt, help.step(how, hh))
 

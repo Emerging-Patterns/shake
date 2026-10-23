@@ -435,7 +435,8 @@ def Laws.unknown_short_step(
   seen,
   h_dd,
   h_dash,
-  h_none
+  h_none,
+  h_help
 ):
   e1 = Equal.sym(Bool, String.eq("-" ++ SCon{cc, rest}, "--"), False{}, h_dd)
   %e1 : {S.parse.step.end(_, "-" ++ SCon{cc, rest}, args, up, subs, path, bs, pos,
@@ -450,6 +451,9 @@ def Laws.unknown_short_step(
       subs, path, bs, pos,
       seen) == S.St{S.Dead{S.UnknownFlag{path, "-" ++ SCon{cc,
           rest}}}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
+  e5 = Equal.sym(Bool, S.short_help(SCon{cc, rest}, args, seen), False{}, h_help)
+  %e5 : {S.parse.take_short.go(_, SCon{cc, rest}, "-" ++ SCon{cc, rest}, args, up, subs, path, bs, pos, False{}, seen)
+    == S.St{S.Dead{S.UnknownFlag{path, "-" ++ SCon{cc, rest}}}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   e2 = Equal.sym(Maybe<&2, S.Arg>, S.by_short(args, SCon{cc, SNil{}}), None{}, h_none)
   %e2 : {S.cluster(rest, "-" ++ SCon{cc, rest},
       S.parse.take_arg(_, S.cluster.val(_, rest), "-" ++ SCon{cc, rest}, args, up, subs, path, bs, pos,
@@ -472,14 +476,15 @@ def unknown_short.step(
   +seen: Bool,
   h_dd: {String.eq("-" ++ SCon{cc, rest}, "--") == False{} : Bool},
   h_dash: {Char.is_eq(cc, '-') == False{} : Bool},
-  h_none: {S.by_short(args, SCon{cc, SNil{}}) == None{} : Maybe<&2, S.Arg>}
+  h_none: {S.by_short(args, SCon{cc, SNil{}}) == None{} : Maybe<&2, S.Arg>},
+  h_help: {S.short_help(SCon{cc, rest}, args, seen) == False{} : Bool}
 ) -> {Laws.dead_of(S.parse.step("-" ++ SCon{cc, rest}, S.St{S.Free{}, args, up, subs, path, bs, pos, False{},
     seen})) == Some{S.UnknownFlag{path, "-" ++ SCon{cc, rest}}}
     : Maybe<&2, S.ParseErr>}:
   ee = Equal.sym(S.St, S.parse.step("-" ++ SCon{cc, rest}, S.St{S.Free{}, args, up, subs, path, bs, pos,
       False{}, seen}), S.St{S.Dead{S.UnknownFlag{path, "-" ++ SCon{cc,
           rest}}}, args, up, subs, path, bs, pos, False{}, seen},
-    Laws.unknown_short_step(cc, rest, args, up, subs, path, bs, pos, seen, h_dd, h_dash, h_none))
+    Laws.unknown_short_step(cc, rest, args, up, subs, path, bs, pos, seen, h_dd, h_dash, h_none, h_help))
   %ee : {Laws.dead_of(_) == Some{S.UnknownFlag{path, "-" ++ SCon{cc, rest}}} : Maybe<&2, S.ParseErr>}
   {==}
 
@@ -499,11 +504,12 @@ def Laws.unknown_short(
   h_at,
   h_dd,
   h_dash,
-  h_none
+  h_none,
+  h_help
 ):
   Laws.refused(spec, pre, more, "-" ++ SCon{cc, rest}, S.St{S.Free{}, args, up, subs, path, bs, pos, False{},
       seen}, S.UnknownFlag{path, "-" ++ SCon{cc, rest}}, h_at,
-    unknown_short.step(cc, rest, args, up, subs, path, bs, pos, seen, h_dd, h_dash, h_none))
+    unknown_short.step(cc, rest, args, up, subs, path, bs, pos, seen, h_dd, h_dash, h_none, h_help))
 
 # a plain word with no positional left fails the step with Unexpected
 def no_pos_left.step(
@@ -4056,6 +4062,43 @@ def Laws.dash_help_path(spec, pre, ns, args, up, subs, path, bs, pos, h_at, h_no
     Laws.help_walk(spec, ph, ns, args, up, subs, path, bs, pos, False{}, False{},
       Laws.dash_help_step(spec, pre, args, up, subs, path, bs, pos, h_at, h_none), h_ns))
 
+# a free walker whose command spells neither `-h` nor `--help` reads `-h` as
+# `help`
+def short_help.step(
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +bs: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  h_short: {S.by_short(args, "h") == None{} : Maybe<&2, S.Arg>},
+  h_long: {S.by_long(args, "help") == None{} : Maybe<&2, S.Arg>}
+) -> {S.parse.step("-h", S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, False{}})
+    == S.St{S.Help{}, args, up, subs, path, bs, pos, False{}, False{}} : S.St}:
+  e1 = Equal.sym(Maybe<&2, S.Arg>, S.by_short(args, "h"), None{}, h_short)
+  %e1 : {S.parse.take_short.go(Bool.and(True{}, Bool.and(True{}, Bool.and(Maybe.is_none(&2, S.Arg, _),
+      Maybe.is_none(&2, S.Arg, S.by_long(args, "help"))))), "h", "-h", args, up, subs, path, bs, pos, False{},
+      False{})
+    == S.St{S.Help{}, args, up, subs, path, bs, pos, False{}, False{}} : S.St}
+  e2 = Equal.sym(Maybe<&2, S.Arg>, S.by_long(args, "help"), None{}, h_long)
+  %e2 : {S.parse.take_short.go(Bool.and(True{}, Bool.and(True{}, Bool.and(True{}, Maybe.is_none(&2, S.Arg, _)))),
+      "h", "-h", args, up, subs, path, bs, pos, False{}, False{})
+    == S.St{S.Help{}, args, up, subs, path, bs, pos, False{}, False{}} : S.St}
+  {==}
+
+def Laws.short_help_step(spec, pre, args, up, subs, path, bs, pos, h_at, h_short, h_long):
+  Equal.trans(S.St, S.parse.walk(List.append(&2, String, pre, ["-h"]), S.parse.start(spec)),
+    S.parse.step("-h", S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, False{}}),
+    S.St{S.Help{}, args, up, subs, path, bs, pos, False{}, False{}},
+    kept.stepped(spec, pre, "-h", S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, False{}}, h_at),
+    short_help.step(args, up, subs, path, bs, pos, h_short, h_long))
+
+def Laws.short_help_path(spec, pre, ns, args, up, subs, path, bs, pos, h_at, h_short, h_long, h_ns):
+  +ph = List.append(&2, String, pre, ["-h"])
+  hp.need(spec, List.append(&2, String, ph, ns), args, up, List.append(&2, String, path, ns), bs, pos,
+    Laws.help_walk(spec, ph, ns, args, up, subs, path, bs, pos, False{}, False{},
+      Laws.short_help_step(spec, pre, args, up, subs, path, bs, pos, h_at, h_short, h_long), h_ns))
+
 def Laws.start_state(_name, _about, _version, _args, _subs):
   {==}
 
@@ -4295,7 +4338,7 @@ def cl.back(
       raw, seen), S.cluster.ends(Some{aa}, rest)),
     cl.step(cc, rest, orig, args, up, subs, path, bs, pos, raw, seen, aa, h_found))
 
-def Laws.short_step(cc, rest, args, up, subs, path, bs, pos, seen, h_dd, h_dash):
+def Laws.short_step(cc, rest, args, up, subs, path, bs, pos, seen, h_dd, h_dash, h_help):
   +tok = "-" ++ SCon{cc, rest}
   +st = {S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   e1 = Equal.sym(Bool, String.eq(tok, "--"), False{}, h_dd)
@@ -4306,6 +4349,9 @@ def Laws.short_step(cc, rest, args, up, subs, path, bs, pos, seen, h_dd, h_dash)
     == S.cluster(SCon{cc, rest}, tok, st, False{}) : S.St}
   e3 = Equal.sym(Bool, Char.is_eq(cc, '-'), False{}, h_dash)
   %e3 : {S.parse.step.kind.go(String.starts_with.go.if("", rest, _), True{}, tok, args, up, subs, path, bs, pos, seen)
+    == S.cluster(SCon{cc, rest}, tok, st, False{}) : S.St}
+  e5 = Equal.sym(Bool, S.short_help(SCon{cc, rest}, args, seen), False{}, h_help)
+  %e5 : {S.parse.take_short.go(_, SCon{cc, rest}, tok, args, up, subs, path, bs, pos, False{}, seen)
     == S.cluster(SCon{cc, rest}, tok, st, False{}) : S.St}
   {==}
 
@@ -6108,6 +6154,31 @@ def gv.cluster(
       gv.cluster(rest, orig, S.cluster.letter(done, cc, rest, orig, st), S.cluster.done(done, cc, rest, st), ws, hr,
         gv.letter(done, cc, rest, orig, st, ws, hr, hg))
 
+# a short option body within the words: a request for help, or a cluster
+def gv.sgo(
+  hit: Bool,
+  +body: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  +hh: {gv.sufs(body, ws) == True{} : Bool},
+  +hb: {gv.all(binds, ws) == True{} : Bool},
+  +hu: {gv.ups(up, ws) == True{} : Bool}
+) -> gv.G(S.parse.take_short.go(hit, body, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+  match hit:
+    case True{}:
+      gv.keep(binds, up, ws, hb, hu)
+    case False{}:
+      gv.cluster(body, orig, S.St{S.Free{}, args, up, subs, path, binds, pos, raw, seen}, False{}, ws, hh,
+        gv.keep(binds, up, ws, hb, hu))
+
 # a short option body within the words
 def gv.short(
   +body: String,
@@ -6125,8 +6196,7 @@ def gv.short(
   hb: gv.B(binds, ws),
   hu: gv.U(up, ws)
 ) -> gv.G(S.parse.take_short(body, orig, args, up, subs, path, binds, pos, raw, seen), ws):
-  gv.cluster(body, orig, S.St{S.Free{}, args, up, subs, path, binds, pos, raw, seen}, False{}, ws, hh,
-    gv.keep(binds, up, ws, hb, hu))
+  gv.sgo(S.short_help(body, args, seen), body, orig, args, up, subs, path, binds, pos, raw, seen, ws, hh, hb, hu)
 
 # a positional binds the word
 def gv.take_pos(
@@ -7341,6 +7411,31 @@ def gn.cluster(
       gn.cluster(rest, orig, S.cluster.letter(done, cc, rest, orig, st), S.cluster.done(done, cc, rest, st), ws, hr,
         gn.letter(done, cc, rest, orig, st, ws, hr, hg))
 
+# a short option body within the words: a request for help, or a cluster
+def gn.sgo(
+  hit: Bool,
+  +body: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  +hh: {gv.sufs(body, ws) == True{} : Bool},
+  +hb: {gn.all(binds, args, ws) == True{} : Bool},
+  +hp: {gn.pin(pos, args) == True{} : Bool}
+) -> gn.G(S.parse.take_short.go(hit, body, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+  match hit:
+    case True{}:
+      gn.keep(args, binds, pos, ws, hb, hp)
+    case False{}:
+      gn.cluster(body, orig, S.St{S.Free{}, args, up, subs, path, binds, pos, raw, seen}, False{}, ws, hh,
+        gn.keep(args, binds, pos, ws, hb, hp))
+
 # a short option body within the words
 def gn.short(
   +body: String,
@@ -7358,8 +7453,7 @@ def gn.short(
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
 ) -> gn.G(S.parse.take_short(body, orig, args, up, subs, path, binds, pos, raw, seen), ws):
-  gn.cluster(body, orig, S.St{S.Free{}, args, up, subs, path, binds, pos, raw, seen}, False{}, ws, hh,
-    gn.keep(args, binds, pos, ws, hb, hp))
+  gn.sgo(S.short_help(body, args, seen), body, orig, args, up, subs, path, binds, pos, raw, seen, ws, hh, hb, hp)
 
 # a positional consumed, or kept when it is a rest
 def gn.kpos(
@@ -8579,6 +8673,27 @@ def nd.cluster(
       nd.cluster(rest, orig, S.cluster.letter(done, cc, rest, orig, st), S.cluster.done(done, cc, rest, st), n0,
         nd.letter(done, cc, rest, orig, st, n0, hh))
 
+# a short option: a request for help, or a cluster
+def nd.sgo(
+  hit: Bool,
+  +body: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool
+) -> nd.T(S.parse.take_short.go(hit, body, orig, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+  match hit:
+    case True{}:
+      nd.le_s(Laws.valued(binds))
+    case False{}:
+      nd.cluster(body, orig, S.St{S.Free{}, args, up, subs, path, binds, pos, raw, seen}, False{}, Laws.valued(binds),
+        nd.le_refl(Laws.valued(binds)))
+
 # a short option
 def nd.short(
   +body: String,
@@ -8592,8 +8707,7 @@ def nd.short(
   +raw: Bool,
   +seen: Bool
 ) -> nd.T(S.parse.take_short(body, orig, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
-  nd.cluster(body, orig, S.St{S.Free{}, args, up, subs, path, binds, pos, raw, seen}, False{}, Laws.valued(binds),
-    nd.le_refl(Laws.valued(binds)))
+  nd.sgo(S.short_help(body, args, seen), body, orig, args, up, subs, path, binds, pos, raw, seen)
 
 # a positional
 def nd.take_pos(
@@ -9647,6 +9761,32 @@ def nu.cluster1(
     {==} : {nu.J(S.St{m0, args, up, subs, path, binds, pos, False{}, seen}, l0) == False{} : Bool}}
   nu.apart(fin, S.St{m0, args, up, subs, path, binds, pos, False{}, seen}, ss => nu.J(ss, l0), hj, jo)
 
+# a nonempty short option body: a request for help, or a cluster
+def nu.sgo(
+  hit: Bool,
+  +cc: Char,
+  +rest: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool,
+  +m0: S.Mode,
+  +hd: {nu.dead_m(m0) == False{} : Bool},
+  +hn: {nu.need_m(m0) == False{} : Bool},
+  +hl: {nu.help_m(m0) == False{} : Bool}
+) -> nu.N(S.parse.take_short.go(hit, SCon{cc, rest}, orig, args, up, subs, path, binds, pos, False{}, seen),
+    S.St{m0, args, up, subs, path, binds, pos, False{}, seen}):
+  match hit:
+    case True{}:
+      nu.apart(S.parse.take_short.go(True{}, SCon{cc, rest}, orig, args, up, subs, path, binds, pos, False{}, seen),
+        S.St{m0, args, up, subs, path, binds, pos, False{}, seen}, ss => nu.help(ss), {==}, hl)
+    case False{}:
+      nu.cluster1(cc, rest, orig, args, up, subs, path, binds, pos, seen, m0, hd, hn, hl)
+
 # a nonempty cluster body is a char in front of the rest
 def nu.cl0(
   body: String,
@@ -9670,7 +9810,8 @@ def nu.cl0(
       Empty.absurd(nu.N(S.parse.take_short(SNil{}, orig, args, up, subs, path, binds, pos, False{}, seen),
         S.St{m0, args, up, subs, path, binds, pos, False{}, seen}), Walk.wk.true_false(he))
     case SCon{+cc, +rest}:
-      nu.cluster1(cc, rest, orig, args, up, subs, path, binds, pos, seen, m0, hd, hn, hl)
+      nu.sgo(S.short_help(SCon{cc, rest}, args, seen), cc, rest, orig, args, up, subs, path, binds, pos, seen, m0, hd,
+        hn, hl)
 
 # a value bound or refused, against any walker with as many bindings that has
 # not failed
@@ -10856,3 +10997,56 @@ def Laws.err_bad_named(spec, at, name, value):
         S.err.values(dd)), S.err.named(dd, name), Laws.named(dd, name), en.named(dd, name)),
       Equal.cong(String, String, xx => S.err.wrap(spec, at, "error: invalid value '" ++ value ++ "' for '" ++
         Laws.named(dd, name) ++ "'" ++ xx), S.err.values(dd), Laws.values_line(dd), en.values(dd))))
+
+# the help row is the law's
+def bi.help(
+  long: Maybe<&2, S.Arg>,
+  short: Maybe<&2, S.Arg>
+) -> {S.help.help_row(long, short) == Laws.help_rows.of(long, short) : List<&2, S.Arg>}:
+  match long:
+    case None{}:
+      match short:
+        case None{}:
+          {==}
+        case Some{_a}:
+          {==}
+    case Some{_a}:
+      {==}
+
+# the version row of a page with a version is the law's
+def bi.vrow(
+  +vv: String,
+  long: Maybe<&2, S.Arg>,
+  short: Maybe<&2, S.Arg>
+) -> {S.help.version_row(Some{vv}, long, short) == Laws.version_rows.of(long, short) : List<&2, S.Arg>}:
+  match long:
+    case None{}:
+      match short:
+        case None{}:
+          {==}
+        case Some{_a}:
+          {==}
+    case Some{_a}:
+      {==}
+
+# the version row is the law's
+def bi.version(
+  +args: List<&2, S.Arg>,
+  version: Maybe<&2, String>
+) -> {S.help.version_row(version, S.by_long(args, "version"), S.by_short(args, "V")) == Laws.version_rows(args, version)
+    : List<&2, S.Arg>}:
+  match version:
+    case None{}:
+      {==}
+    case Some{+vv}:
+      bi.vrow(vv, S.by_long(args, "version"), S.by_short(args, "V"))
+
+def Laws.builtins_listed(args, version):
+  +hr = S.help.help_row(S.by_long(args, "help"), S.by_short(args, "h"))
+  +vr = S.help.version_row(version, S.by_long(args, "version"), S.by_short(args, "V"))
+  Equal.trans(List<&2, S.Arg>, List.append(&2, S.Arg, hr, vr), List.append(&2, S.Arg, Laws.help_rows(args), vr),
+    List.append(&2, S.Arg, Laws.help_rows(args), Laws.version_rows(args, version)),
+    Equal.cong(List<&2, S.Arg>, List<&2, S.Arg>, xs => List.append(&2, S.Arg, xs, vr), hr, Laws.help_rows(args),
+      bi.help(S.by_long(args, "help"), S.by_short(args, "h"))),
+    Equal.cong(List<&2, S.Arg>, List<&2, S.Arg>, xs => List.append(&2, S.Arg, Laws.help_rows(args), xs), vr,
+      Laws.version_rows(args, version), bi.version(args, version)))
