@@ -10609,3 +10609,89 @@ def Laws.err_text_tip(spec, err, ss, h_sug):
       tp.none(spec, S.Unexpected{at, arg}, ss, h_sug)
     case S.Repeated{+at, +name}:
       tp.none(spec, S.Repeated{at, name}, ss, h_sug)
+
+# a positional's Arguments line, then the lines after it
+def ha.next(
+  +aa: S.Arg,
+  +tt: List<&2, S.Arg>,
+  +ww: Nat,
+  ee: {S.help.arg_lines(tt, ww) == Laws.arg_lines(List.filter(~S.Arg, ~S.pos.is, tt), ww) : String}
+) -> {S.help.arg_line(aa, ww) ++ "\n" ++ S.help.arg_lines(tt, ww)
+    == S.help.arg_line(aa, ww) ++ "\n" ++ Laws.arg_lines(List.filter(~S.Arg, ~S.pos.is, tt), ww) : String}:
+  Equal.cong(String, String, xs => S.help.arg_line(aa, ww) ++ "\n" ++ xs, S.help.arg_lines(tt, ww),
+    Laws.arg_lines(List.filter(~S.Arg, ~S.pos.is, tt), ww), ee)
+
+# the Arguments lines are the lines of the positionals, in order
+def ha.lines(
+  +args: List<&2, S.Arg>,
+  +ww: Nat
+) -> {S.help.arg_lines(args, ww) == Laws.arg_lines(List.filter(~S.Arg, ~S.pos.is, args), ww) : String}:
+  match args:
+    case Nil{}:
+      {==}
+    case Con{hh, +tt}:
+      match hh:
+        case S.Arg{+n, +s, +l, kind, +h, +r, +d, +c}:
+          match kind:
+            case S.Flag{}:
+              ha.lines(tt, ww)
+            case S.Opt{}:
+              ha.lines(tt, ww)
+            case S.Many{}:
+              ha.lines(tt, ww)
+            case S.Pos{}:
+              ha.next(S.Arg{n, s, l, S.Pos{}, h, r, d, c}, tt, ww, ha.lines(tt, ww))
+            case S.Rest{}:
+              ha.next(S.Arg{n, s, l, S.Rest{}, h, r, d, c}, tt, ww, ha.lines(tt, ww))
+
+def Laws.args_listed(args):
+  Equal.cong(String, String, xs => S.help.args.go(xs), S.help.arg_lines(args, S.help.arg_width(S.pos_of(args), 0n)),
+    Laws.arg_lines(List.filter(~S.Arg, ~S.pos.is, args), S.help.arg_width(S.pos_of(args), 0n)),
+    ha.lines(args, S.help.arg_width(S.pos_of(args), 0n)))
+
+# a usage mark's brackets, as the law's mark writes them
+def ha.wrap(req: Bool, +nn: String) -> {S.help.pos.wrap(req, nn) == Laws.mark.req(req, nn) : String}:
+  match req:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# a usage mark's dots, as the law's mark writes them
+def ha.dots(kind: S.ArgKind) -> {S.help.pos.dots(S.rest.is.kind(kind)) == Laws.mark.rest(kind) : String}:
+  match kind:
+    case S.Flag{}:
+      {==}
+    case S.Opt{}:
+      {==}
+    case S.Pos{}:
+      {==}
+    case S.Rest{}:
+      {==}
+    case S.Many{}:
+      {==}
+
+# a positional's usage hint is the law's mark
+def ha.mark(
+  +nn: String,
+  +sh: Maybe<&2, String>,
+  +lo: Maybe<&2, String>,
+  +kind: S.ArgKind,
+  +hp: String,
+  +req: Bool,
+  +fb: S.Fallback,
+  +cs: List<&2, String>
+) -> {S.help.pos.one(S.Arg{nn, sh, lo, kind, hp, req, fb, cs}) == Laws.mark(S.Arg{nn, sh, lo, kind, hp, req, fb, cs})
+    : String}:
+  +up = String.to_upper(nn)
+  Equal.trans(String, S.help.pos.wrap(req, up) ++ S.help.pos.dots(S.rest.is.kind(kind)),
+    Laws.mark.req(req, up) ++ S.help.pos.dots(S.rest.is.kind(kind)), Laws.mark.req(req, up) ++ Laws.mark.rest(kind),
+    Equal.cong(String, String, xs => xs ++ S.help.pos.dots(S.rest.is.kind(kind)), S.help.pos.wrap(req, up),
+      Laws.mark.req(req, up), ha.wrap(req, up)),
+    Equal.cong(String, String, xs => Laws.mark.req(req, up) ++ xs, S.help.pos.dots(S.rest.is.kind(kind)),
+      Laws.mark.rest(kind), ha.dots(kind)))
+
+def Laws.arg_line_mark(nn, sh, lo, kind, hp, req, fb, cs, ww):
+  +aa = {S.Arg{nn, sh, lo, kind, hp, req, fb, cs} : S.Arg}
+  Equal.cong(String, String, mm => "  " ++ S.help.pad(String.drop(mm, 1n), ww) ++ "  " ++ hp ++ S.help.extra(aa),
+    S.help.pos.one(aa), Laws.mark(aa), ha.mark(nn, sh, lo, kind, hp, req, fb, cs))

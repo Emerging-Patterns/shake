@@ -2466,6 +2466,43 @@ law usage_listed:
     == "Usage: " ++ name ++ S.help.opts_hint(args) ++ marks(List.filter(~S.Arg, ~S.pos.is, args)) ++ S.help.cmd_hint(subs)
     : String}
 
+# one Arguments line per argument, in order
+def arg_lines(args: List<&2, S.Arg>, +ww: Nat) -> String:
+  match args:
+    case Nil{}:
+      ""
+    case Con{+hh, tt}:
+      S.help.arg_line(hh, ww) ++ "\n" ++ arg_lines(tt, ww)
+
+# LAW: a page's Arguments block has one line for each positional of its
+# command, in spec order, and none for a flag or an option; with no
+# positional it is empty
+# SHAKE-HELP-2
+law args_listed:
+  for +args: List<&2, S.Arg>
+  {S.help.args(args)
+    == S.help.args.go(arg_lines(List.filter(~S.Arg, ~S.pos.is, args), S.help.arg_width(S.pos_of(args), 0n)))
+    : String}
+
+# LAW: an Arguments line is the positional's usage mark without the space
+# before it, padded, then its help text and the extras an Options line has
+# SHAKE-HELP-2
+# SHAKE-HELP-3
+law arg_line_mark:
+  for +nn: String
+  for +sh: Maybe<&2, String>
+  for +lo: Maybe<&2, String>
+  for +kind: S.ArgKind
+  for +hp: String
+  for +req: Bool
+  for +fb: S.Fallback
+  for +cs: List<&2, String>
+  for +ww: Nat
+  {S.help.arg_line(S.Arg{nn, sh, lo, kind, hp, req, fb, cs}, ww)
+    == "  " ++ S.help.pad(String.drop(mark(S.Arg{nn, sh, lo, kind, hp, req, fb, cs}), 1n), ww) ++ "  " ++ hp ++
+      S.help.extra(S.Arg{nn, sh, lo, kind, hp, req, fb, cs})
+    : String}
+
 # the names of some arguments
 def arg_names(args: List<&2, S.Arg>) -> List<&2, String>:
   match args:

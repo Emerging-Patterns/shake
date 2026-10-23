@@ -1870,6 +1870,48 @@ def help.pos(args: List<&2, Arg>) -> String:
     case Con{+h, t}:
       help.pos.at(pos.is(h), h, help.pos(t))
 
+# a positional's label in the Arguments block: its usage mark without the
+# space before it
+def help.pos.label(aa: Arg) -> String:
+  String.drop(help.pos.one(aa), 1n)
+
+# one Arguments line, given the label width
+def help.arg_line(+aa: Arg, ww: Nat) -> String:
+  Arg{_n, _s, _l, _k, +h, _r, _d, _c} = aa
+  "  " ++ help.pad(help.pos.label(aa), ww) ++ "  " ++ h ++ help.extra(aa)
+
+# the max positional-label width
+def help.arg_width(args: List<&2, Arg>, nn: Nat) -> Nat:
+  match args:
+    case Nil{}:
+      nn
+    case Con{+h, t}:
+      help.arg_width(t, help.max(nn, String.length(help.pos.label(h))))
+
+# a positional's Arguments line
+def help.arg_lines.at(keep: Bool, hh: Arg, rest: String, ww: Nat) -> String:
+  match keep:
+    case True{}:
+      help.arg_line(hh, ww) ++ "\n" ++ rest
+    case False{}:
+      rest
+
+# Arguments lines, skipping flags and options
+def help.arg_lines(args: List<&2, Arg>, +ww: Nat) -> String:
+  match args:
+    case Nil{}:
+      ""
+    case Con{+h, t}:
+      help.arg_lines.at(pos.is(h), h, help.arg_lines(t, ww), ww)
+
+# wrap Arguments lines in a heading
+def help.args.go(+body: String) -> String:
+  Bool.pick(String, String.is_empty(body), "", "Arguments:\n" ++ body ++ "\n")
+
+# the Arguments block, or empty when there are no positionals
+def help.args(+args: List<&2, Arg>) -> String:
+  help.args.go(help.arg_lines(args, help.arg_width(pos_of(args), 0n)))
+
 # the bracketed options word when the spec has a flag or option
 def help.opts_hint.go(has: Bool) -> String:
   Bool.pick(String, has, " [" ++ String.to_upper("options") ++ "]", "")
@@ -1923,7 +1965,7 @@ def help.page(
   +subs: List<&2, Sub>
 ) -> String:
   title ++ "\n" ++ about ++ "\n\n" ++ usage ++ "\n\n" ++ help.cmds(subs) ++
-    help.opts(args)
+    help.args(args) ++ help.opts(args)
 
 # a found child becomes the page; an unknown name stays
 def help.step.go(
