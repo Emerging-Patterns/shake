@@ -2,16 +2,21 @@
   description = "shake: CLI argument parser for Bend 2";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-  # bendlang/bend's flake at the commit that packages 2.0.36 (the v2.0.36 tag
-  # still packages 2.0.35)
+  # bendlang/bend's flake at the commit that packages 2.0.38 (the v2.0.38 tag
+  # may still package 2.0.37)
   inputs.bend = {
-    url = "github:bendlang/bend/eebc18cd04daeade06c3f68c3c96c1faefd3462f";
+    url = "github:bendlang/bend/042e797ebd1cfc060603e2682879909fe86fa8c2";
     inputs.nixpkgs.follows = "nixpkgs";
   };
+  # Interim: ez (and bolt, which ez builds) stays on the bend its own flake.lock
+  # records, 2.0.36, until ez releases on 2.0.38; ez does not check on 2.0.38
+  # yet. A later tooling pass puts `inputs.bend.follows = "bend"` and
+  # `ez.mkProofs` back.
   inputs.ez = {
     url = "github:Emerging-Patterns/ez";
     inputs.nixpkgs.follows = "nixpkgs";
-    inputs.bend.follows = "bend";
+    inputs.bend.url = "github:bendlang/bend/eebc18cd04daeade06c3f68c3c96c1faefd3462f";
+    inputs.bend.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs = { self, nixpkgs, ... }@inputs:
@@ -32,12 +37,25 @@
     in {
       packages.${system} = { inherit bend demo bend-cc; ez = ezBin; default = demo; };
       apps.${system}.default = { type = "app"; program = "${demo}/bin/demo"; };
-      # `proofs` is `ez prove`: every PROOF.bend on this flake's bend, its
-      # first line `ALL PROOFS CHECK`. `lint` is bolt at the lock's
-      # `[tools.bolt]` pin, graded by ./bolt.bend.
+      # `proofs` does what `ez prove` does, on this flake's bend (2.0.38):
+      # every PROOF.bend, its first line `ALL PROOFS CHECK` (interim, until
+      # ez runs on 2.0.38 and `ez.mkProofs` comes back). `lint` is bolt at
+      # the lock's `[tools.bolt]` pin, on ez's bend, graded by ./bolt.bend.
       checks.${system} = {
         inherit demo;
-        proofs = ez.mkProofs { ez = ezBin; src = self; };
+        proofs = pkgs.runCommand "shake-proofs" {
+          nativeBuildInputs = [ bend ];
+          BEND_LIB = ez.bendLib ./ez.lock.toml;
+        } ''
+          export HOME=$TMPDIR
+          cp -r ${self} src && chmod -R u+w src && cd src
+          for p in $(find . -name PROOF.bend -not -path './.ez/*' | sort); do
+            first=$(cd "$(dirname "$p")" && bend "$(basename "$p")" | head -n 1)
+            echo "$p: $first"
+            [ "$first" = "ALL PROOFS CHECK" ] || exit 1
+          done
+          touch $out
+        '';
         lint = ez.mkLint { src = self; };
       };
       # bolt, from the lock, is on PATH through `src`
