@@ -60,13 +60,28 @@ law err_text_help:
   for path: List<&2, String>
   {Shake.err_text(spec, S.NeedHelp{path}) == "" : String}
 
-# LAW: the error text is empty exactly when the parse asked for help
+# LAW: a request for the version has no error text, for every spec
+# SHAKE-ERR-1
+law err_text_version:
+  for spec: Shake.Cli
+  {Shake.err_text(spec, S.NeedVersion{}) == "" : String}
+
+# whether an error is a request for the version
+def version.is(err: Shake.ParseErr) -> Bool:
+  match err:
+    case S.NeedVersion{}:
+      True{}
+    case _other:
+      False{}
+
+# LAW: the error text is empty exactly when the parse asked for help or for
+# the version
 # SHAKE-ERR-1
 law err_text_iff:
   for +spec: Shake.Cli
   for +err: Shake.ParseErr
   {String.is_empty(Shake.err_text(spec, err))
-    == Maybe.is_some(&2, List<&2, String>, Shake.help_path(err)) : Bool}
+    == Bool.or(Maybe.is_some(&2, List<&2, String>, Shake.help_path(err)), version.is(err)) : Bool}
 
 # LAW: a flag binding's hit keeps whatever list follows it (a lemma)
 law hit_append:
@@ -300,16 +315,16 @@ law fail_from:
   {S.parse.finish(S.parse.walk(more, st)) == Fail{err}
     : Result<&2, &2, S.ParseErr, S.Matched>}
 
-# LAW: once a word makes the parse fail, the words after it do not change the
-# error
+# LAW: once a word makes the parse fail, the words after it do not change
+# what the parse answers
 # SHAKE-PARSE-9
 law fail_stays:
   for +spec: Shake.Cli
   for +ws: List<&2, String>
   for +more: List<&2, String>
   for +err: Shake.ParseErr
-  for died: {dead_of(S.parse.walk(ws, S.parse.start(spec))) == Some{err} : Maybe<&2, S.ParseErr>}
-  {Shake.parse(spec, List.append(&2, String, ws, more)) == Fail{err}
+  for +died: {dead_of(S.parse.walk(ws, S.parse.start(spec))) == Some{err} : Maybe<&2, S.ParseErr>}
+  {Shake.parse(spec, List.append(&2, String, ws, more)) == Shake.parse(spec, ws)
     : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
 
 # LAW: every string starts with the empty string (a lemma)
@@ -395,6 +410,7 @@ law unknown_long:
   for h_name: {String.is_empty(name) == False{} : Bool}
   for h_none: {S.by_long(args, name) == None{} : Maybe<&2, S.Arg>}
   for h_lh: {S.long_help(name, val, seen) == False{} : Bool}
+  for h_ver: {S.version.asks(spec, path, "--" ++ body) == False{} : Bool}
   {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, ["--" ++ body]), more))
     == Fail{S.UnknownFlag{path, "--" ++ body}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
 
@@ -412,8 +428,9 @@ law step_dies:
     == Some{err} : Maybe<&2, S.ParseErr>}
 
 # LAW: when the words before `tok` reach a state where `tok` fails the walk,
-# the parse fails with that error, whatever follows (a lemma: every refusal
-# row is its step fact through this)
+# the parse fails with that error, read as a request for the version when it
+# is one, whatever follows (a lemma: every refusal row is its step fact
+# through this)
 law refused:
   for +spec: Shake.Cli
   for +pre: List<&2, String>
@@ -424,7 +441,7 @@ law refused:
   for h_at: {S.parse.walk(pre, S.parse.start(spec)) == st : S.St}
   for h_step: {dead_of(S.parse.step(tok, st)) == Some{err} : Maybe<&2, S.ParseErr>}
   {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, [tok]), more))
-    == Fail{err} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+    == Fail{S.version.err(spec, err)} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
 
 # LAW: once a short cluster has ended, the letters left change nothing (a
 # lemma)
@@ -450,6 +467,7 @@ law unknown_short_step:
   for h_dd: {String.eq("-" ++ SCon{cc, rest}, "--") == False{} : Bool}
   for h_dash: {Char.is_eq(cc, '-') == False{} : Bool}
   for h_none: {S.by_short(args, SCon{cc, SNil{}}) == None{} : Maybe<&2, S.Arg>}
+  for h_help: {S.short_help(SCon{cc, rest}, args, seen) == False{} : Bool}
   {S.parse.step("-" ++ SCon{cc, rest}, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen})
     == S.St{S.Dead{S.UnknownFlag{path, "-" ++ SCon{cc, rest}}}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
 
@@ -476,6 +494,8 @@ law unknown_short:
   for h_dd: {String.eq("-" ++ SCon{cc, rest}, "--") == False{} : Bool}
   for h_dash: {Char.is_eq(cc, '-') == False{} : Bool}
   for h_none: {S.by_short(args, SCon{cc, SNil{}}) == None{} : Maybe<&2, S.Arg>}
+  for h_help: {S.short_help(SCon{cc, rest}, args, seen) == False{} : Bool}
+  for h_ver: {S.version.asks(spec, path, "-" ++ SCon{cc, rest}) == False{} : Bool}
   {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, ["-" ++ SCon{cc, rest}]), more))
     == Fail{S.UnknownFlag{path, "-" ++ SCon{cc, rest}}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
 
@@ -691,8 +711,8 @@ law long_no_name:
   for h_at: {S.parse.walk(pre, S.parse.start(spec))
     == S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   for h_dd: {String.eq("--" ++ body, "--") == False{} : Bool}
-  for h_cut: {S.cut_eq(body) == (name, val) : String & Maybe<&2, String>}
-  for h_empty: {String.is_empty(name) == True{} : Bool}
+  for +h_cut: {S.cut_eq(body) == (name, val) : String & Maybe<&2, String>}
+  for +h_empty: {String.is_empty(name) == True{} : Bool}
   {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, ["--" ++ body]), more))
     == Fail{S.UnknownFlag{path, "--" ++ body}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
 
@@ -1848,6 +1868,52 @@ law dash_help_path:
   {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, ["--help"]), ns))
     == Fail{S.NeedHelp{List.append(&2, String, path, ns)}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
 
+# LAW: wherever the words before it leave the walker free, before `--` and
+# before any positional of the current command is bound, a word `-h` starts a
+# help path at the selected path, as `help` does, when no argument of the
+# current command spells short `h` or long `help`
+# SHAKE-PARSE-8
+law short_help_step:
+  for +spec: Shake.Cli
+  for +pre: List<&2, String>
+  for +args: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +pos: List<&2, S.Arg>
+  for h_at: {S.parse.walk(pre, S.parse.start(spec))
+    == S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, False{}} : S.St}
+  for h_short: {S.by_short(args, "h") == None{} : Maybe<&2, S.Arg>}
+  for h_long: {S.by_long(args, "help") == None{} : Maybe<&2, S.Arg>}
+  {S.parse.walk(List.append(&2, String, pre, ["-h"]), S.parse.start(spec))
+    == S.St{S.Help{}, args, up, subs, path, bs, pos, False{}, False{}} : S.St}
+
+# LAW: wherever the words before it leave the walker free, before `--` and
+# before any positional of the current command is bound, a word `-h`, when
+# no argument of the current command spells short `h` or long `help`,
+# followed by words that each name a subcommand under the one before, until
+# the words end, fails the parse with NeedHelp of the selected path followed
+# by those words, as `help` does
+# SHAKE-PARSE-8
+law short_help_path:
+  for +spec: Shake.Cli
+  for +pre: List<&2, String>
+  for +ns: List<&2, String>
+  for +args: List<&2, S.Arg>
+  for +up: List<&2, S.Level>
+  for +subs: List<&2, S.Sub>
+  for +path: List<&2, String>
+  for +bs: List<&2, S.Bind>
+  for +pos: List<&2, S.Arg>
+  for h_at: {S.parse.walk(pre, S.parse.start(spec))
+    == S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, False{}} : S.St}
+  for h_short: {S.by_short(args, "h") == None{} : Maybe<&2, S.Arg>}
+  for h_long: {S.by_long(args, "help") == None{} : Maybe<&2, S.Arg>}
+  for h_ns: {help_names(ns, subs) == True{} : Bool}
+  {Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, ["-h"]), ns))
+    == Fail{S.NeedHelp{List.append(&2, String, path, ns)}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+
 # LAW: the walk starts free at the root, with no path, no bindings, the root's
 # arguments current and its positionals pending
 # SHAKE-PARSE-2
@@ -1981,6 +2047,7 @@ law short_step:
   for +seen: Bool
   for h_dd: {String.eq("-" ++ SCon{cc, rest}, "--") == False{} : Bool}
   for h_dash: {Char.is_eq(cc, '-') == False{} : Bool}
+  for h_help: {S.short_help(SCon{cc, rest}, args, seen) == False{} : Bool}
   {S.parse.step("-" ++ SCon{cc, rest}, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen})
     == S.cluster(SCon{cc, rest}, "-" ++ SCon{cc, rest}, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen},
       False{}) : S.St}
@@ -2302,14 +2369,16 @@ def root(app: Shake.Cli) -> S.How:
 
 # the usage line of a page
 def usage_line(how: S.How) -> String:
-  S.How{_b, _a, _v, +args, +subs, +usage} = how
-  S.help.usage(usage, args, subs)
+  S.How{_b, _a, version, +args, +subs, +usage} = how
+  S.help.usage(usage, S.help.with(args, version), subs)
 
 # a page as `help` renders it: its title, what it is about, its usage line
-# (`usage_line`), its subcommands and its options
+# (`usage_line`), its subcommands, its positionals and its options, the
+# built-in flags after the command's own
 def page(how: S.How) -> String:
-  S.How{+bin, +about, version, +args, +subs, +usage} = how
-  S.help.page(S.title.go(bin, version), about, S.help.usage(usage, args, subs), args, subs)
+  S.How{+bin, +about, +version, +args, +subs, +usage} = how
+  S.help.page(S.title.go(bin, version), about, S.help.usage(usage, S.help.with(args, version), subs),
+    S.help.with(args, version), subs)
 
 # LAW: `help` renders the page of the command a path reaches from the root
 # SHAKE-HELP-1
@@ -2353,7 +2422,8 @@ law reach_skip:
     == S.How{bin, about, version, args, subs, usage} : S.How}
 
 # LAW: every error but a request for help names the command path where the
-# parse failed, and `err_path` reads it
+# parse failed, and `err_path` reads it; a request for the version names the
+# root
 # SHAKE-ERR-2
 law err_path_at:
   for +at: List<&2, String>
@@ -2362,21 +2432,223 @@ law err_path_at:
   for +value: String
   {[Shake.err_path(S.UnknownFlag{at, word}), Shake.err_path(S.Missing{at, name}), Shake.err_path(S.NoValue{at, name}),
       Shake.err_path(S.BadValue{at, name, value}), Shake.err_path(S.Unexpected{at, word}),
-      Shake.err_path(S.Repeated{at, name})]
-    == [at, at, at, at, at, at] : List<&2, List<&2, String>>}
+      Shake.err_path(S.Repeated{at, name}), Shake.err_path(S.NeedVersion{})]
+    == [at, at, at, at, at, at, []] : List<&2, List<&2, String>>}
 
-# LAW: the text of every error but a request for help is a message, then the
-# usage line of the command at its path, as that command's help page shows it,
-# then where to look for more
+# LAW: the text of every error but a request for help or for the version is a
+# message, then the usage line of the command at its path, as that command's
+# help page shows it, then where to look for more
 # SHAKE-ERR-2
 law err_text_usage:
   for +spec: Shake.Cli
   for +err: Shake.ParseErr
   for h_err: {Shake.help_path(err) == None{} : Maybe<&2, List<&2, String>>}
+  for h_ver: {version.is(err) == False{} : Bool}
   exs msg: String
   {Shake.err_text(spec, err)
     == msg ++ "\n\n" ++ usage_line(reach(Shake.err_path(err), root(spec))) ++ "\n\n" ++ S.err.hint(Shake.err_path(err))
     : String}
+
+# the pages a path walks through from `how`, `how` first, each name moving as
+# `help` moves
+def pages(path: List<&2, String>, +how: S.How) -> List<&2, S.How>:
+  match path:
+    case Nil{}:
+      [how]
+    case Con{+hh, tt}:
+      how <> pages(tt, S.help.step(how, hh))
+
+# a later find when there is one, else an earlier
+def keep_later(here: Maybe<&2, S.Arg>, later: Maybe<&2, S.Arg>) -> Maybe<&2, S.Arg>:
+  match later:
+    case None{}:
+      here
+    case Some{aa}:
+      Some{aa}
+
+# the argument named `name` of the last page that has one
+def deepest(hs: List<&2, S.How>, +name: String) -> Maybe<&2, S.Arg>:
+  match hs:
+    case Nil{}:
+      None{}
+    case Con{hh, tt}:
+      keep_later(S.by_name(S.help.how_args(hh), name), deepest(tt, name))
+
+# a flag's or an option's spelling: `--long`, else `-s`, then its value
+# mark; its name when it has neither
+def spelled(+short: String, +long: String, +name: String, +mark: String) -> String:
+  Bool.pick(String, String.is_empty(long),
+    Bool.pick(String, String.is_empty(short), name, "-" ++ short ++ mark),
+    "--" ++ long ++ mark)
+
+# a positional's form: `<NAME>` when required, `[NAME]` otherwise
+def pos_form(req: Bool, +nn: String) -> String:
+  match req:
+    case True{}:
+      "<" ++ nn ++ ">"
+    case False{}:
+      "[" ++ nn ++ "]"
+
+# an argument of this kind as an error names it
+def form_of.kind(kk: S.ArgKind, +name: String, +sh: String, +lo: String, req: Bool) -> String:
+  match kk:
+    case S.Flag{}:
+      spelled(sh, lo, name, "")
+    case S.Opt{}:
+      spelled(sh, lo, name, " <" ++ String.to_upper(name) ++ ">")
+    case S.Many{}:
+      spelled(sh, lo, name, " <" ++ String.to_upper(name) ++ ">...")
+    case S.Pos{}:
+      pos_form(req, String.to_upper(name))
+    case S.Rest{}:
+      pos_form(req, String.to_upper(name)) ++ "..."
+
+# an argument's display form
+def form_of(aa: S.Arg) -> String:
+  S.Arg{+name, short, long, kind, _h, req, _d, _c} = aa
+  form_of.kind(kind, name, S.text.of(short, ""), S.text.of(long, ""), req)
+
+# a found argument's display form, else the name the error carries
+def named(found: Maybe<&2, S.Arg>, +name: String) -> String:
+  match found:
+    case None{}:
+      name
+    case Some{aa}:
+      form_of(aa)
+
+# clap's line of the values a found argument allows, when it has choices
+def values_line(found: Maybe<&2, S.Arg>) -> String:
+  match found:
+    case None{}:
+      ""
+    case Some{aa}:
+      S.Arg{_n, _s, _l, _k, _h, _r, _d, cs} = aa
+      match cs:
+        case Nil{}:
+          ""
+        case Con{cc, rest}:
+          "\n  [possible values: " ++ String.join(cc <> rest, ", ") ++ "]"
+
+# LAW: the argument an error is about is the one named so on the deepest
+# command of its path that has one, the root first
+# SHAKE-ERR-5
+law err_find:
+  for +spec: Shake.Cli
+  for +at: List<&2, String>
+  for +name: String
+  {S.err.find(spec, at, name) == deepest(pages(at, root(spec)), name) : Maybe<&2, S.Arg>}
+
+# LAW: an argument's display form: a flag by `--long`, else `-s`, an option
+# with its value mark after, a positional by `<NAME>` or `[NAME]`, `...`
+# after a rest
+# SHAKE-ERR-5
+law err_form:
+  for +nn: String
+  for +sh: Maybe<&2, String>
+  for +lo: Maybe<&2, String>
+  for +kind: S.ArgKind
+  for +hp: String
+  for +req: Bool
+  for +fb: S.Fallback
+  for +cs: List<&2, String>
+  {S.err.form(S.Arg{nn, sh, lo, kind, hp, req, fb, cs}) == form_of(S.Arg{nn, sh, lo, kind, hp, req, fb, cs}) : String}
+
+# LAW: a missing argument is named by its display form
+# SHAKE-ERR-5
+law err_missing_named:
+  for +spec: Shake.Cli
+  for +at: List<&2, String>
+  for +name: String
+  {Shake.err_text(spec, S.Missing{at, name})
+    == S.err.wrap(spec, at, "error: the following required argument was not provided:\n  " ++
+      named(deepest(pages(at, root(spec)), name), name)) : String}
+
+# LAW: an option missing its value is named by its display form
+# SHAKE-ERR-5
+law err_novalue_named:
+  for +spec: Shake.Cli
+  for +at: List<&2, String>
+  for +name: String
+  {Shake.err_text(spec, S.NoValue{at, name})
+    == S.err.wrap(spec, at, "error: a value is required for '" ++ named(deepest(pages(at, root(spec)), name), name) ++
+      "' but none was supplied") : String}
+
+# LAW: a value outside the choices names its argument by its display form,
+# then lists the choices
+# SHAKE-ERR-5
+law err_bad_named:
+  for +spec: Shake.Cli
+  for +at: List<&2, String>
+  for +name: String
+  for +value: String
+  {Shake.err_text(spec, S.BadValue{at, name, value})
+    == S.err.wrap(spec, at, "error: invalid value '" ++ value ++ "' for '" ++
+      named(deepest(pages(at, root(spec)), name), name) ++ "'" ++ values_line(deepest(pages(at, root(spec)), name)))
+    : String}
+
+# LAW: an argument given twice is named by its display form
+# SHAKE-ERR-5
+law err_repeated_named:
+  for +spec: Shake.Cli
+  for +at: List<&2, String>
+  for +name: String
+  {Shake.err_text(spec, S.Repeated{at, name})
+    == S.err.wrap(spec, at, "error: the argument '" ++ named(deepest(pages(at, root(spec)), name), name) ++
+      "' cannot be used multiple times") : String}
+
+# a built-in flag a page lists, spelled `--name` and maybe a short letter
+def builtin(+name: String, short: Maybe<&2, String>, +help: String) -> S.Arg:
+  S.Arg{name, short, Some{name}, S.Flag{}, help, False{}, S.Fallback{None{}, None{}}, []}
+
+# the help row, given what the command spells as long `help` and short `h`
+def help_rows.of(long: Maybe<&2, S.Arg>, short: Maybe<&2, S.Arg>) -> List<&2, S.Arg>:
+  match long:
+    case None{}:
+      match short:
+        case None{}:
+          [builtin("help", Some{"h"}, "Print help")]
+        case Some{_a}:
+          [builtin("help", None{}, "Print help")]
+    case Some{_a}:
+      []
+
+# the help row of a page: `-h, --help` when its command spells neither,
+# `--help` when it spells `-h`, none when it spells `--help`
+def help_rows(+args: List<&2, S.Arg>) -> List<&2, S.Arg>:
+  help_rows.of(S.by_long(args, "help"), S.by_short(args, "h"))
+
+# the version row, given what the command spells as long `version` and short
+# `V`
+def version_rows.of(long: Maybe<&2, S.Arg>, short: Maybe<&2, S.Arg>) -> List<&2, S.Arg>:
+  match long:
+    case None{}:
+      match short:
+        case None{}:
+          [builtin("version", Some{"V"}, "Print version")]
+        case Some{_a}:
+          [builtin("version", None{}, "Print version")]
+    case Some{_a}:
+      []
+
+# the version row of a page: none without a version; else `-V, --version`
+# when its command spells neither, `--version` when it spells `-V`, none
+# when it spells `--version`
+def version_rows(+args: List<&2, S.Arg>, version: Maybe<&2, String>) -> List<&2, S.Arg>:
+  match version:
+    case None{}:
+      []
+    case Some{_v}:
+      version_rows.of(S.by_long(args, "version"), S.by_short(args, "V"))
+
+# LAW: the built-in flags a page lists after its command's own are its help
+# row, then its version row
+# SHAKE-HELP-2
+# SHAKE-HELP-4
+law builtins_listed:
+  for +args: List<&2, S.Arg>
+  for +version: Maybe<&2, String>
+  {S.help.builtins(args, version) == List.append(&2, S.Arg, help_rows(args), version_rows(args, version))
+    : List<&2, S.Arg>}
 
 # the entry every Commands block ends with
 def help_sub() -> S.Sub:
@@ -2464,6 +2736,43 @@ law usage_listed:
   for +subs: List<&2, S.Sub>
   {S.help.usage(name, args, subs)
     == "Usage: " ++ name ++ S.help.opts_hint(args) ++ marks(List.filter(~S.Arg, ~S.pos.is, args)) ++ S.help.cmd_hint(subs)
+    : String}
+
+# one Arguments line per argument, in order
+def arg_lines(args: List<&2, S.Arg>, +ww: Nat) -> String:
+  match args:
+    case Nil{}:
+      ""
+    case Con{+hh, tt}:
+      S.help.arg_line(hh, ww) ++ "\n" ++ arg_lines(tt, ww)
+
+# LAW: a page's Arguments block has one line for each positional of its
+# command, in spec order, and none for a flag or an option; with no
+# positional it is empty
+# SHAKE-HELP-2
+law args_listed:
+  for +args: List<&2, S.Arg>
+  {S.help.args(args)
+    == S.help.args.go(arg_lines(List.filter(~S.Arg, ~S.pos.is, args), S.help.arg_width(S.pos_of(args), 0n)))
+    : String}
+
+# LAW: an Arguments line is the positional's usage mark without the space
+# before it, padded, then its help text and the extras an Options line has
+# SHAKE-HELP-2
+# SHAKE-HELP-3
+law arg_line_mark:
+  for +nn: String
+  for +sh: Maybe<&2, String>
+  for +lo: Maybe<&2, String>
+  for +kind: S.ArgKind
+  for +hp: String
+  for +req: Bool
+  for +fb: S.Fallback
+  for +cs: List<&2, String>
+  for +ww: Nat
+  {S.help.arg_line(S.Arg{nn, sh, lo, kind, hp, req, fb, cs}, ww)
+    == "  " ++ S.help.pad(String.drop(mark(S.Arg{nn, sh, lo, kind, hp, req, fb, cs}), 1n), ww) ++ "  " ++ hp ++
+      S.help.extra(S.Arg{nn, sh, lo, kind, hp, req, fb, cs})
     : String}
 
 # the names of some arguments
@@ -3504,3 +3813,213 @@ law err_text_tip:
   for +ss: String
   for h_sug: {Shake.suggestion(spec, err) == Some{ss} : Maybe<&2, String>}
   {String.contains(Shake.err_text(spec, err), ss) == True{} : Bool}
+
+# whether a word refused at `at` asks for the version: `--version`, or `-V`
+# when the root does not spell `--version`, refused at the root of a spec
+# with a version
+def asks_version(spec: Shake.Cli, +at: List<&2, String>, +word: String) -> Bool:
+  S.Cli{_n, _a, version, args, _s} = spec
+  Bool.and(Bool.or(String.eq(word, "--version"),
+      Bool.and(String.eq(word, "-V"), Maybe.is_none(&2, S.Arg, S.by_long(args, "version")))),
+    Bool.and(List.is_empty(&2, String, at), Maybe.is_some(&2, String, version)))
+
+# whether a parse's answer refuses an unknown option
+def unknown.res(rr: Result<&2, &2, Shake.ParseErr, Shake.Matched>) -> Bool:
+  match rr:
+    case Done{_m}:
+      False{}
+    case Fail{ee}:
+      unknown.is(ee)
+
+# LAW: where the walk would refuse a word that asks for the version, the
+# parse fails with a request for the version
+# SHAKE-VER-1
+law version_asked:
+  for +spec: Shake.Cli
+  for +ws: List<&2, String>
+  for +at: List<&2, String>
+  for +word: String
+  for h_walk: {S.parse.finish(S.parse.walk(ws, S.parse.start(spec))) == Fail{S.UnknownFlag{at, word}}
+    : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+  for h_asks: {asks_version(spec, at, word) == True{} : Bool}
+  {Shake.parse(spec, ws) == Fail{S.NeedVersion{}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+
+# LAW: where the walk would refuse a word that does not ask for the version,
+# the parse refuses it
+# SHAKE-VER-1
+law version_unasked:
+  for +spec: Shake.Cli
+  for +ws: List<&2, String>
+  for +at: List<&2, String>
+  for +word: String
+  for h_walk: {S.parse.finish(S.parse.walk(ws, S.parse.start(spec))) == Fail{S.UnknownFlag{at, word}}
+    : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+  for h_asks: {asks_version(spec, at, word) == False{} : Bool}
+  {Shake.parse(spec, ws) == Fail{S.UnknownFlag{at, word}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+
+# LAW: every other answer of the walk is the parse's
+# SHAKE-VER-1
+law version_other:
+  for +spec: Shake.Cli
+  for +ws: List<&2, String>
+  for +rr: Result<&2, &2, Shake.ParseErr, Shake.Matched>
+  for h_walk: {S.parse.finish(S.parse.walk(ws, S.parse.start(spec))) == rr
+    : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+  for h_rr: {unknown.res(rr) == False{} : Bool}
+  {Shake.parse(spec, ws) == rr : Result<&2, &2, Shake.ParseErr, Shake.Matched>}
+
+# LAW: resolving the env vars keeps the version and every long spelling, so
+# `parse_env`'s parse asks for the version where `parse`'s does
+# SHAKE-VER-1
+law resolve_asks:
+  for +spec: Shake.Cli
+  for +vars: List<&2, Shake.Var>
+  for +at: List<&2, String>
+  for +word: String
+  {asks_version(S.resolve(spec, vars), at, word) == asks_version(spec, at, word) : Bool}
+
+# LAW: a request for the version reads as the root's name and the version
+# SHAKE-VER-2
+law version_of_some:
+  for +name: String
+  for about: String
+  for +ver: String
+  for args: List<&2, S.Arg>
+  for subs: List<&2, S.Sub>
+  {Shake.version_of(S.Cli{name, about, Some{ver}, args, subs}, S.NeedVersion{}) == Some{name ++ " " ++ ver}
+    : Maybe<&2, String>}
+
+# LAW: a spec with no version reads no version, whatever the error
+# SHAKE-VER-2
+law version_of_none:
+  for +name: String
+  for about: String
+  for args: List<&2, S.Arg>
+  for subs: List<&2, S.Sub>
+  for err: Shake.ParseErr
+  {Shake.version_of(S.Cli{name, about, None{}, args, subs}, err) == None{} : Maybe<&2, String>}
+
+# LAW: an error that is no request for the version reads no version
+# SHAKE-VER-2
+law version_of_other:
+  for +spec: Shake.Cli
+  for err: Shake.ParseErr
+  for h_err: {version.is(err) == False{} : Bool}
+  {Shake.version_of(spec, err) == None{} : Maybe<&2, String>}
+
+# the root command as a subcommand, to walk a path from
+def root_sub(app: Shake.Cli) -> S.Sub:
+  S.Cli{+name, +about, _v, args, subs} = app
+  S.Sub{name, about, args, subs}
+
+# the subcommand named `name` of a found command
+def sub_named(here: Maybe<&2, S.Sub>, +name: String) -> Maybe<&2, S.Sub>:
+  match here:
+    case None{}:
+      None{}
+    case Some{ss}:
+      S.Sub{_n, _a, _g, subs} = ss
+      S.find_sub(subs, name)
+
+# the command a path names below a found one, each name a subcommand of the
+# command before it, or None
+def named_cmd(path: List<&2, String>, here: Maybe<&2, S.Sub>) -> Maybe<&2, S.Sub>:
+  match path:
+    case Nil{}:
+      here
+    case Con{+hh, tt}:
+      named_cmd(tt, sub_named(here, hh))
+
+# whether an argument kind is a flag
+def is_flag(kk: S.ArgKind) -> Bool:
+  match kk:
+    case S.Flag{}:
+      True{}
+    case _other:
+      False{}
+
+# LAW: no reads, no reports
+# SHAKE-READ-1
+law reads_nil:
+  for +spec: Shake.Cli
+  {Shake.check_reads(spec, []) == [] : List<&2, K.ReadErr>}
+
+# LAW: the reports of each read, in the order of the reads
+# SHAKE-READ-1
+law reads_con:
+  for +spec: Shake.Cli
+  for rr: K.Read
+  for rs: List<&2, K.Read>
+  {Shake.check_reads(spec, rr <> rs) == List.append(&2, K.ReadErr, K.read(spec, rr), Shake.check_reads(spec, rs))
+    : List<&2, K.ReadErr>}
+
+# LAW: a read whose path names no command is reported as that
+# SHAKE-READ-1
+law read_no_command:
+  for +spec: Shake.Cli
+  for +path: List<&2, String>
+  for +name: String
+  for want: K.Want
+  for h_cmd: {named_cmd(path, Some{root_sub(spec)}) == None{} : Maybe<&2, S.Sub>}
+  {K.read(spec, K.Read{path, name, want}) == [K.NoCommand{path}] : List<&2, K.ReadErr>}
+
+# LAW: a read of a name no argument of its command has is reported as that
+# SHAKE-READ-1
+law read_no_arg:
+  for +spec: Shake.Cli
+  for +path: List<&2, String>
+  for +name: String
+  for want: K.Want
+  for sn: String
+  for sa: String
+  for +sargs: List<&2, S.Arg>
+  for ssubs: List<&2, S.Sub>
+  for h_cmd: {named_cmd(path, Some{root_sub(spec)}) == Some{S.Sub{sn, sa, sargs, ssubs}} : Maybe<&2, S.Sub>}
+  for h_arg: {S.by_name(sargs, name) == None{} : Maybe<&2, S.Arg>}
+  {K.read(spec, K.Read{path, name, want}) == [K.NoArg{path, name}] : List<&2, K.ReadErr>}
+
+# LAW: a flag read is reported exactly when its argument is not a flag
+# SHAKE-READ-1
+law read_flag:
+  for +spec: Shake.Cli
+  for +path: List<&2, String>
+  for +name: String
+  for sn: String
+  for sa: String
+  for +sargs: List<&2, S.Arg>
+  for ssubs: List<&2, S.Sub>
+  for nn: String
+  for sh: Maybe<&2, String>
+  for lo: Maybe<&2, String>
+  for +kind: S.ArgKind
+  for hp: String
+  for rq: Bool
+  for fb: S.Fallback
+  for cs: List<&2, String>
+  for h_cmd: {named_cmd(path, Some{root_sub(spec)}) == Some{S.Sub{sn, sa, sargs, ssubs}} : Maybe<&2, S.Sub>}
+  for h_arg: {S.by_name(sargs, name) == Some{S.Arg{nn, sh, lo, kind, hp, rq, fb, cs}} : Maybe<&2, S.Arg>}
+  {K.read(spec, K.Read{path, name, K.WantFlag{}})
+    == K.reads.one(Bool.not(is_flag(kind)), K.NotFlag{path, name}) : List<&2, K.ReadErr>}
+
+# LAW: a value read is reported exactly when its argument is a flag
+# SHAKE-READ-1
+law read_value:
+  for +spec: Shake.Cli
+  for +path: List<&2, String>
+  for +name: String
+  for sn: String
+  for sa: String
+  for +sargs: List<&2, S.Arg>
+  for ssubs: List<&2, S.Sub>
+  for nn: String
+  for sh: Maybe<&2, String>
+  for lo: Maybe<&2, String>
+  for +kind: S.ArgKind
+  for hp: String
+  for rq: Bool
+  for fb: S.Fallback
+  for cs: List<&2, String>
+  for h_cmd: {named_cmd(path, Some{root_sub(spec)}) == Some{S.Sub{sn, sa, sargs, ssubs}} : Maybe<&2, S.Sub>}
+  for h_arg: {S.by_name(sargs, name) == Some{S.Arg{nn, sh, lo, kind, hp, rq, fb, cs}} : Maybe<&2, S.Arg>}
+  {K.read(spec, K.Read{path, name, K.WantValue{}}) == K.reads.one(is_flag(kind), K.IsFlag{path, name})
+    : List<&2, K.ReadErr>}

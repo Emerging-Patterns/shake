@@ -24,6 +24,9 @@ def Laws.on_nil(_name):
 def Laws.err_text_help(_spec, _path):
   {==}
 
+def Laws.err_text_version(_spec):
+  {==}
+
 def Laws.err_text_iff(spec, err):
   match spec err:
     case S.Cli{_n, _a, _v, _g, _s} S.UnknownFlag{_at, _flag}:
@@ -39,6 +42,8 @@ def Laws.err_text_iff(spec, err):
     case S.Cli{_n, _a, _v, _g, _s} S.Unexpected{_at, _arg}:
       {==}
     case S.Cli{_n, _a, _v, _g, _s} S.Repeated{_at, _name}:
+      {==}
+    case S.Cli{_n, _a, _v, _g, _s} S.NeedVersion{}:
       {==}
 
 def Laws.hit_append(bb, _vv, _xs, _ys):
@@ -260,13 +265,113 @@ def Laws.fail_from(st, more, err, died):
       none.absurd(&1, {S.parse.finish(S.parse.walk(more, S.St{S.Help{}, _a, _g, _s, _p, _b, _o, _r, _n}))
         == Fail{err} : Result<&2, &2, S.ParseErr, S.Matched>}, err, died)
 
-def Laws.fail_stays(spec, ws, more, err, died):
+# a failed walk finishes as its failure, whatever words follow
+def fs.raw(
+  +spec: Shake.Cli,
+  +ws: List<&2, String>,
+  +more: List<&2, String>,
+  +err: Shake.ParseErr,
+  died: {Laws.dead_of(S.parse.walk(ws, S.parse.start(spec))) == Some{err} : Maybe<&2, S.ParseErr>}
+) -> {S.parse.finish(S.parse.walk(List.append(&2, String, ws, more), S.parse.start(spec))) == Fail{err}
+    : Result<&2, &2, S.ParseErr, S.Matched>}:
   e1 = Equal.sym(S.St,
     S.parse.walk(List.append(&2, String, ws, more), S.parse.start(spec)),
     S.parse.walk(more, S.parse.walk(ws, S.parse.start(spec))),
     Laws.walk_append(ws, more, S.parse.start(spec)))
   %e1 : {S.parse.finish(_) == Fail{err} : Result<&2, &2, S.ParseErr, S.Matched>}
   Laws.fail_from(S.parse.walk(ws, S.parse.start(spec)), more, err, died)
+
+# a failed walk's parse is its failure, read as a request for the version
+# when it is one, whatever words follow
+def fs.fail(
+  +spec: Shake.Cli,
+  +ws: List<&2, String>,
+  +more: List<&2, String>,
+  +err: Shake.ParseErr,
+  died: {Laws.dead_of(S.parse.walk(ws, S.parse.start(spec))) == Some{err} : Maybe<&2, S.ParseErr>}
+) -> {Shake.parse(spec, List.append(&2, String, ws, more)) == Fail{S.version.err(spec, err)}
+    : Result<&2, &2, S.ParseErr, S.Matched>}:
+  Equal.cong(Result<&2, &2, S.ParseErr, S.Matched>, Result<&2, &2, S.ParseErr, S.Matched>,
+    xx => S.version.res(spec, xx), S.parse.finish(S.parse.walk(List.append(&2, String, ws, more), S.parse.start(spec))),
+    Fail{err}, fs.raw(spec, ws, more, err, died))
+
+# an unknown option that is no request for the version stays as it is
+def fs.keep(
+  +spec: Shake.Cli,
+  +at: List<&2, String>,
+  +word: String,
+  h_ver: {S.version.asks(spec, at, word) == False{} : Bool}
+) -> {Fail{S.version.err(spec, S.UnknownFlag{at, word})} == Fail{S.UnknownFlag{at, word}}
+    : Result<&2, &2, S.ParseErr, S.Matched>}:
+  ee = Equal.sym(Bool, S.version.asks(spec, at, word), False{}, h_ver)
+  %ee : {Fail{Bool.pick(S.ParseErr, _, S.NeedVersion{}, S.UnknownFlag{at, word})} == Fail{S.UnknownFlag{at, word}}
+    : Result<&2, &2, S.ParseErr, S.Matched>}
+  {==}
+
+# Done{.} and Fail{.} told apart
+def vr.done_ty(rr: Result<&2, &2, S.ParseErr, S.Matched>) -> Type:
+  match rr:
+    case Done{_m}:
+      Unit
+    case Fail{_e}:
+      Empty
+
+# a failure read for the version is still no success
+def vr.clash(
+  +spec: Shake.Cli,
+  ee: S.ParseErr,
+  found: S.Matched,
+  h: {Fail{S.version.err(spec, ee)} == Done{found} : Result<&2, &2, S.ParseErr, S.Matched>}
+) -> Empty:
+  ef = Equal.sym(Result<&2, &2, S.ParseErr, S.Matched>, Fail{S.version.err(spec, ee)}, Done{found}, h)
+  %ef : vr.done_ty(_)
+  Unit{}
+
+# a parse that succeeded did so before the version was read off it: the
+# version only ever rewrites a failure
+def vr.done(
+  +spec: Shake.Cli,
+  rr: Result<&2, &2, S.ParseErr, S.Matched>,
+  +found: S.Matched,
+  h: {S.version.res(spec, rr) == Done{found} : Result<&2, &2, S.ParseErr, S.Matched>}
+) -> {rr == Done{found} : Result<&2, &2, S.ParseErr, S.Matched>}:
+  match rr:
+    case Done{mm}:
+      h
+    case Fail{ee}:
+      Empty.absurd({Fail{ee} == Done{found} : Result<&2, &2, S.ParseErr, S.Matched>}, vr.clash(spec, ee, found, h))
+
+# a walk that finishes missing a name, as a type
+def vr.miss_ty(+spec: Shake.Cli, +ws: List<&2, String>, +path: List<&2, String>) -> Type:
+  &nm: String -> {S.parse.finish(S.parse.walk(ws, S.parse.start(spec))) == Fail{S.Missing{path, nm}}
+    : Result<&2, &2, S.ParseErr, S.Matched>}
+
+# a walk that finishes missing a name parses missing it
+def vr.miss(
+  +spec: Shake.Cli,
+  +ws: List<&2, String>,
+  +path: List<&2, String>,
+  ww: vr.miss_ty(spec, ws, path)
+) -> &nm: String -> {Shake.parse(spec, ws) == Fail{S.Missing{path, nm}} : Result<&2, &2, S.ParseErr, S.Matched>}:
+  (n1, e1) = ww
+  +nm = {n1 : String}
+  (nm, Equal.cong(Result<&2, &2, S.ParseErr, S.Matched>, Result<&2, &2, S.ParseErr, S.Matched>,
+    xx => S.version.res(spec, xx), S.parse.finish(S.parse.walk(ws, S.parse.start(spec))),
+    Fail{S.Missing{path, nm}}, e1))
+
+def Laws.fail_stays(spec, ws, more, err, died):
+  Equal.trans(Result<&2, &2, S.ParseErr, S.Matched>,
+    S.version.res(spec, S.parse.finish(S.parse.walk(List.append(&2, String, ws, more), S.parse.start(spec)))),
+    S.version.res(spec, Fail{err}),
+    S.version.res(spec, S.parse.finish(S.parse.walk(ws, S.parse.start(spec)))),
+    Equal.cong(Result<&2, &2, S.ParseErr, S.Matched>, Result<&2, &2, S.ParseErr, S.Matched>,
+      xx => S.version.res(spec, xx),
+      S.parse.finish(S.parse.walk(List.append(&2, String, ws, more), S.parse.start(spec))),
+      Fail{err}, fs.raw(spec, ws, more, err, died)),
+    Equal.cong(Result<&2, &2, S.ParseErr, S.Matched>, Result<&2, &2, S.ParseErr, S.Matched>,
+      xx => S.version.res(spec, xx), Fail{err}, S.parse.finish(S.parse.walk(ws, S.parse.start(spec))),
+      Equal.sym(Result<&2, &2, S.ParseErr, S.Matched>, S.parse.finish(S.parse.walk(ws, S.parse.start(spec))), Fail{err},
+        Laws.fail_from(S.parse.walk(ws, S.parse.start(spec)), [], err, died))))
 
 def Laws.prefix_empty(ss):
   match ss:
@@ -379,11 +484,17 @@ def Laws.unknown_long(
   h_cut,
   h_name,
   h_none,
-  h_lh
+  h_lh,
+  h_ver
 ):
-  Laws.fail_stays(spec, List.append(&2, String, pre, ["--" ++ body]), more, S.UnknownFlag{path, "--" ++ body},
-    Laws.unknown_long_dies(spec, pre, body, name, val, args, up, subs, path, bs, pos, seen,
-      h_at, h_dd, h_cut, h_name, h_none, h_lh))
+  +ww = List.append(&2, String, pre, ["--" ++ body])
+  +er = {S.UnknownFlag{path, "--" ++ body} : S.ParseErr}
+  Equal.trans(Result<&2, &2, S.ParseErr, S.Matched>, Shake.parse(spec, List.append(&2, String, ww, more)),
+    Fail{S.version.err(spec, er)}, Fail{er},
+    fs.fail(spec, ww, more, er,
+      Laws.unknown_long_dies(spec, pre, body, name, val, args, up, subs, path, bs, pos, seen,
+        h_at, h_dd, h_cut, h_name, h_none, h_lh)),
+    fs.keep(spec, path, "--" ++ body, h_ver))
 
 def Laws.step_dies(
   spec,
@@ -413,7 +524,7 @@ def Laws.refused(
   h_at,
   h_step
 ):
-  Laws.fail_stays(spec, List.append(&2, String, pre, [tok]), more, err,
+  fs.fail(spec, List.append(&2, String, pre, [tok]), more, err,
     Laws.step_dies(spec, pre, tok, st, err, h_at, h_step))
 
 def Laws.cluster_done(body, orig, st):
@@ -435,7 +546,8 @@ def Laws.unknown_short_step(
   seen,
   h_dd,
   h_dash,
-  h_none
+  h_none,
+  h_help
 ):
   e1 = Equal.sym(Bool, String.eq("-" ++ SCon{cc, rest}, "--"), False{}, h_dd)
   %e1 : {S.parse.step.end(_, "-" ++ SCon{cc, rest}, args, up, subs, path, bs, pos,
@@ -450,6 +562,9 @@ def Laws.unknown_short_step(
       subs, path, bs, pos,
       seen) == S.St{S.Dead{S.UnknownFlag{path, "-" ++ SCon{cc,
           rest}}}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
+  e5 = Equal.sym(Bool, S.short_help(SCon{cc, rest}, args, seen), False{}, h_help)
+  %e5 : {S.parse.take_short.go(_, SCon{cc, rest}, "-" ++ SCon{cc, rest}, args, up, subs, path, bs, pos, False{}, seen)
+    == S.St{S.Dead{S.UnknownFlag{path, "-" ++ SCon{cc, rest}}}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   e2 = Equal.sym(Maybe<&2, S.Arg>, S.by_short(args, SCon{cc, SNil{}}), None{}, h_none)
   %e2 : {S.cluster(rest, "-" ++ SCon{cc, rest},
       S.parse.take_arg(_, S.cluster.val(_, rest), "-" ++ SCon{cc, rest}, args, up, subs, path, bs, pos,
@@ -472,14 +587,15 @@ def unknown_short.step(
   +seen: Bool,
   h_dd: {String.eq("-" ++ SCon{cc, rest}, "--") == False{} : Bool},
   h_dash: {Char.is_eq(cc, '-') == False{} : Bool},
-  h_none: {S.by_short(args, SCon{cc, SNil{}}) == None{} : Maybe<&2, S.Arg>}
+  h_none: {S.by_short(args, SCon{cc, SNil{}}) == None{} : Maybe<&2, S.Arg>},
+  h_help: {S.short_help(SCon{cc, rest}, args, seen) == False{} : Bool}
 ) -> {Laws.dead_of(S.parse.step("-" ++ SCon{cc, rest}, S.St{S.Free{}, args, up, subs, path, bs, pos, False{},
     seen})) == Some{S.UnknownFlag{path, "-" ++ SCon{cc, rest}}}
     : Maybe<&2, S.ParseErr>}:
   ee = Equal.sym(S.St, S.parse.step("-" ++ SCon{cc, rest}, S.St{S.Free{}, args, up, subs, path, bs, pos,
       False{}, seen}), S.St{S.Dead{S.UnknownFlag{path, "-" ++ SCon{cc,
           rest}}}, args, up, subs, path, bs, pos, False{}, seen},
-    Laws.unknown_short_step(cc, rest, args, up, subs, path, bs, pos, seen, h_dd, h_dash, h_none))
+    Laws.unknown_short_step(cc, rest, args, up, subs, path, bs, pos, seen, h_dd, h_dash, h_none, h_help))
   %ee : {Laws.dead_of(_) == Some{S.UnknownFlag{path, "-" ++ SCon{cc, rest}}} : Maybe<&2, S.ParseErr>}
   {==}
 
@@ -499,11 +615,18 @@ def Laws.unknown_short(
   h_at,
   h_dd,
   h_dash,
-  h_none
+  h_none,
+  h_help,
+  h_ver
 ):
-  Laws.refused(spec, pre, more, "-" ++ SCon{cc, rest}, S.St{S.Free{}, args, up, subs, path, bs, pos, False{},
-      seen}, S.UnknownFlag{path, "-" ++ SCon{cc, rest}}, h_at,
-    unknown_short.step(cc, rest, args, up, subs, path, bs, pos, seen, h_dd, h_dash, h_none))
+  +er = {S.UnknownFlag{path, "-" ++ SCon{cc, rest}} : S.ParseErr}
+  Equal.trans(Result<&2, &2, S.ParseErr, S.Matched>,
+    Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, ["-" ++ SCon{cc, rest}]), more)),
+    Fail{S.version.err(spec, er)}, Fail{er},
+    Laws.refused(spec, pre, more, "-" ++ SCon{cc, rest}, S.St{S.Free{}, args, up, subs, path, bs, pos, False{},
+        seen}, er, h_at,
+      unknown_short.step(cc, rest, args, up, subs, path, bs, pos, seen, h_dd, h_dash, h_none, h_help)),
+    fs.keep(spec, path, "-" ++ SCon{cc, rest}, h_ver))
 
 # a plain word with no positional left fails the step with Unexpected
 def no_pos_left.step(
@@ -787,7 +910,7 @@ def Laws.value_absent(
 ):
   ee = Equal.sym(S.St, S.parse.walk(ws, S.parse.start(spec)),
     S.St{S.Need{name}, args, up, subs, path, bs, pos, raw, seen}, h_at)
-  %ee : {S.parse.finish(_) == Fail{S.NoValue{path, name}} : Result<&2, &2, S.ParseErr, S.Matched>}
+  %ee : {S.version.res(spec, S.parse.finish(_)) == Fail{S.NoValue{path, name}} : Result<&2, &2, S.ParseErr, S.Matched>}
   {==}
 
 # a word after `help` that names no subcommand where the path stands fails
@@ -864,6 +987,76 @@ def long_no_name.step(
     == Some{S.UnknownFlag{path, "--" ++ body}} : Maybe<&2, S.ParseErr>}
   {==}
 
+# a word `--=...` read as `--version` would cut to the name `version`, not
+# to no name
+def lnv.clash(
+  +body: String,
+  +name: String,
+  +val: Maybe<&2, String>,
+  +h_cut: {S.cut_eq(body) == (name, val) : String & Maybe<&2, String>},
+  +h_empty: {String.is_empty(name) == True{} : Bool},
+  e: {String.eq("--" ++ body, "--version") == True{} : Bool}
+) -> Empty:
+  ew = Eq.string_eq_true("--" ++ body, "--version", e)
+  eb = Equal.trans(String, body, String.drop(body, 0n), "version",
+    Equal.sym(String, String.drop(body, 0n), body, Laws.drop_zero(body)),
+    Equal.cong(String, String, ss => String.drop(ss, 2n), "--" ++ body, "--version", ew))
+  ec = Equal.trans(String & Maybe<&2, String>, (name, val), S.cut_eq(body), S.cut_eq("version"),
+    Equal.sym(String & Maybe<&2, String>, S.cut_eq(body), (name, val), h_cut),
+    Equal.cong(String, String & Maybe<&2, String>, ss => S.cut_eq(ss), body, "version", eb))
+  en = Equal.cong(String & Maybe<&2, String>, Bool, cv => String.is_empty(Pair.fst(String, Maybe<&2, String>, cv)),
+    (name, val), S.cut_eq("version"), ec)
+  Walk.wk.true_false(Equal.trans(Bool, True{}, String.is_empty(name), False{},
+    Equal.sym(Bool, String.is_empty(name), True{}, h_empty), en))
+
+# the same, as an answer told apart by cases
+def lnv.go(
+  bb: Bool,
+  +body: String,
+  +name: String,
+  +val: Maybe<&2, String>,
+  +h_cut: {S.cut_eq(body) == (name, val) : String & Maybe<&2, String>},
+  +h_empty: {String.is_empty(name) == True{} : Bool},
+  e: {String.eq("--" ++ body, "--version") == bb : Bool}
+) -> {String.eq("--" ++ body, "--version") == False{} : Bool}:
+  match bb:
+    case False{}:
+      e
+    case True{}:
+      Empty.absurd({String.eq("--" ++ body, "--version") == False{} : Bool},
+        lnv.clash(body, name, val, h_cut, h_empty, e))
+
+# a word `--=...` is not `--version`
+def lnv.word(
+  +body: String,
+  +name: String,
+  +val: Maybe<&2, String>,
+  +h_cut: {S.cut_eq(body) == (name, val) : String & Maybe<&2, String>},
+  +h_empty: {String.is_empty(name) == True{} : Bool}
+) -> {String.eq("--" ++ body, "--version") == False{} : Bool}:
+  lnv.go(String.eq("--" ++ body, "--version"), body, name, val, h_cut, h_empty, {==})
+
+# so it asks for no version
+def lnv.asks(
+  +spec: Shake.Cli,
+  +path: List<&2, String>,
+  +body: String,
+  name: String,
+  val: Maybe<&2, String>,
+  h_cut: {S.cut_eq(body) == (name, val) : String & Maybe<&2, String>},
+  h_empty: {String.is_empty(name) == True{} : Bool}
+) -> {S.version.asks(spec, path, "--" ++ body) == False{} : Bool}:
+  match spec:
+    case S.Cli{+nn, +aa, +vv, +gg, +ss}:
+      ee = Equal.sym(Bool, String.eq("--" ++ body, "--version"), False{}, lnv.word(body, name, val, h_cut, h_empty))
+      %ee : {Bool.and(Bool.or(_, Bool.and(String.eq("--" ++ body, "-V"),
+          Maybe.is_none(&2, S.Arg, S.by_long(gg, "version")))),
+        Bool.and(List.is_empty(&2, String, path), Maybe.is_some(&2, String, vv))) == False{} : Bool}
+      el = Equal.sym(Cmp, String.order.go(body, "", LT{}), LT{}, Eq.string_order_lt(body, ""))
+      %el : {Bool.and(Bool.and(Cmp.is_eq(_), Bool.not(Maybe.is_some(&2, S.Arg, S.by_long(gg, "version")))),
+        Bool.and(List.is_empty(&2, String, path), Maybe.is_some(&2, String, vv))) == False{} : Bool}
+      {==}
+
 def Laws.long_no_name(
   spec,
   pre,
@@ -883,9 +1076,14 @@ def Laws.long_no_name(
   h_cut,
   h_empty
 ):
-  Laws.refused(spec, pre, more, "--" ++ body, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen},
-      S.UnknownFlag{path, "--" ++ body}, h_at,
-    long_no_name.step(body, name, val, args, up, subs, path, bs, pos, seen, h_dd, h_cut, h_empty))
+  +er = {S.UnknownFlag{path, "--" ++ body} : S.ParseErr}
+  Equal.trans(Result<&2, &2, S.ParseErr, S.Matched>,
+    Shake.parse(spec, List.append(&2, String, List.append(&2, String, pre, ["--" ++ body]), more)),
+    Fail{S.version.err(spec, er)}, Fail{er},
+    Laws.refused(spec, pre, more, "--" ++ body, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen},
+        er, h_at,
+      long_no_name.step(body, name, val, args, up, subs, path, bs, pos, seen, h_dd, h_cut, h_empty)),
+    fs.keep(spec, path, "--" ++ body, lnv.asks(spec, path, body, name, val, h_cut, h_empty)))
 
 def Laws.once_dead(st, _nn, _path):
   match st:
@@ -1356,14 +1554,15 @@ def Laws.kept_all(spec, pre, mid, more, st, args, up, path, xs, bs, name, found,
     S.parse.walk(more, S.parse.walk(ww, S.parse.start(spec))), Laws.walk_append(ww, more, S.parse.start(spec)))
   e2 = Equal.cong(S.St, Result<&2, &2, S.ParseErr, S.Matched>, xx => S.parse.finish(S.parse.walk(more, xx)),
     S.parse.walk(ww, S.parse.start(spec)), st1, e_st)
+  +raw = S.parse.finish(S.parse.walk(List.append(&2, String, ww, more), S.parse.start(spec)))
   hd = Equal.trans(Result<&2, &2, S.ParseErr, S.Matched>, S.parse.finish(S.parse.walk(more, st1)),
-    Shake.parse(spec, List.append(&2, String, ww, more)), Done{found},
-    Equal.sym(Result<&2, &2, S.ParseErr, S.Matched>, Shake.parse(spec, List.append(&2, String, ww, more)),
+    raw, Done{found},
+    Equal.sym(Result<&2, &2, S.ParseErr, S.Matched>, raw,
       S.parse.finish(S.parse.walk(more, st1)),
-      Equal.trans(Result<&2, &2, S.ParseErr, S.Matched>, Shake.parse(spec, List.append(&2, String, ww, more)),
+      Equal.trans(Result<&2, &2, S.ParseErr, S.Matched>, raw,
         S.parse.finish(S.parse.walk(more, S.parse.walk(ww, S.parse.start(spec)))),
         S.parse.finish(S.parse.walk(more, st1)), e1, e2)),
-    h_done)
+    vr.done(spec, raw, found, h_done))
   kept_all.start(spec, S.parse.walk(ww, S.parse.start(spec)), found, st1, more, args, up, path,
     xs, bs, name, e_st, h_mid, hd, Grow.gw.reach(ww, S.parse.start(spec)), Grow.gw.reach(more, st1))
 
@@ -2979,7 +3178,7 @@ def fin.at(
   +lvs = List.append(&2, S.Level, qs, S.Level{args, bs} <> up)
   em = Equal.trans(S.Matched, found, Grow.gw.build_of(Grow.gw.frame(fs)),
     S.matched.build(List.append(&2, S.Level, r0, f0 <> rq), pm),
-    Grow.gw.finished(fs, found, h_done),
+    Grow.gw.finished(fs, found, vr.done(spec, S.parse.finish(fs), found, h_done)),
     Equal.trans(S.Matched, Grow.gw.build_of(Grow.gw.frame(fs)), Grow.gw.build_of(Grow.Frame{lvs, pm}),
       S.matched.build(List.append(&2, S.Level, r0, f0 <> rq), pm),
       Equal.cong(Grow.Frame, S.Matched, fr => Grow.gw.build_of(fr), Grow.gw.frame(fs), Grow.Frame{lvs, pm}, h_fr),
@@ -3388,7 +3587,7 @@ def Laws.required_present(
           Equal.cong(Grow.Frame, List<&2, S.Level>, fr => List.reverse(&2, S.Level, S.fill.levels(Grow.gw.flevels(fr))),
             Grow.gw.frame(fs), Grow.Frame{lvs, List.append(&2, String, path, ms)}, h_fr2),
           fin.levels(qs, args, bs, up)))),
-    fin.finished_miss(fs, found, hd))
+    fin.finished_miss(fs, found, vr.done(spec, S.parse.finish(fs), found, hd)))
   hb = fin.miss_req(pa, qa, nn, sh, lo, kind, hp, dflt, cs, fb, fin.miss_mid(r0, args, fb, rq, mn))
   eb = Equal.trans(Bool, Bool.not(List.is_empty(&2, String, S.get_all.bind(S.own(bm), nn))),
     Bool.not(List.is_empty(&2, String, S.get_all.bind(List.reverse(&2, S.Bind, fb), nn))), True{},
@@ -3563,9 +3762,10 @@ def Laws.required_missing(
   +fb = S.fill.args(args, bs)
   +r0 = List.reverse(&2, S.Level, S.fill.levels(up))
   +rq = List.reverse(&2, S.Level, S.fill.levels(qs))
-  fin.missing(S.parse.walk(ws, S.parse.start(spec)), List.append(&2, S.Level, qs, S.Level{args, bs} <> up), path,
+  vr.miss(spec, ws, path, fin.missing(S.parse.walk(ws, S.parse.start(spec)),
+    List.append(&2, S.Level, qs, S.Level{args, bs} <> up), path,
     List.append(&2, S.Level, r0, S.Level{args, fb} <> rq), h_free, h_fr, fin.levels(qs, args, bs, up),
-    fin.miss_levels_some(r0, args, fb, rq, fin.miss_args_some(pa, qa, nn, sh, lo, kind, hp, dflt, cs, fb, h_unbound)))
+    fin.miss_levels_some(r0, args, fb, rq, fin.miss_args_some(pa, qa, nn, sh, lo, kind, hp, dflt, cs, fb, h_unbound))))
 
 # a plain word before `--` is read as a word: a subcommand or a positional
 def enter.word(
@@ -4017,8 +4217,8 @@ def hp.need(
   ww: hp.ended(spec, ws, args, up, path, bs, pos)
 ) -> {Shake.parse(spec, ws) == Fail{S.NeedHelp{path}} : Result<&2, &2, Shake.ParseErr, Shake.Matched>}:
   (k1, e1) = ww
-  Equal.cong(S.St, Result<&2, &2, S.ParseErr, S.Matched>, xx => S.parse.finish(xx), S.parse.walk(ws,
-      S.parse.start(spec)),
+  Equal.cong(S.St, Result<&2, &2, S.ParseErr, S.Matched>, xx => S.version.res(spec, S.parse.finish(xx)),
+    S.parse.walk(ws, S.parse.start(spec)),
     S.St{S.Help{}, args, up, k1, path, bs, pos, False{}, False{}}, e1)
 
 def Laws.help_path(spec, pre, ns, args, up, subs, path, bs, pos, h_at, h_ns):
@@ -4055,6 +4255,43 @@ def Laws.dash_help_path(spec, pre, ns, args, up, subs, path, bs, pos, h_at, h_no
   hp.need(spec, List.append(&2, String, ph, ns), args, up, List.append(&2, String, path, ns), bs, pos,
     Laws.help_walk(spec, ph, ns, args, up, subs, path, bs, pos, False{}, False{},
       Laws.dash_help_step(spec, pre, args, up, subs, path, bs, pos, h_at, h_none), h_ns))
+
+# a free walker whose command spells neither `-h` nor `--help` reads `-h` as
+# `help`
+def short_help.step(
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +bs: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  h_short: {S.by_short(args, "h") == None{} : Maybe<&2, S.Arg>},
+  h_long: {S.by_long(args, "help") == None{} : Maybe<&2, S.Arg>}
+) -> {S.parse.step("-h", S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, False{}})
+    == S.St{S.Help{}, args, up, subs, path, bs, pos, False{}, False{}} : S.St}:
+  e1 = Equal.sym(Maybe<&2, S.Arg>, S.by_short(args, "h"), None{}, h_short)
+  %e1 : {S.parse.take_short.go(Bool.and(True{}, Bool.and(True{}, Bool.and(Maybe.is_none(&2, S.Arg, _),
+      Maybe.is_none(&2, S.Arg, S.by_long(args, "help"))))), "h", "-h", args, up, subs, path, bs, pos, False{},
+      False{})
+    == S.St{S.Help{}, args, up, subs, path, bs, pos, False{}, False{}} : S.St}
+  e2 = Equal.sym(Maybe<&2, S.Arg>, S.by_long(args, "help"), None{}, h_long)
+  %e2 : {S.parse.take_short.go(Bool.and(True{}, Bool.and(True{}, Bool.and(True{}, Maybe.is_none(&2, S.Arg, _)))),
+      "h", "-h", args, up, subs, path, bs, pos, False{}, False{})
+    == S.St{S.Help{}, args, up, subs, path, bs, pos, False{}, False{}} : S.St}
+  {==}
+
+def Laws.short_help_step(spec, pre, args, up, subs, path, bs, pos, h_at, h_short, h_long):
+  Equal.trans(S.St, S.parse.walk(List.append(&2, String, pre, ["-h"]), S.parse.start(spec)),
+    S.parse.step("-h", S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, False{}}),
+    S.St{S.Help{}, args, up, subs, path, bs, pos, False{}, False{}},
+    kept.stepped(spec, pre, "-h", S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, False{}}, h_at),
+    short_help.step(args, up, subs, path, bs, pos, h_short, h_long))
+
+def Laws.short_help_path(spec, pre, ns, args, up, subs, path, bs, pos, h_at, h_short, h_long, h_ns):
+  +ph = List.append(&2, String, pre, ["-h"])
+  hp.need(spec, List.append(&2, String, ph, ns), args, up, List.append(&2, String, path, ns), bs, pos,
+    Laws.help_walk(spec, ph, ns, args, up, subs, path, bs, pos, False{}, False{},
+      Laws.short_help_step(spec, pre, args, up, subs, path, bs, pos, h_at, h_short, h_long), h_ns))
 
 def Laws.start_state(_name, _about, _version, _args, _subs):
   {==}
@@ -4295,7 +4532,7 @@ def cl.back(
       raw, seen), S.cluster.ends(Some{aa}, rest)),
     cl.step(cc, rest, orig, args, up, subs, path, bs, pos, raw, seen, aa, h_found))
 
-def Laws.short_step(cc, rest, args, up, subs, path, bs, pos, seen, h_dd, h_dash):
+def Laws.short_step(cc, rest, args, up, subs, path, bs, pos, seen, h_dd, h_dash, h_help):
   +tok = "-" ++ SCon{cc, rest}
   +st = {S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   e1 = Equal.sym(Bool, String.eq(tok, "--"), False{}, h_dd)
@@ -4306,6 +4543,9 @@ def Laws.short_step(cc, rest, args, up, subs, path, bs, pos, seen, h_dd, h_dash)
     == S.cluster(SCon{cc, rest}, tok, st, False{}) : S.St}
   e3 = Equal.sym(Bool, Char.is_eq(cc, '-'), False{}, h_dash)
   %e3 : {S.parse.step.kind.go(String.starts_with.go.if("", rest, _), True{}, tok, args, up, subs, path, bs, pos, seen)
+    == S.cluster(SCon{cc, rest}, tok, st, False{}) : S.St}
+  e5 = Equal.sym(Bool, S.short_help(SCon{cc, rest}, args, seen), False{}, h_help)
+  %e5 : {S.parse.take_short.go(_, SCon{cc, rest}, tok, args, up, subs, path, bs, pos, False{}, seen)
     == S.cluster(SCon{cc, rest}, tok, st, False{}) : S.St}
   {==}
 
@@ -4996,28 +5236,32 @@ def et.some_none(+path: List<&2, String>, hh: {Some{path} == None{} : Maybe<&2, 
   %ee : et.none_ty(_)
   Unit{}
 
-def Laws.err_text_usage(spec, err, h_err):
+def Laws.err_text_usage(spec, err, h_err, h_ver):
   match err:
     case S.UnknownFlag{+at, +word}:
       ("error: unexpected argument '" ++ word ++ "' found" ++ S.sug.tip(S.sug.word(spec, at, word)),
         et.wrap(spec, at, "error: unexpected argument '" ++ word ++ "' found" ++ S.sug.tip(S.sug.word(spec, at, word))))
     case S.Missing{+at, +name}:
-      ("error: the following required argument was not provided:\n  " ++ name,
-        et.wrap(spec, at, "error: the following required argument was not provided:\n  " ++ name))
+      ("error: the following required argument was not provided:\n  " ++ S.err.name(spec, at, name),
+        et.wrap(spec, at, "error: the following required argument was not provided:\n  " ++ S.err.name(spec, at, name)))
     case S.NoValue{+at, +name}:
-      ("error: a value is required for '" ++ name ++ "' but none was supplied",
-        et.wrap(spec, at, "error: a value is required for '" ++ name ++ "' but none was supplied"))
+      ("error: a value is required for '" ++ S.err.name(spec, at, name) ++ "' but none was supplied",
+        et.wrap(spec, at, "error: a value is required for '" ++ S.err.name(spec, at, name) ++ "' but none was supplied"))
     case S.BadValue{+at, +name, +value}:
-      ("error: invalid value '" ++ value ++ "' for '" ++ name ++ "'",
-        et.wrap(spec, at, "error: invalid value '" ++ value ++ "' for '" ++ name ++ "'"))
+      ("error: invalid value '" ++ value ++ "' for '" ++ S.err.name(spec, at, name) ++ "'" ++
+          S.err.values(S.err.find(spec, at, name)),
+        et.wrap(spec, at, "error: invalid value '" ++ value ++ "' for '" ++ S.err.name(spec, at, name) ++ "'" ++
+          S.err.values(S.err.find(spec, at, name))))
     case S.NeedHelp{+path}:
       Empty.absurd(et.ty(spec, S.NeedHelp{path}), et.some_none(path, h_err))
+    case S.NeedVersion{}:
+      Empty.absurd(et.ty(spec, S.NeedVersion{}), Walk.wk.true_false(h_ver))
     case S.Unexpected{+at, +arg}:
       ("error: unexpected argument '" ++ arg ++ "' found",
         et.wrap(spec, at, "error: unexpected argument '" ++ arg ++ "' found"))
     case S.Repeated{+at, +name}:
-      ("error: the argument '" ++ name ++ "' cannot be used multiple times",
-        et.wrap(spec, at, "error: the argument '" ++ name ++ "' cannot be used multiple times"))
+      ("error: the argument '" ++ S.err.name(spec, at, name) ++ "' cannot be used multiple times",
+        et.wrap(spec, at, "error: the argument '" ++ S.err.name(spec, at, name) ++ "' cannot be used multiple times"))
 
 # a string with nothing after it is itself
 def hs.nil(xs: String) -> {xs ++ "" == xs : String}:
@@ -6106,6 +6350,31 @@ def gv.cluster(
       gv.cluster(rest, orig, S.cluster.letter(done, cc, rest, orig, st), S.cluster.done(done, cc, rest, st), ws, hr,
         gv.letter(done, cc, rest, orig, st, ws, hr, hg))
 
+# a short option body within the words: a request for help, or a cluster
+def gv.sgo(
+  hit: Bool,
+  +body: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  +hh: {gv.sufs(body, ws) == True{} : Bool},
+  +hb: {gv.all(binds, ws) == True{} : Bool},
+  +hu: {gv.ups(up, ws) == True{} : Bool}
+) -> gv.G(S.parse.take_short.go(hit, body, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+  match hit:
+    case True{}:
+      gv.keep(binds, up, ws, hb, hu)
+    case False{}:
+      gv.cluster(body, orig, S.St{S.Free{}, args, up, subs, path, binds, pos, raw, seen}, False{}, ws, hh,
+        gv.keep(binds, up, ws, hb, hu))
+
 # a short option body within the words
 def gv.short(
   +body: String,
@@ -6123,8 +6392,7 @@ def gv.short(
   hb: gv.B(binds, ws),
   hu: gv.U(up, ws)
 ) -> gv.G(S.parse.take_short(body, orig, args, up, subs, path, binds, pos, raw, seen), ws):
-  gv.cluster(body, orig, S.St{S.Free{}, args, up, subs, path, binds, pos, raw, seen}, False{}, ws, hh,
-    gv.keep(binds, up, ws, hb, hu))
+  gv.sgo(S.short_help(body, args, seen), body, orig, args, up, subs, path, binds, pos, raw, seen, ws, hh, hb, hu)
 
 # a positional binds the word
 def gv.take_pos(
@@ -7339,6 +7607,31 @@ def gn.cluster(
       gn.cluster(rest, orig, S.cluster.letter(done, cc, rest, orig, st), S.cluster.done(done, cc, rest, st), ws, hr,
         gn.letter(done, cc, rest, orig, st, ws, hr, hg))
 
+# a short option body within the words: a request for help, or a cluster
+def gn.sgo(
+  hit: Bool,
+  +body: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool,
+  +ws: List<&2, String>,
+  +hh: {gv.sufs(body, ws) == True{} : Bool},
+  +hb: {gn.all(binds, args, ws) == True{} : Bool},
+  +hp: {gn.pin(pos, args) == True{} : Bool}
+) -> gn.G(S.parse.take_short.go(hit, body, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+  match hit:
+    case True{}:
+      gn.keep(args, binds, pos, ws, hb, hp)
+    case False{}:
+      gn.cluster(body, orig, S.St{S.Free{}, args, up, subs, path, binds, pos, raw, seen}, False{}, ws, hh,
+        gn.keep(args, binds, pos, ws, hb, hp))
+
 # a short option body within the words
 def gn.short(
   +body: String,
@@ -7356,8 +7649,7 @@ def gn.short(
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
 ) -> gn.G(S.parse.take_short(body, orig, args, up, subs, path, binds, pos, raw, seen), ws):
-  gn.cluster(body, orig, S.St{S.Free{}, args, up, subs, path, binds, pos, raw, seen}, False{}, ws, hh,
-    gn.keep(args, binds, pos, ws, hb, hp))
+  gn.sgo(S.short_help(body, args, seen), body, orig, args, up, subs, path, binds, pos, raw, seen, ws, hh, hb, hp)
 
 # a positional consumed, or kept when it is a rest
 def gn.kpos(
@@ -8577,6 +8869,27 @@ def nd.cluster(
       nd.cluster(rest, orig, S.cluster.letter(done, cc, rest, orig, st), S.cluster.done(done, cc, rest, st), n0,
         nd.letter(done, cc, rest, orig, st, n0, hh))
 
+# a short option: a request for help, or a cluster
+def nd.sgo(
+  hit: Bool,
+  +body: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +raw: Bool,
+  +seen: Bool
+) -> nd.T(S.parse.take_short.go(hit, body, orig, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+  match hit:
+    case True{}:
+      nd.le_s(Laws.valued(binds))
+    case False{}:
+      nd.cluster(body, orig, S.St{S.Free{}, args, up, subs, path, binds, pos, raw, seen}, False{}, Laws.valued(binds),
+        nd.le_refl(Laws.valued(binds)))
+
 # a short option
 def nd.short(
   +body: String,
@@ -8590,8 +8903,7 @@ def nd.short(
   +raw: Bool,
   +seen: Bool
 ) -> nd.T(S.parse.take_short(body, orig, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
-  nd.cluster(body, orig, S.St{S.Free{}, args, up, subs, path, binds, pos, raw, seen}, False{}, Laws.valued(binds),
-    nd.le_refl(Laws.valued(binds)))
+  nd.sgo(S.short_help(body, args, seen), body, orig, args, up, subs, path, binds, pos, raw, seen)
 
 # a positional
 def nd.take_pos(
@@ -9645,6 +9957,32 @@ def nu.cluster1(
     {==} : {nu.J(S.St{m0, args, up, subs, path, binds, pos, False{}, seen}, l0) == False{} : Bool}}
   nu.apart(fin, S.St{m0, args, up, subs, path, binds, pos, False{}, seen}, ss => nu.J(ss, l0), hj, jo)
 
+# a nonempty short option body: a request for help, or a cluster
+def nu.sgo(
+  hit: Bool,
+  +cc: Char,
+  +rest: String,
+  +orig: String,
+  +args: List<&2, S.Arg>,
+  +up: List<&2, S.Level>,
+  +subs: List<&2, S.Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, S.Bind>,
+  +pos: List<&2, S.Arg>,
+  +seen: Bool,
+  +m0: S.Mode,
+  +hd: {nu.dead_m(m0) == False{} : Bool},
+  +hn: {nu.need_m(m0) == False{} : Bool},
+  +hl: {nu.help_m(m0) == False{} : Bool}
+) -> nu.N(S.parse.take_short.go(hit, SCon{cc, rest}, orig, args, up, subs, path, binds, pos, False{}, seen),
+    S.St{m0, args, up, subs, path, binds, pos, False{}, seen}):
+  match hit:
+    case True{}:
+      nu.apart(S.parse.take_short.go(True{}, SCon{cc, rest}, orig, args, up, subs, path, binds, pos, False{}, seen),
+        S.St{m0, args, up, subs, path, binds, pos, False{}, seen}, ss => nu.help(ss), {==}, hl)
+    case False{}:
+      nu.cluster1(cc, rest, orig, args, up, subs, path, binds, pos, seen, m0, hd, hn, hl)
+
 # a nonempty cluster body is a char in front of the rest
 def nu.cl0(
   body: String,
@@ -9668,7 +10006,8 @@ def nu.cl0(
       Empty.absurd(nu.N(S.parse.take_short(SNil{}, orig, args, up, subs, path, binds, pos, False{}, seen),
         S.St{m0, args, up, subs, path, binds, pos, False{}, seen}), Walk.wk.true_false(he))
     case SCon{+cc, +rest}:
-      nu.cluster1(cc, rest, orig, args, up, subs, path, binds, pos, seen, m0, hd, hn, hl)
+      nu.sgo(S.short_help(SCon{cc, rest}, args, seen), cc, rest, orig, args, up, subs, path, binds, pos, seen, m0, hd,
+        hn, hl)
 
 # a value bound or refused, against any walker with as many bindings that has
 # not failed
@@ -10383,6 +10722,8 @@ def Laws.sug_other(spec, err, h_err):
       {==}
     case S.Repeated{_at, _name}:
       {==}
+    case S.NeedVersion{}:
+      {==}
 
 def Laws.sug_short(spec, at, word, h_word):
   e1 = Equal.sym(Bool, String.starts_with(word, "--"), False{}, h_word)
@@ -10609,3 +10950,578 @@ def Laws.err_text_tip(spec, err, ss, h_sug):
       tp.none(spec, S.Unexpected{at, arg}, ss, h_sug)
     case S.Repeated{+at, +name}:
       tp.none(spec, S.Repeated{at, name}, ss, h_sug)
+    case S.NeedVersion{}:
+      tp.none(spec, S.NeedVersion{}, ss, h_sug)
+
+# a positional's Arguments line, then the lines after it
+def ha.next(
+  +aa: S.Arg,
+  +tt: List<&2, S.Arg>,
+  +ww: Nat,
+  ee: {S.help.arg_lines(tt, ww) == Laws.arg_lines(List.filter(~S.Arg, ~S.pos.is, tt), ww) : String}
+) -> {S.help.arg_line(aa, ww) ++ "\n" ++ S.help.arg_lines(tt, ww)
+    == S.help.arg_line(aa, ww) ++ "\n" ++ Laws.arg_lines(List.filter(~S.Arg, ~S.pos.is, tt), ww) : String}:
+  Equal.cong(String, String, xs => S.help.arg_line(aa, ww) ++ "\n" ++ xs, S.help.arg_lines(tt, ww),
+    Laws.arg_lines(List.filter(~S.Arg, ~S.pos.is, tt), ww), ee)
+
+# the Arguments lines are the lines of the positionals, in order
+def ha.lines(
+  +args: List<&2, S.Arg>,
+  +ww: Nat
+) -> {S.help.arg_lines(args, ww) == Laws.arg_lines(List.filter(~S.Arg, ~S.pos.is, args), ww) : String}:
+  match args:
+    case Nil{}:
+      {==}
+    case Con{hh, +tt}:
+      match hh:
+        case S.Arg{+n, +s, +l, kind, +h, +r, +d, +c}:
+          match kind:
+            case S.Flag{}:
+              ha.lines(tt, ww)
+            case S.Opt{}:
+              ha.lines(tt, ww)
+            case S.Many{}:
+              ha.lines(tt, ww)
+            case S.Pos{}:
+              ha.next(S.Arg{n, s, l, S.Pos{}, h, r, d, c}, tt, ww, ha.lines(tt, ww))
+            case S.Rest{}:
+              ha.next(S.Arg{n, s, l, S.Rest{}, h, r, d, c}, tt, ww, ha.lines(tt, ww))
+
+def Laws.args_listed(args):
+  Equal.cong(String, String, xs => S.help.args.go(xs), S.help.arg_lines(args, S.help.arg_width(S.pos_of(args), 0n)),
+    Laws.arg_lines(List.filter(~S.Arg, ~S.pos.is, args), S.help.arg_width(S.pos_of(args), 0n)),
+    ha.lines(args, S.help.arg_width(S.pos_of(args), 0n)))
+
+# a usage mark's brackets, as the law's mark writes them
+def ha.wrap(req: Bool, +nn: String) -> {S.help.pos.wrap(req, nn) == Laws.mark.req(req, nn) : String}:
+  match req:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# a usage mark's dots, as the law's mark writes them
+def ha.dots(kind: S.ArgKind) -> {S.help.pos.dots(S.rest.is.kind(kind)) == Laws.mark.rest(kind) : String}:
+  match kind:
+    case S.Flag{}:
+      {==}
+    case S.Opt{}:
+      {==}
+    case S.Pos{}:
+      {==}
+    case S.Rest{}:
+      {==}
+    case S.Many{}:
+      {==}
+
+# a positional's usage hint is the law's mark
+def ha.mark(
+  +nn: String,
+  +sh: Maybe<&2, String>,
+  +lo: Maybe<&2, String>,
+  +kind: S.ArgKind,
+  +hp: String,
+  +req: Bool,
+  +fb: S.Fallback,
+  +cs: List<&2, String>
+) -> {S.help.pos.one(S.Arg{nn, sh, lo, kind, hp, req, fb, cs}) == Laws.mark(S.Arg{nn, sh, lo, kind, hp, req, fb, cs})
+    : String}:
+  +up = String.to_upper(nn)
+  Equal.trans(String, S.help.pos.wrap(req, up) ++ S.help.pos.dots(S.rest.is.kind(kind)),
+    Laws.mark.req(req, up) ++ S.help.pos.dots(S.rest.is.kind(kind)), Laws.mark.req(req, up) ++ Laws.mark.rest(kind),
+    Equal.cong(String, String, xs => xs ++ S.help.pos.dots(S.rest.is.kind(kind)), S.help.pos.wrap(req, up),
+      Laws.mark.req(req, up), ha.wrap(req, up)),
+    Equal.cong(String, String, xs => Laws.mark.req(req, up) ++ xs, S.help.pos.dots(S.rest.is.kind(kind)),
+      Laws.mark.rest(kind), ha.dots(kind)))
+
+def Laws.arg_line_mark(nn, sh, lo, kind, hp, req, fb, cs, ww):
+  +aa = {S.Arg{nn, sh, lo, kind, hp, req, fb, cs} : S.Arg}
+  Equal.cong(String, String, mm => "  " ++ S.help.pad(String.drop(mm, 1n), ww) ++ "  " ++ hp ++ S.help.extra(aa),
+    S.help.pos.one(aa), Laws.mark(aa), ha.mark(nn, sh, lo, kind, hp, req, fb, cs))
+
+# the find kept here is the later of the one above and this one
+def ef.here(
+  found: Maybe<&2, S.Arg>,
+  +best: Maybe<&2, S.Arg>
+) -> {S.err.find.here(found, best) == Laws.keep_later(best, found) : Maybe<&2, S.Arg>}:
+  match found:
+    case None{}:
+      {==}
+    case Some{_a}:
+      {==}
+
+# keeping the later find is associative
+def ef.assoc(
+  +found: Maybe<&2, S.Arg>,
+  +best: Maybe<&2, S.Arg>,
+  later: Maybe<&2, S.Arg>
+) -> {Laws.keep_later(S.err.find.here(found, best), later)
+    == Laws.keep_later(best, Laws.keep_later(found, later)) : Maybe<&2, S.Arg>}:
+  match later:
+    case None{}:
+      ef.here(found, best)
+    case Some{_a}:
+      {==}
+
+# the search down a path keeps the deepest page's find, else `best`
+def ef.go(
+  path: List<&2, String>,
+  how: S.How,
+  +name: String,
+  +best: Maybe<&2, S.Arg>
+) -> {S.err.find.go(path, how, name, best) == Laws.keep_later(best, Laws.deepest(Laws.pages(path, how), name))
+    : Maybe<&2, S.Arg>}:
+  match path:
+    case Nil{}:
+      match how:
+        case S.How{_b, _a, _v, +args, _s, _u}:
+          ef.here(S.by_name(args, name), best)
+    case Con{+hh, +tt}:
+      match how:
+        case S.How{+bin, +about, +version, +args, +subs, +usage}:
+          +hw = {S.How{bin, about, version, args, subs, usage} : S.How}
+          +here = S.err.find.here(S.by_name(args, name), best)
+          +deeper = Laws.deepest(Laws.pages(tt, S.help.step(hw, hh)), name)
+          Equal.trans(Maybe<&2, S.Arg>, S.err.find.go(tt, S.help.step(hw, hh), name, here),
+            Laws.keep_later(here, deeper), Laws.keep_later(best, Laws.keep_later(S.by_name(args, name), deeper)),
+            ef.go(tt, S.help.step(hw, hh), name, here),
+            ef.assoc(S.by_name(args, name), best, deeper))
+
+# keeping the later of nothing and a find is the find
+def ef.none(found: Maybe<&2, S.Arg>) -> {Laws.keep_later(None{}, found) == found : Maybe<&2, S.Arg>}:
+  match found:
+    case None{}:
+      {==}
+    case Some{_a}:
+      {==}
+
+def Laws.err_find(spec, at, name):
+  match spec:
+    case S.Cli{+bin, +about, +version, +args, +subs}:
+      +hw = {S.How{bin, about, version, args, subs, bin} : S.How}
+      Equal.trans(Maybe<&2, S.Arg>, S.err.find.go(at, hw, name, None{}),
+        Laws.keep_later(None{}, Laws.deepest(Laws.pages(at, hw), name)), Laws.deepest(Laws.pages(at, hw), name),
+        ef.go(at, hw, name, None{}), ef.none(Laws.deepest(Laws.pages(at, hw), name)))
+
+# a string with nothing after it, under a char
+def ef.nil_under(+cc: Char, xs: String) -> {SCon{cc, xs ++ ""} == SCon{cc, xs} : String}:
+  Equal.cong(String, String, ys => SCon{cc, ys}, xs ++ "", xs, hs.nil(xs))
+
+def Laws.err_form(nn, _sh, _lo, kind, _hp, req, _fb, _cs):
+  match kind:
+    case S.Flag{}:
+      {==}
+    case S.Opt{}:
+      {==}
+    case S.Many{}:
+      {==}
+    case S.Pos{}:
+      match req:
+        case True{}:
+          ef.nil_under('<', String.to_upper(nn) ++ ">")
+        case False{}:
+          ef.nil_under('[', String.to_upper(nn) ++ "]")
+    case S.Rest{}:
+      match req:
+        case True{}:
+          {==}
+        case False{}:
+          {==}
+
+# a found argument is named as the law names it
+def en.named(found: Maybe<&2, S.Arg>, +name: String) -> {S.err.named(found, name) == Laws.named(found, name) : String}:
+  match found:
+    case None{}:
+      {==}
+    case Some{aa}:
+      match aa:
+        case S.Arg{+nn, +sh, +lo, +kind, +hp, +req, +fb, +cs}:
+          Laws.err_form(nn, sh, lo, kind, hp, req, fb, cs)
+
+# an error's argument, named as the law names it
+def en.name(
+  +spec: Shake.Cli,
+  +at: List<&2, String>,
+  +name: String
+) -> {S.err.name(spec, at, name) == Laws.named(Laws.deepest(Laws.pages(at, Laws.root(spec)), name), name) : String}:
+  +dd = Laws.deepest(Laws.pages(at, Laws.root(spec)), name)
+  Equal.trans(String, S.err.named(S.err.find(spec, at, name), name), S.err.named(dd, name), Laws.named(dd, name),
+    Equal.cong(Maybe<&2, S.Arg>, String, ff => S.err.named(ff, name), S.err.find(spec, at, name), dd,
+      Laws.err_find(spec, at, name)),
+    en.named(dd, name))
+
+# a found argument's choices line is the law's
+def en.values(found: Maybe<&2, S.Arg>) -> {S.err.values(found) == Laws.values_line(found) : String}:
+  match found:
+    case None{}:
+      {==}
+    case Some{aa}:
+      match aa:
+        case S.Arg{_n, _s, _l, _k, _h, _r, _d, cs}:
+          match cs:
+            case Nil{}:
+              {==}
+            case Con{_c, _t}:
+              {==}
+
+def Laws.err_missing_named(spec, at, name):
+  Equal.cong(String, String, xx => S.err.wrap(spec, at, "error: the following required argument was not provided:\n  " ++ xx),
+    S.err.name(spec, at, name), Laws.named(Laws.deepest(Laws.pages(at, Laws.root(spec)), name), name),
+    en.name(spec, at, name))
+
+def Laws.err_novalue_named(spec, at, name):
+  Equal.cong(String, String, xx => S.err.wrap(spec, at, "error: a value is required for '" ++ xx ++ "' but none was supplied"),
+    S.err.name(spec, at, name), Laws.named(Laws.deepest(Laws.pages(at, Laws.root(spec)), name), name),
+    en.name(spec, at, name))
+
+def Laws.err_repeated_named(spec, at, name):
+  Equal.cong(String, String, xx => S.err.wrap(spec, at, "error: the argument '" ++ xx ++ "' cannot be used multiple times"),
+    S.err.name(spec, at, name), Laws.named(Laws.deepest(Laws.pages(at, Laws.root(spec)), name), name),
+    en.name(spec, at, name))
+
+def Laws.err_bad_named(spec, at, name, value):
+  +dd = Laws.deepest(Laws.pages(at, Laws.root(spec)), name)
+  +ff = S.err.find(spec, at, name)
+  Equal.trans(String,
+    S.err.wrap(spec, at, "error: invalid value '" ++ value ++ "' for '" ++ S.err.named(ff, name) ++ "'" ++ S.err.values(ff)),
+    S.err.wrap(spec, at, "error: invalid value '" ++ value ++ "' for '" ++ S.err.named(dd, name) ++ "'" ++ S.err.values(dd)),
+    S.err.wrap(spec, at, "error: invalid value '" ++ value ++ "' for '" ++ Laws.named(dd, name) ++ "'" ++ Laws.values_line(dd)),
+    Equal.cong(Maybe<&2, S.Arg>, String,
+      gg => S.err.wrap(spec, at, "error: invalid value '" ++ value ++ "' for '" ++ S.err.named(gg, name) ++ "'" ++
+        S.err.values(gg)), ff, dd, Laws.err_find(spec, at, name)),
+    Equal.trans(String,
+      S.err.wrap(spec, at, "error: invalid value '" ++ value ++ "' for '" ++ S.err.named(dd, name) ++ "'" ++ S.err.values(dd)),
+      S.err.wrap(spec, at, "error: invalid value '" ++ value ++ "' for '" ++ Laws.named(dd, name) ++ "'" ++ S.err.values(dd)),
+      S.err.wrap(spec, at, "error: invalid value '" ++ value ++ "' for '" ++ Laws.named(dd, name) ++ "'" ++ Laws.values_line(dd)),
+      Equal.cong(String, String, xx => S.err.wrap(spec, at, "error: invalid value '" ++ value ++ "' for '" ++ xx ++ "'" ++
+        S.err.values(dd)), S.err.named(dd, name), Laws.named(dd, name), en.named(dd, name)),
+      Equal.cong(String, String, xx => S.err.wrap(spec, at, "error: invalid value '" ++ value ++ "' for '" ++
+        Laws.named(dd, name) ++ "'" ++ xx), S.err.values(dd), Laws.values_line(dd), en.values(dd))))
+
+# the help row is the law's
+def bi.help(
+  long: Maybe<&2, S.Arg>,
+  short: Maybe<&2, S.Arg>
+) -> {S.help.help_row(long, short) == Laws.help_rows.of(long, short) : List<&2, S.Arg>}:
+  match long:
+    case None{}:
+      match short:
+        case None{}:
+          {==}
+        case Some{_a}:
+          {==}
+    case Some{_a}:
+      {==}
+
+# the version row of a page with a version is the law's
+def bi.vrow(
+  +vv: String,
+  long: Maybe<&2, S.Arg>,
+  short: Maybe<&2, S.Arg>
+) -> {S.help.version_row(Some{vv}, long, short) == Laws.version_rows.of(long, short) : List<&2, S.Arg>}:
+  match long:
+    case None{}:
+      match short:
+        case None{}:
+          {==}
+        case Some{_a}:
+          {==}
+    case Some{_a}:
+      {==}
+
+# the version row is the law's
+def bi.version(
+  +args: List<&2, S.Arg>,
+  version: Maybe<&2, String>
+) -> {S.help.version_row(version, S.by_long(args, "version"), S.by_short(args, "V")) == Laws.version_rows(args, version)
+    : List<&2, S.Arg>}:
+  match version:
+    case None{}:
+      {==}
+    case Some{+vv}:
+      bi.vrow(vv, S.by_long(args, "version"), S.by_short(args, "V"))
+
+def Laws.builtins_listed(args, version):
+  +hr = S.help.help_row(S.by_long(args, "help"), S.by_short(args, "h"))
+  +vr = S.help.version_row(version, S.by_long(args, "version"), S.by_short(args, "V"))
+  Equal.trans(List<&2, S.Arg>, List.append(&2, S.Arg, hr, vr), List.append(&2, S.Arg, Laws.help_rows(args), vr),
+    List.append(&2, S.Arg, Laws.help_rows(args), Laws.version_rows(args, version)),
+    Equal.cong(List<&2, S.Arg>, List<&2, S.Arg>, xs => List.append(&2, S.Arg, xs, vr), hr, Laws.help_rows(args),
+      bi.help(S.by_long(args, "help"), S.by_short(args, "h"))),
+    Equal.cong(List<&2, S.Arg>, List<&2, S.Arg>, xs => List.append(&2, S.Arg, Laws.help_rows(args), xs), vr,
+      Laws.version_rows(args, version), bi.version(args, version)))
+
+# the code's version check is the law's
+def va.asks(
+  spec: Shake.Cli,
+  +at: List<&2, String>,
+  +word: String
+) -> {S.version.asks(spec, at, word) == Laws.asks_version(spec, at, word) : Bool}:
+  match spec:
+    case S.Cli{_n, _a, _v, _g, _s}:
+      {==}
+
+# the parse is the walk's answer, read for the version
+def va.res(
+  +spec: Shake.Cli,
+  +ws: List<&2, String>,
+  +rr: Result<&2, &2, S.ParseErr, S.Matched>,
+  h_walk: {S.parse.finish(S.parse.walk(ws, S.parse.start(spec))) == rr : Result<&2, &2, S.ParseErr, S.Matched>}
+) -> {Shake.parse(spec, ws) == S.version.res(spec, rr) : Result<&2, &2, S.ParseErr, S.Matched>}:
+  Equal.cong(Result<&2, &2, S.ParseErr, S.Matched>, Result<&2, &2, S.ParseErr, S.Matched>,
+    xx => S.version.res(spec, xx), S.parse.finish(S.parse.walk(ws, S.parse.start(spec))), rr, h_walk)
+
+# a refused word read for the version, its check answered
+def va.pick(
+  +spec: Shake.Cli,
+  +at: List<&2, String>,
+  +word: String,
+  +bb: Bool,
+  h_asks: {Laws.asks_version(spec, at, word) == bb : Bool}
+) -> {S.version.res(spec, Fail{S.UnknownFlag{at, word}})
+    == Fail{Bool.pick(S.ParseErr, bb, S.NeedVersion{}, S.UnknownFlag{at, word})}
+    : Result<&2, &2, S.ParseErr, S.Matched>}:
+  ee = Equal.trans(Bool, S.version.asks(spec, at, word), Laws.asks_version(spec, at, word), bb, va.asks(spec, at, word),
+    h_asks)
+  Equal.cong(Bool, Result<&2, &2, S.ParseErr, S.Matched>,
+    xx => Fail{Bool.pick(S.ParseErr, xx, S.NeedVersion{}, S.UnknownFlag{at, word})}, S.version.asks(spec, at, word), bb,
+    ee)
+
+def Laws.version_asked(spec, ws, at, word, h_walk, h_asks):
+  Equal.trans(Result<&2, &2, S.ParseErr, S.Matched>, Shake.parse(spec, ws),
+    S.version.res(spec, Fail{S.UnknownFlag{at, word}}), Fail{S.NeedVersion{}},
+    va.res(spec, ws, Fail{S.UnknownFlag{at, word}}, h_walk), va.pick(spec, at, word, True{}, h_asks))
+
+def Laws.version_unasked(spec, ws, at, word, h_walk, h_asks):
+  Equal.trans(Result<&2, &2, S.ParseErr, S.Matched>, Shake.parse(spec, ws),
+    S.version.res(spec, Fail{S.UnknownFlag{at, word}}), Fail{S.UnknownFlag{at, word}},
+    va.res(spec, ws, Fail{S.UnknownFlag{at, word}}, h_walk), va.pick(spec, at, word, False{}, h_asks))
+
+# an answer that refuses no unknown option is left as it is
+def va.other(
+  +spec: Shake.Cli,
+  rr: Result<&2, &2, S.ParseErr, S.Matched>,
+  h_rr: {Laws.unknown.res(rr) == False{} : Bool}
+) -> {S.version.res(spec, rr) == rr : Result<&2, &2, S.ParseErr, S.Matched>}:
+  match rr:
+    case Done{_m}:
+      {==}
+    case Fail{ee}:
+      match ee:
+        case S.UnknownFlag{at, word}:
+          Empty.absurd({S.version.res(spec, Fail{S.UnknownFlag{at, word}}) == Fail{S.UnknownFlag{at, word}}
+            : Result<&2, &2, S.ParseErr, S.Matched>}, Walk.wk.true_false(h_rr))
+        case S.Missing{_at, _name}:
+          {==}
+        case S.NoValue{_at, _name}:
+          {==}
+        case S.BadValue{_at, _name, _value}:
+          {==}
+        case S.NeedHelp{_path}:
+          {==}
+        case S.Unexpected{_at, _arg}:
+          {==}
+        case S.Repeated{_at, _name}:
+          {==}
+        case S.NeedVersion{}:
+          {==}
+
+def Laws.version_other(spec, ws, rr, h_walk, h_rr):
+  Equal.trans(Result<&2, &2, S.ParseErr, S.Matched>, Shake.parse(spec, ws), S.version.res(spec, rr), rr,
+    va.res(spec, ws, rr, h_walk), va.other(spec, rr, h_rr))
+
+# a lookup's answer, read as absent or not, under one answer of the check
+def rl.at(
+  bb: Bool,
+  +x1: S.Arg,
+  +x2: S.Arg,
+  +r1: Maybe<&2, S.Arg>,
+  +r2: Maybe<&2, S.Arg>,
+  e: {Maybe.is_none(&2, S.Arg, r1) == Maybe.is_none(&2, S.Arg, r2) : Bool}
+) -> {Maybe.is_none(&2, S.Arg, S.by_long.at(bb, x1, r1)) == Maybe.is_none(&2, S.Arg, S.by_long.at(bb, x2, r2))
+    : Bool}:
+  match bb:
+    case True{}:
+      {==}
+    case False{}:
+      e
+
+# resolved arguments spell long what they spelled
+def rl.none(
+  args: List<&2, S.Arg>,
+  +vars: List<&2, Shake.Var>,
+  +name: String
+) -> {Maybe.is_none(&2, S.Arg, S.by_long(S.resolve.args(args, vars), name))
+    == Maybe.is_none(&2, S.Arg, S.by_long(args, name)) : Bool}:
+  match args:
+    case Nil{}:
+      {==}
+    case Con{hh, +tt}:
+      match hh:
+        case S.Arg{+n, +s, +l, +k, +h, +r, fb, +cs}:
+          match fb:
+            case S.Fallback{+ev, +dd}:
+              +orig = {S.Arg{n, s, l, k, h, r, S.Fallback{ev, dd}, cs} : S.Arg}
+              rl.at(S.by_long.hit(orig, name), S.resolve.arg(orig, vars), orig,
+                S.by_long(S.resolve.args(tt, vars), name), S.by_long(tt, name), rl.none(tt, vars, name))
+
+def Laws.resolve_asks(spec, vars, at, word):
+  match spec:
+    case S.Cli{+nn, +ab, +vv, +gg, +ss}:
+      Equal.cong(Bool, Bool, xx => Bool.and(Bool.or(String.eq(word, "--version"), Bool.and(String.eq(word, "-V"), xx)),
+          Bool.and(List.is_empty(&2, String, at), Maybe.is_some(&2, String, vv))),
+        Maybe.is_none(&2, S.Arg, S.by_long(S.resolve.args(gg, vars), "version")),
+        Maybe.is_none(&2, S.Arg, S.by_long(gg, "version")), rl.none(gg, vars, "version"))
+
+def Laws.version_of_some(_name, _about, _ver, _args, _subs):
+  {==}
+
+def Laws.version_of_none(_name, _about, _args, _subs, err):
+  match err:
+    case S.NeedVersion{}:
+      {==}
+    case S.UnknownFlag{_at, _word}:
+      {==}
+    case S.Missing{_at, _name}:
+      {==}
+    case S.NoValue{_at, _name}:
+      {==}
+    case S.BadValue{_at, _name, _value}:
+      {==}
+    case S.NeedHelp{_path}:
+      {==}
+    case S.Unexpected{_at, _arg}:
+      {==}
+    case S.Repeated{_at, _name}:
+      {==}
+
+def Laws.version_of_other(_spec, err, h_err):
+  match err:
+    case S.NeedVersion{}:
+      Empty.absurd({Shake.version_of(_spec, S.NeedVersion{}) == None{} : Maybe<&2, String>}, Walk.wk.true_false(h_err))
+    case S.UnknownFlag{_at, _word}:
+      {==}
+    case S.Missing{_at, _name}:
+      {==}
+    case S.NoValue{_at, _name}:
+      {==}
+    case S.BadValue{_at, _name, _value}:
+      {==}
+    case S.NeedHelp{_path}:
+      {==}
+    case S.Unexpected{_at, _arg}:
+      {==}
+    case S.Repeated{_at, _name}:
+      {==}
+
+def Laws.reads_nil(_spec):
+  {==}
+
+def Laws.reads_con(_spec, _rr, _rs):
+  {==}
+
+# the code's walk down a path is the law's
+def rd.down(
+  here: Maybe<&2, S.Sub>,
+  +name: String
+) -> {K.reads.down(here, name) == Laws.sub_named(here, name) : Maybe<&2, S.Sub>}:
+  match here:
+    case None{}:
+      {==}
+    case Some{ss}:
+      match ss:
+        case S.Sub{_n, _a, _g, _s}:
+          {==}
+
+# the command a path names, as the code finds its arguments
+def rd.cmd(
+  path: List<&2, String>,
+  +here: Maybe<&2, S.Sub>
+) -> {K.reads.cmd(path, here) == K.reads.args(Laws.named_cmd(path, here)) : Maybe<&2, List<&2, S.Arg>>}:
+  match path:
+    case Nil{}:
+      {==}
+    case Con{+hh, +tt}:
+      Equal.trans(Maybe<&2, List<&2, S.Arg>>, K.reads.cmd(tt, K.reads.down(here, hh)),
+        K.reads.cmd(tt, Laws.sub_named(here, hh)), K.reads.args(Laws.named_cmd(tt, Laws.sub_named(here, hh))),
+        Equal.cong(Maybe<&2, S.Sub>, Maybe<&2, List<&2, S.Arg>>, xx => K.reads.cmd(tt, xx), K.reads.down(here, hh),
+          Laws.sub_named(here, hh), rd.down(here, hh)),
+        rd.cmd(tt, Laws.sub_named(here, hh)))
+
+# a read, its command found as the law finds it
+def rd.base(
+  spec: Shake.Cli,
+  +path: List<&2, String>,
+  +name: String,
+  +want: K.Want,
+  +found: Maybe<&2, S.Sub>,
+  h_cmd: {Laws.named_cmd(path, Some{Laws.root_sub(spec)}) == found : Maybe<&2, S.Sub>}
+) -> {K.read(spec, K.Read{path, name, want}) == K.reads.at(K.reads.args(found), want, path, name)
+    : List<&2, K.ReadErr>}:
+  match spec:
+    case S.Cli{+bin, +about, _v, +args, +subs}:
+      +here = {Some{S.Sub{bin, about, args, subs}} : Maybe<&2, S.Sub>}
+      Equal.cong(Maybe<&2, List<&2, S.Arg>>, List<&2, K.ReadErr>, xx => K.reads.at(xx, want, path, name),
+        K.reads.cmd(path, here), K.reads.args(found),
+        Equal.trans(Maybe<&2, List<&2, S.Arg>>, K.reads.cmd(path, here), K.reads.args(Laws.named_cmd(path, here)),
+          K.reads.args(found), rd.cmd(path, here),
+          Equal.cong(Maybe<&2, S.Sub>, Maybe<&2, List<&2, S.Arg>>, xx => K.reads.args(xx),
+            Laws.named_cmd(path, here), found, h_cmd)))
+
+def Laws.read_no_command(spec, path, name, want, h_cmd):
+  rd.base(spec, path, name, want, None{}, h_cmd)
+
+# a read of the argument a command's arguments find under its name
+def rd.arg(
+  +spec: Shake.Cli,
+  +path: List<&2, String>,
+  +name: String,
+  +want: K.Want,
+  +sn: String,
+  +sa: String,
+  +sargs: List<&2, S.Arg>,
+  +ssubs: List<&2, S.Sub>,
+  +fa: Maybe<&2, S.Arg>,
+  h_cmd: {Laws.named_cmd(path, Some{Laws.root_sub(spec)}) == Some{S.Sub{sn, sa, sargs, ssubs}} : Maybe<&2, S.Sub>},
+  h_arg: {S.by_name(sargs, name) == fa : Maybe<&2, S.Arg>}
+) -> {K.read(spec, K.Read{path, name, want}) == K.reads.arg(fa, want, path, name) : List<&2, K.ReadErr>}:
+  Equal.trans(List<&2, K.ReadErr>, K.read(spec, K.Read{path, name, want}),
+    K.reads.arg(S.by_name(sargs, name), want, path, name), K.reads.arg(fa, want, path, name),
+    rd.base(spec, path, name, want, Some{S.Sub{sn, sa, sargs, ssubs}}, h_cmd),
+    Equal.cong(Maybe<&2, S.Arg>, List<&2, K.ReadErr>, xx => K.reads.arg(xx, want, path, name), S.by_name(sargs, name),
+      fa, h_arg))
+
+def Laws.read_no_arg(spec, path, name, want, sn, sa, sargs, ssubs, h_cmd, h_arg):
+  rd.arg(spec, path, name, want, sn, sa, sargs, ssubs, None{}, h_cmd, h_arg)
+
+# the code's flag test is the law's
+def rd.flag(kind: S.ArgKind) -> {K.reads.flag(kind) == Laws.is_flag(kind) : Bool}:
+  match kind:
+    case S.Flag{}:
+      {==}
+    case S.Opt{}:
+      {==}
+    case S.Pos{}:
+      {==}
+    case S.Rest{}:
+      {==}
+    case S.Many{}:
+      {==}
+
+def Laws.read_flag(spec, path, name, sn, sa, sargs, ssubs, nn, sh, lo, kind, hp, rq, fb, cs, h_cmd, h_arg):
+  Equal.trans(List<&2, K.ReadErr>, K.read(spec, K.Read{path, name, K.WantFlag{}}),
+    K.reads.one(Bool.not(K.reads.flag(kind)), K.NotFlag{path, name}),
+    K.reads.one(Bool.not(Laws.is_flag(kind)), K.NotFlag{path, name}),
+    rd.arg(spec, path, name, K.WantFlag{}, sn, sa, sargs, ssubs, Some{S.Arg{nn, sh, lo, kind, hp, rq, fb, cs}}, h_cmd,
+      h_arg),
+    Equal.cong(Bool, List<&2, K.ReadErr>, xx => K.reads.one(Bool.not(xx), K.NotFlag{path, name}), K.reads.flag(kind),
+      Laws.is_flag(kind), rd.flag(kind)))
+
+def Laws.read_value(spec, path, name, sn, sa, sargs, ssubs, nn, sh, lo, kind, hp, rq, fb, cs, h_cmd, h_arg):
+  Equal.trans(List<&2, K.ReadErr>, K.read(spec, K.Read{path, name, K.WantValue{}}),
+    K.reads.one(K.reads.flag(kind), K.IsFlag{path, name}),
+    K.reads.one(Laws.is_flag(kind), K.IsFlag{path, name}),
+    rd.arg(spec, path, name, K.WantValue{}, sn, sa, sargs, ssubs, Some{S.Arg{nn, sh, lo, kind, hp, rq, fb, cs}}, h_cmd,
+      h_arg),
+    Equal.cong(Bool, List<&2, K.ReadErr>, xx => K.reads.one(xx, K.IsFlag{path, name}), K.reads.flag(kind),
+      Laws.is_flag(kind), rd.flag(kind)))

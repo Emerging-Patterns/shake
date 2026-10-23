@@ -173,3 +173,130 @@ def text(err: SpecErr) -> String:
       at(path) ++ "the default '" ++ value ++ "' of '" ++ name ++ "' is not one of its choices"
     case RequiredAfterOptional{path, name}:
       at(path) ++ "required positional '" ++ name ++ "' follows an optional one"
+
+# how a program reads an argument: whether a flag is on (`on`), or its values
+# (`get`, `get_all`)
+type Want is Data:
+  WantFlag{}
+  WantValue{}
+
+# one read a program makes: the command path, the argument's name, and how it
+# reads it
+type Read is Data:
+  Read{path: List<&2, String>, name: String, want: Want}
+
+# one read that does not fit the spec
+type ReadErr is Data:
+  NoCommand{path: List<&2, String>}
+  NoArg{path: List<&2, String>, name: String}
+  NotFlag{path: List<&2, String>, name: String}
+  IsFlag{path: List<&2, String>, name: String}
+
+# a read report when the flag is set, else none
+def reads.one(hit: Bool, err: ReadErr) -> List<&2, ReadErr>:
+  match hit:
+    case True{}:
+      [err]
+    case False{}:
+      []
+
+# the arguments of a found command
+def reads.args(here: Maybe<&2, C.Sub>) -> Maybe<&2, List<&2, C.Arg>>:
+  match here:
+    case None{}:
+      None{}
+    case Some{ss}:
+      C.Sub{_n, _a, args, _s} = ss
+      Some{args}
+
+# the subcommand named `name` of a found command
+def reads.down(here: Maybe<&2, C.Sub>, +name: String) -> Maybe<&2, C.Sub>:
+  match here:
+    case None{}:
+      None{}
+    case Some{ss}:
+      C.Sub{_n, _a, _g, subs} = ss
+      C.find_sub(subs, name)
+
+# the arguments of the command a path names below the command found, each
+# name a subcommand of the command before it, or None
+def reads.cmd(path: List<&2, String>, here: Maybe<&2, C.Sub>) -> Maybe<&2, List<&2, C.Arg>>:
+  match path:
+    case Nil{}:
+      reads.args(here)
+    case Con{+hh, tt}:
+      reads.cmd(tt, reads.down(here, hh))
+
+# whether an argument of this kind is a flag
+def reads.flag(kk: C.ArgKind) -> Bool:
+  match kk:
+    case C.Flag{}:
+      True{}
+    case C.Opt{}:
+      False{}
+    case C.Pos{}:
+      False{}
+    case C.Rest{}:
+      False{}
+    case C.Many{}:
+      False{}
+
+# a read of an argument that is, or is not, a flag
+def reads.want(want: Want, flag: Bool, +path: List<&2, String>, +name: String) -> List<&2, ReadErr>:
+  match want:
+    case WantFlag{}:
+      reads.one(Bool.not(flag), NotFlag{path, name})
+    case WantValue{}:
+      reads.one(flag, IsFlag{path, name})
+
+# a read of the argument found under its name, or of none
+def reads.arg(found: Maybe<&2, C.Arg>, want: Want, +path: List<&2, String>, +name: String) -> List<&2, ReadErr>:
+  match found:
+    case None{}:
+      [NoArg{path, name}]
+    case Some{aa}:
+      C.Arg{_n, _s, _l, kind, _h, _r, _d, _c} = aa
+      reads.want(want, reads.flag(kind), path, name)
+
+# a read of the command a path names, or of none
+def reads.at(
+  cmd: Maybe<&2, List<&2, C.Arg>>,
+  want: Want,
+  +path: List<&2, String>,
+  +name: String
+) -> List<&2, ReadErr>:
+  match cmd:
+    case None{}:
+      [NoCommand{path}]
+    case Some{args}:
+      reads.arg(C.by_name(args, name), want, path, name)
+
+# what is wrong with one read, or nothing
+def read(app: C.Cli, rr: Read) -> List<&2, ReadErr>:
+  C.Cli{+bin, +about, _v, args, subs} = app
+  Read{+path, +name, want} = rr
+  reads.at(reads.cmd(path, Some{C.Sub{bin, about, args, subs}}), want, path, name)
+
+# what is wrong with each read, in order
+def check_reads(+app: C.Cli, rs: List<&2, Read>) -> List<&2, ReadErr>:
+  match rs:
+    case Nil{}:
+      []
+    case Con{hh, tt}:
+      List.append(&2, ReadErr, read(app, hh), check_reads(app, tt))
+
+# where a read report is
+def read.at(+path: List<&2, String>) -> String:
+  Bool.pick(String, List.is_empty(&2, String, path), "read: ", "read, command '" ++ String.join(path, " ") ++ "': ")
+
+# a read report as one line
+def read_text(err: ReadErr) -> String:  # noqa: L001 a message: its words are not a guarantee
+  match err:
+    case NoCommand{+path}:
+      read.at(path) ++ "no command is named so"
+    case NoArg{+path, name}:
+      read.at(path) ++ "no argument is named '" ++ name ++ "'"
+    case NotFlag{+path, name}:
+      read.at(path) ++ "'" ++ name ++ "' is read as a flag, but it is not one"
+    case IsFlag{+path, name}:
+      read.at(path) ++ "'" ++ name ++ "' is read for a value, but it is a flag"

@@ -71,10 +71,10 @@ type Matched is Data:
   Leaf{+binds: List<&2, Bind>}
   Node{+binds: List<&2, Bind>, +name: String, +sub: Matched}
 
-# a failed parse. NeedHelp is `help` / `help <path>` (or `--help`); NoValue
-# is an option whose value never came, Missing a required argument nothing
-# bound. Every error but NeedHelp carries `at`, the command path selected
-# where it failed
+# a failed parse. NeedHelp is `help` / `help <path>` (or `--help`, `-h`),
+# NeedVersion `--version` (or `-V`); NoValue is an option whose value never
+# came, Missing a required argument nothing bound. Every error but NeedHelp
+# and NeedVersion carries `at`, the command path selected where it failed
 type ParseErr is Data:
   UnknownFlag{at: List<&2, String>, flag: String}
   Missing{at: List<&2, String>, name: String}
@@ -83,6 +83,7 @@ type ParseErr is Data:
   NeedHelp{path: List<&2, String>}
   Unexpected{at: List<&2, String>, arg: String}
   Repeated{at: List<&2, String>, name: String}
+  NeedVersion{}
 
 # how the next token is read
 type Mode is Data:
@@ -138,7 +139,7 @@ def sub(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothing
   Sub{name, about, args, subs}
 
 # a boolean flag
-def flag(  # noqa: L001 a builder: its result is the Arg or Sub it names, nothing to state
+def flag(
   +name: String,
   short: Maybe<&2, String>,
   long: Maybe<&2, String>,
@@ -969,8 +970,17 @@ def cluster(body: String, +orig: String, +st: St, +done: Bool) -> St:
     case SCon{+cc, +rest}:
       cluster(rest, orig, cluster.letter(done, cc, rest, orig, st), cluster.done(done, cc, rest, st))
 
-# a short option body after `-`
-def parse.take_short(
+# whether a short option word is a request for help: `-h` alone, before any
+# positional of the current command is bound, when the command spells
+# neither `-h` nor `--help`
+def short_help(+body: String, +args: List<&2, Arg>, seen: Bool) -> Bool:
+  Bool.and(String.eq(body, "h"),
+    Bool.and(Bool.not(seen),
+      Bool.and(Maybe.is_none(&2, Arg, by_short(args, "h")), Maybe.is_none(&2, Arg, by_long(args, "help")))))
+
+# a request for help (`-h`, as `help`), or a cluster of short options
+def parse.take_short.go(
+  hit: Bool,
   body: String,
   +orig: String,
   +args: List<&2, Arg>,
@@ -982,7 +992,26 @@ def parse.take_short(
   +raw: Bool,
   +seen: Bool
 ) -> St:
-  cluster(body, orig, St{Free{}, args, up, subs, path, binds, pos, raw, seen}, False{})
+  match hit:
+    case True{}:
+      St{Help{}, args, up, subs, path, binds, pos, raw, seen}
+    case False{}:
+      cluster(body, orig, St{Free{}, args, up, subs, path, binds, pos, raw, seen}, False{})
+
+# a short option body after `-`
+def parse.take_short(
+  +body: String,
+  +orig: String,
+  +args: List<&2, Arg>,
+  +up: List<&2, Level>,
+  +subs: List<&2, Sub>,
+  +path: List<&2, String>,
+  +binds: List<&2, Bind>,
+  +pos: List<&2, Arg>,
+  +raw: Bool,
+  +seen: Bool
+) -> St:
+  parse.take_short.go(short_help(body, args, seen), body, orig, args, up, subs, path, binds, pos, raw, seen)
 
 # a rest positional stays; a plain one is consumed
 def parse.take_pos.keep(keep: Bool, hh: Arg, tt: List<&2, Arg>) -> List<&2, Arg>:
@@ -1464,9 +1493,56 @@ def parse.finish(st: St) -> Result<&2, &2, ParseErr, Matched>:
   St{mode, args, up, _s, path, binds, _p, _r, _n} = st
   parse.finish.mode(mode, args, up, path, binds)
 
+# whether a word refused at `at` asks for the version: `--version`, or `-V`
+# when the root does not spell `--version`, refused at the root of a spec
+# with a version
+def version.asks(+app: Cli, +at: List<&2, String>, +word: String) -> Bool:
+  Cli{_n, _a, version, args, _s} = app
+  Bool.and(Bool.or(String.eq(word, "--version"),
+      Bool.and(String.eq(word, "-V"), Maybe.is_none(&2, Arg, by_long(args, "version")))),
+    Bool.and(List.is_empty(&2, String, at), Maybe.is_some(&2, String, version)))
+
+# an error, or a request for the version when it is one
+def version.err(+app: Cli, ee: ParseErr) -> ParseErr:
+  match ee:
+    case UnknownFlag{+at, +word}:
+      Bool.pick(ParseErr, version.asks(app, at, word), NeedVersion{}, UnknownFlag{at, word})
+    case other:
+      other
+
+# a parse's answer, its failure read as a request for the version when it is
+# one
+def version.res(+app: Cli, rr: Result<&2, &2, ParseErr, Matched>) -> Result<&2, &2, ParseErr, Matched>:
+  match rr:
+    case Done{mm}:
+      Done{mm}
+    case Fail{ee}:
+      Fail{version.err(app, ee)}
+
 # argv against a Cli
-def parse(app: Cli, argv: List<&2, String>) -> Result<&2, &2, ParseErr, Matched>:
-  parse.finish(parse.walk(argv, parse.start(app)))
+def parse(+app: Cli, argv: List<&2, String>) -> Result<&2, &2, ParseErr, Matched>:
+  version.res(app, parse.finish(parse.walk(argv, parse.start(app))))
+
+# `name version`, when there is a version
+def version_of.text(+name: String, version: Maybe<&2, String>) -> Maybe<&2, String>:
+  match version:
+    case None{}:
+      None{}
+    case Some{vv}:
+      Some{name ++ " " ++ vv}
+
+# a spec's `name version`, when it has a version
+def version_of.cli(app: Cli) -> Maybe<&2, String>:
+  Cli{+name, _a, version, _g, _s} = app
+  version_of.text(name, version)
+
+# `name version` for a request for the version, of a spec that has one
+def version_of(+app: Cli, ee: ParseErr) -> Maybe<&2, String>:
+  match ee:
+    case NeedVersion{}:
+      version_of.cli(app)
+    case _other:
+      None{}
 
 # this pair's value when its name matches, else the rest
 def env.get.at(hit: Bool, +vv: String, rest: Maybe<&2, String>) -> Maybe<&2, String>:
@@ -1870,6 +1946,48 @@ def help.pos(args: List<&2, Arg>) -> String:
     case Con{+h, t}:
       help.pos.at(pos.is(h), h, help.pos(t))
 
+# a positional's label in the Arguments block: its usage mark without the
+# space before it
+def help.pos.label(aa: Arg) -> String:
+  String.drop(help.pos.one(aa), 1n)
+
+# one Arguments line, given the label width
+def help.arg_line(+aa: Arg, ww: Nat) -> String:
+  Arg{_n, _s, _l, _k, +h, _r, _d, _c} = aa
+  "  " ++ help.pad(help.pos.label(aa), ww) ++ "  " ++ h ++ help.extra(aa)
+
+# the max positional-label width
+def help.arg_width(args: List<&2, Arg>, nn: Nat) -> Nat:
+  match args:
+    case Nil{}:
+      nn
+    case Con{+h, t}:
+      help.arg_width(t, help.max(nn, String.length(help.pos.label(h))))
+
+# a positional's Arguments line
+def help.arg_lines.at(keep: Bool, hh: Arg, rest: String, ww: Nat) -> String:
+  match keep:
+    case True{}:
+      help.arg_line(hh, ww) ++ "\n" ++ rest
+    case False{}:
+      rest
+
+# Arguments lines, skipping flags and options
+def help.arg_lines(args: List<&2, Arg>, +ww: Nat) -> String:
+  match args:
+    case Nil{}:
+      ""
+    case Con{+h, t}:
+      help.arg_lines.at(pos.is(h), h, help.arg_lines(t, ww), ww)
+
+# wrap Arguments lines in a heading
+def help.args.go(+body: String) -> String:
+  Bool.pick(String, String.is_empty(body), "", "Arguments:\n" ++ body ++ "\n")
+
+# the Arguments block, or empty when there are no positionals
+def help.args(+args: List<&2, Arg>) -> String:
+  help.args.go(help.arg_lines(args, help.arg_width(pos_of(args), 0n)))
+
 # the bracketed options word when the spec has a flag or option
 def help.opts_hint.go(has: Bool) -> String:
   Bool.pick(String, has, " [" ++ String.to_upper("options") ++ "]", "")
@@ -1914,6 +2032,46 @@ def title.go(+name: String, vv: Maybe<&2, String>) -> String:
     case Some{ver}:
       name ++ " " ++ ver
 
+# a built-in spelling a page lists, unless the command spells it itself
+def help.spell(taken: Maybe<&2, Arg>, +sp: String) -> Maybe<&2, String>:
+  match taken:
+    case None{}:
+      Some{sp}
+    case Some{_a}:
+      None{}
+
+# the row for `--help`, and `-h` when the command does not spell it; none
+# when the command spells long `help`
+def help.help_row(long: Maybe<&2, Arg>, short: Maybe<&2, Arg>) -> List<&2, Arg>:
+  match long:
+    case None{}:
+      [flag("help", help.spell(short, "h"), Some{"help"}, "Print help")]
+    case Some{_a}:
+      []
+
+# the row for `--version`, and `-V` when the command does not spell it, on a
+# page with a version; none when the command spells long `version`
+def help.version_row(version: Maybe<&2, String>, long: Maybe<&2, Arg>, short: Maybe<&2, Arg>) -> List<&2, Arg>:
+  match version:
+    case None{}:
+      []
+    case Some{_v}:
+      match long:
+        case None{}:
+          [flag("version", help.spell(short, "V"), Some{"version"}, "Print version")]
+        case Some{_a}:
+          []
+
+# the built-in flags a page lists after its command's own: help, then the
+# version on the root page
+def help.builtins(+args: List<&2, Arg>, version: Maybe<&2, String>) -> List<&2, Arg>:
+  List.append(&2, Arg, help.help_row(by_long(args, "help"), by_short(args, "h")),
+    help.version_row(version, by_long(args, "version"), by_short(args, "V")))
+
+# a command's arguments, then the built-in flags its page lists
+def help.with(+args: List<&2, Arg>, version: Maybe<&2, String>) -> List<&2, Arg>:
+  List.append(&2, Arg, args, help.builtins(args, version))
+
 # one help page
 def help.page(
   +title: String,
@@ -1923,7 +2081,7 @@ def help.page(
   +subs: List<&2, Sub>
 ) -> String:
   title ++ "\n" ++ about ++ "\n\n" ++ usage ++ "\n\n" ++ help.cmds(subs) ++
-    help.opts(args)
+    help.args(args) ++ help.opts(args)
 
 # a found child becomes the page; an unknown name stays
 def help.step.go(
@@ -1953,9 +2111,9 @@ def help.step(how: How, +name: String) -> How:
 def help.go(path: List<&2, String>, how: How) -> String:
   match path:
     case Nil{}:
-      How{+bin, +about, version, +args, +subs, +usage} = how
-      help.page(title.go(bin, version), about, help.usage(usage, args, subs),
-        args, subs)
+      How{+bin, +about, +version, +args, +subs, +usage} = how
+      +all = help.with(args, version)
+      help.page(title.go(bin, version), about, help.usage(usage, all, subs), all, subs)
     case Con{+h, t}:
       help.go(t, help.step(how, h))
 
@@ -1968,8 +2126,8 @@ def help(+app: Cli, path: List<&2, String>) -> String:
 def usage.go(path: List<&2, String>, how: How) -> String:
   match path:
     case Nil{}:
-      How{_b, _a, _v, +args, +subs, +usage} = how
-      help.usage(usage, args, subs)
+      How{_b, _a, version, +args, +subs, +usage} = how
+      help.usage(usage, help.with(args, version), subs)
     case Con{+hh, tt}:
       usage.go(tt, help.step(how, hh))
 
@@ -1986,6 +2144,82 @@ def err.hint(+path: List<&2, String>) -> String:
 # a short error, the usage line of the command where it happened, and the hint
 def err.wrap(+app: Cli, +at: List<&2, String>, +msg: String) -> String:
   msg ++ "\n\n" ++ usage.at(app, at) ++ "\n\n" ++ err.hint(at)
+
+# a flag or an option spelled as an error names it: `--long`, else `-s`,
+# followed by its value mark, else its name when it has no spelling
+def err.spelled(+short: String, +long: String, +name: String, +mark: String) -> String:
+  Bool.pick(String, String.is_empty(long),
+    Bool.pick(String, String.is_empty(short), name, "-" ++ short ++ mark),
+    "--" ++ long ++ mark)
+
+# an argument of this kind as an error names it
+def err.form.kind(kk: ArgKind, +aa: Arg, +name: String, +sh: String, +lo: String) -> String:
+  match kk:
+    case Flag{}:
+      err.spelled(sh, lo, name, "")
+    case Opt{}:
+      err.spelled(sh, lo, name, " <" ++ String.to_upper(name) ++ ">")
+    case Many{}:
+      err.spelled(sh, lo, name, " <" ++ String.to_upper(name) ++ ">...")
+    case Pos{}:
+      help.pos.label(aa)
+    case Rest{}:
+      help.pos.label(aa)
+
+# an argument as an error names it, as clap's: a flag by its spelling, an
+# option by its spelling and value mark, a positional by its usage mark
+def err.form(+aa: Arg) -> String:
+  Arg{+name, short, long, kind, _h, _r, _d, _c} = aa
+  err.form.kind(kind, aa, name, text.of(short, ""), text.of(long, ""))
+
+# the argument found here, else the one found above
+def err.find.here(found: Maybe<&2, Arg>, best: Maybe<&2, Arg>) -> Maybe<&2, Arg>:
+  match found:
+    case None{}:
+      best
+    case Some{aa}:
+      Some{aa}
+
+# the arguments of a page's command
+def help.how_args(how: How) -> List<&2, Arg>:
+  How{_b, _a, _v, args, _s, _u} = how
+  args
+
+# the argument named `name` on the deepest page a path walks through that
+# has one, else `best`
+def err.find.go(path: List<&2, String>, +how: How, +name: String, best: Maybe<&2, Arg>) -> Maybe<&2, Arg>:
+  match path:
+    case Nil{}:
+      err.find.here(by_name(help.how_args(how), name), best)
+    case Con{+hh, tt}:
+      err.find.go(tt, help.step(how, hh), name, err.find.here(by_name(help.how_args(how), name), best))
+
+# the argument named `name` of the deepest command on `at` that has one
+def err.find(+app: Cli, at: List<&2, String>, +name: String) -> Maybe<&2, Arg>:
+  Cli{+bin, +about, version, args, subs} = app
+  err.find.go(at, How{bin, about, version, args, subs, bin}, name, None{})
+
+# a found argument's display form, else the name
+def err.named(found: Maybe<&2, Arg>, +name: String) -> String:
+  match found:
+    case None{}:
+      name
+    case Some{aa}:
+      err.form(aa)
+
+# the argument an error names, as it names it
+def err.name(+app: Cli, at: List<&2, String>, +name: String) -> String:
+  err.named(err.find(app, at, name), name)
+
+# clap's line of the values a found argument allows, or nothing
+def err.values(found: Maybe<&2, Arg>) -> String:
+  match found:
+    case None{}:
+      ""
+    case Some{aa}:
+      Arg{_n, _s, _l, _k, _h, _r, _d, +cs} = aa
+      Bool.pick(String, List.is_empty(&2, String, cs), "",
+        "\n  [possible values: " ++ String.join(cs, ", ") ++ "]")
 
 # the head of a row, or 0 past its end
 def osa.head(xs: List<&2, Nat>) -> Nat:
@@ -2201,6 +2435,8 @@ def suggestion(+app: Cli, ee: ParseErr) -> Maybe<&2, String>:
       None{}
     case Repeated{_at, _name}:
       None{}
+    case NeedVersion{}:
+      None{}
 
 # clap's tip line for a suggestion, or nothing
 def sug.tip(mm: Maybe<&2, String>) -> String:
@@ -2210,21 +2446,25 @@ def sug.tip(mm: Maybe<&2, String>) -> String:
     case Some{ss}:
       "\n\n  tip: a similar argument exists: '" ++ ss ++ "'"
 
-# error text; NeedHelp is empty (the caller prints `help`)
+# error text; NeedHelp and NeedVersion are empty (the caller prints `help`,
+# or `version_of`)
 def err_text(+app: Cli, ee: ParseErr) -> String:
   match ee:
     case UnknownFlag{+at, +word}:
       err.wrap(app, at, "error: unexpected argument '" ++ word ++ "' found" ++ sug.tip(sug.word(app, at, word)))
-    case Missing{+at, name}:
+    case Missing{+at, +name}:
       err.wrap(app, at, "error: the following required argument was not provided:\n  " ++
-        name)
-    case NoValue{+at, name}:
-      err.wrap(app, at, "error: a value is required for '" ++ name ++ "' but none was supplied")
-    case BadValue{+at, name, value}:
-      err.wrap(app, at, "error: invalid value '" ++ value ++ "' for '" ++ name ++ "'")
+        err.name(app, at, name))
+    case NoValue{+at, +name}:
+      err.wrap(app, at, "error: a value is required for '" ++ err.name(app, at, name) ++ "' but none was supplied")
+    case BadValue{+at, +name, value}:
+      err.wrap(app, at, "error: invalid value '" ++ value ++ "' for '" ++ err.name(app, at, name) ++ "'" ++
+        err.values(err.find(app, at, name)))
     case NeedHelp{_path}:
       ""
     case Unexpected{+at, arg}:
       err.wrap(app, at, "error: unexpected argument '" ++ arg ++ "' found")
-    case Repeated{+at, name}:
-      err.wrap(app, at, "error: the argument '" ++ name ++ "' cannot be used multiple times")
+    case Repeated{+at, +name}:
+      err.wrap(app, at, "error: the argument '" ++ err.name(app, at, name) ++ "' cannot be used multiple times")
+    case NeedVersion{}:
+      ""
