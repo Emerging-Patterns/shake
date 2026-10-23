@@ -2378,6 +2378,153 @@ law err_text_usage:
     == msg ++ "\n\n" ++ usage_line(reach(Shake.err_path(err), root(spec))) ++ "\n\n" ++ S.err.hint(Shake.err_path(err))
     : String}
 
+# the pages a path walks through from `how`, `how` first, each name moving as
+# `help` moves
+def pages(path: List<&2, String>, +how: S.How) -> List<&2, S.How>:
+  match path:
+    case Nil{}:
+      [how]
+    case Con{+hh, tt}:
+      how <> pages(tt, S.help.step(how, hh))
+
+# a later find when there is one, else an earlier
+def keep_later(here: Maybe<&2, S.Arg>, later: Maybe<&2, S.Arg>) -> Maybe<&2, S.Arg>:
+  match later:
+    case None{}:
+      here
+    case Some{aa}:
+      Some{aa}
+
+# the argument named `name` of the last page that has one
+def deepest(hs: List<&2, S.How>, +name: String) -> Maybe<&2, S.Arg>:
+  match hs:
+    case Nil{}:
+      None{}
+    case Con{hh, tt}:
+      keep_later(S.by_name(S.help.how_args(hh), name), deepest(tt, name))
+
+# a flag's or an option's spelling: `--long`, else `-s`, then its value
+# mark; its name when it has neither
+def spelled(+short: String, +long: String, +name: String, +mark: String) -> String:
+  Bool.pick(String, String.is_empty(long),
+    Bool.pick(String, String.is_empty(short), name, "-" ++ short ++ mark),
+    "--" ++ long ++ mark)
+
+# a positional's form: `<NAME>` when required, `[NAME]` otherwise
+def pos_form(req: Bool, +nn: String) -> String:
+  match req:
+    case True{}:
+      "<" ++ nn ++ ">"
+    case False{}:
+      "[" ++ nn ++ "]"
+
+# an argument of this kind as an error names it
+def form_of.kind(kk: S.ArgKind, +name: String, +sh: String, +lo: String, req: Bool) -> String:
+  match kk:
+    case S.Flag{}:
+      spelled(sh, lo, name, "")
+    case S.Opt{}:
+      spelled(sh, lo, name, " <" ++ String.to_upper(name) ++ ">")
+    case S.Many{}:
+      spelled(sh, lo, name, " <" ++ String.to_upper(name) ++ ">...")
+    case S.Pos{}:
+      pos_form(req, String.to_upper(name))
+    case S.Rest{}:
+      pos_form(req, String.to_upper(name)) ++ "..."
+
+# an argument's display form
+def form_of(aa: S.Arg) -> String:
+  S.Arg{+name, short, long, kind, _h, req, _d, _c} = aa
+  form_of.kind(kind, name, S.text.of(short, ""), S.text.of(long, ""), req)
+
+# a found argument's display form, else the name the error carries
+def named(found: Maybe<&2, S.Arg>, +name: String) -> String:
+  match found:
+    case None{}:
+      name
+    case Some{aa}:
+      form_of(aa)
+
+# clap's line of the values a found argument allows, when it has choices
+def values_line(found: Maybe<&2, S.Arg>) -> String:
+  match found:
+    case None{}:
+      ""
+    case Some{aa}:
+      S.Arg{_n, _s, _l, _k, _h, _r, _d, cs} = aa
+      match cs:
+        case Nil{}:
+          ""
+        case Con{cc, rest}:
+          "\n  [possible values: " ++ String.join(cc <> rest, ", ") ++ "]"
+
+# LAW: the argument an error is about is the one named so on the deepest
+# command of its path that has one, the root first
+# SHAKE-ERR-5
+law err_find:
+  for +spec: Shake.Cli
+  for +at: List<&2, String>
+  for +name: String
+  {S.err.find(spec, at, name) == deepest(pages(at, root(spec)), name) : Maybe<&2, S.Arg>}
+
+# LAW: an argument's display form: a flag by `--long`, else `-s`, an option
+# with its value mark after, a positional by `<NAME>` or `[NAME]`, `...`
+# after a rest
+# SHAKE-ERR-5
+law err_form:
+  for +nn: String
+  for +sh: Maybe<&2, String>
+  for +lo: Maybe<&2, String>
+  for +kind: S.ArgKind
+  for +hp: String
+  for +req: Bool
+  for +fb: S.Fallback
+  for +cs: List<&2, String>
+  {S.err.form(S.Arg{nn, sh, lo, kind, hp, req, fb, cs}) == form_of(S.Arg{nn, sh, lo, kind, hp, req, fb, cs}) : String}
+
+# LAW: a missing argument is named by its display form
+# SHAKE-ERR-5
+law err_missing_named:
+  for +spec: Shake.Cli
+  for +at: List<&2, String>
+  for +name: String
+  {Shake.err_text(spec, S.Missing{at, name})
+    == S.err.wrap(spec, at, "error: the following required argument was not provided:\n  " ++
+      named(deepest(pages(at, root(spec)), name), name)) : String}
+
+# LAW: an option missing its value is named by its display form
+# SHAKE-ERR-5
+law err_novalue_named:
+  for +spec: Shake.Cli
+  for +at: List<&2, String>
+  for +name: String
+  {Shake.err_text(spec, S.NoValue{at, name})
+    == S.err.wrap(spec, at, "error: a value is required for '" ++ named(deepest(pages(at, root(spec)), name), name) ++
+      "' but none was supplied") : String}
+
+# LAW: a value outside the choices names its argument by its display form,
+# then lists the choices
+# SHAKE-ERR-5
+law err_bad_named:
+  for +spec: Shake.Cli
+  for +at: List<&2, String>
+  for +name: String
+  for +value: String
+  {Shake.err_text(spec, S.BadValue{at, name, value})
+    == S.err.wrap(spec, at, "error: invalid value '" ++ value ++ "' for '" ++
+      named(deepest(pages(at, root(spec)), name), name) ++ "'" ++ values_line(deepest(pages(at, root(spec)), name)))
+    : String}
+
+# LAW: an argument given twice is named by its display form
+# SHAKE-ERR-5
+law err_repeated_named:
+  for +spec: Shake.Cli
+  for +at: List<&2, String>
+  for +name: String
+  {Shake.err_text(spec, S.Repeated{at, name})
+    == S.err.wrap(spec, at, "error: the argument '" ++ named(deepest(pages(at, root(spec)), name), name) ++
+      "' cannot be used multiple times") : String}
+
 # the entry every Commands block ends with
 def help_sub() -> S.Sub:
   S.Sub{"help", "Print this message or the help of the given subcommand(s)", [], []}

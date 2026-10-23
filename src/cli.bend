@@ -2029,6 +2029,82 @@ def err.hint(+path: List<&2, String>) -> String:
 def err.wrap(+app: Cli, +at: List<&2, String>, +msg: String) -> String:
   msg ++ "\n\n" ++ usage.at(app, at) ++ "\n\n" ++ err.hint(at)
 
+# a flag or an option spelled as an error names it: `--long`, else `-s`,
+# followed by its value mark, else its name when it has no spelling
+def err.spelled(+short: String, +long: String, +name: String, +mark: String) -> String:
+  Bool.pick(String, String.is_empty(long),
+    Bool.pick(String, String.is_empty(short), name, "-" ++ short ++ mark),
+    "--" ++ long ++ mark)
+
+# an argument of this kind as an error names it
+def err.form.kind(kk: ArgKind, +aa: Arg, +name: String, +sh: String, +lo: String) -> String:
+  match kk:
+    case Flag{}:
+      err.spelled(sh, lo, name, "")
+    case Opt{}:
+      err.spelled(sh, lo, name, " <" ++ String.to_upper(name) ++ ">")
+    case Many{}:
+      err.spelled(sh, lo, name, " <" ++ String.to_upper(name) ++ ">...")
+    case Pos{}:
+      help.pos.label(aa)
+    case Rest{}:
+      help.pos.label(aa)
+
+# an argument as an error names it, as clap's: a flag by its spelling, an
+# option by its spelling and value mark, a positional by its usage mark
+def err.form(+aa: Arg) -> String:
+  Arg{+name, short, long, kind, _h, _r, _d, _c} = aa
+  err.form.kind(kind, aa, name, text.of(short, ""), text.of(long, ""))
+
+# the argument found here, else the one found above
+def err.find.here(found: Maybe<&2, Arg>, best: Maybe<&2, Arg>) -> Maybe<&2, Arg>:
+  match found:
+    case None{}:
+      best
+    case Some{aa}:
+      Some{aa}
+
+# the arguments of a page's command
+def help.how_args(how: How) -> List<&2, Arg>:
+  How{_b, _a, _v, args, _s, _u} = how
+  args
+
+# the argument named `name` on the deepest page a path walks through that
+# has one, else `best`
+def err.find.go(path: List<&2, String>, +how: How, +name: String, best: Maybe<&2, Arg>) -> Maybe<&2, Arg>:
+  match path:
+    case Nil{}:
+      err.find.here(by_name(help.how_args(how), name), best)
+    case Con{+hh, tt}:
+      err.find.go(tt, help.step(how, hh), name, err.find.here(by_name(help.how_args(how), name), best))
+
+# the argument named `name` of the deepest command on `at` that has one
+def err.find(+app: Cli, at: List<&2, String>, +name: String) -> Maybe<&2, Arg>:
+  Cli{+bin, +about, version, args, subs} = app
+  err.find.go(at, How{bin, about, version, args, subs, bin}, name, None{})
+
+# a found argument's display form, else the name
+def err.named(found: Maybe<&2, Arg>, +name: String) -> String:
+  match found:
+    case None{}:
+      name
+    case Some{aa}:
+      err.form(aa)
+
+# the argument an error names, as it names it
+def err.name(+app: Cli, at: List<&2, String>, +name: String) -> String:
+  err.named(err.find(app, at, name), name)
+
+# clap's line of the values a found argument allows, or nothing
+def err.values(found: Maybe<&2, Arg>) -> String:
+  match found:
+    case None{}:
+      ""
+    case Some{aa}:
+      Arg{_n, _s, _l, _k, _h, _r, _d, +cs} = aa
+      Bool.pick(String, List.is_empty(&2, String, cs), "",
+        "\n  [possible values: " ++ String.join(cs, ", ") ++ "]")
+
 # the head of a row, or 0 past its end
 def osa.head(xs: List<&2, Nat>) -> Nat:
   match xs:
@@ -2257,16 +2333,17 @@ def err_text(+app: Cli, ee: ParseErr) -> String:
   match ee:
     case UnknownFlag{+at, +word}:
       err.wrap(app, at, "error: unexpected argument '" ++ word ++ "' found" ++ sug.tip(sug.word(app, at, word)))
-    case Missing{+at, name}:
+    case Missing{+at, +name}:
       err.wrap(app, at, "error: the following required argument was not provided:\n  " ++
-        name)
-    case NoValue{+at, name}:
-      err.wrap(app, at, "error: a value is required for '" ++ name ++ "' but none was supplied")
-    case BadValue{+at, name, value}:
-      err.wrap(app, at, "error: invalid value '" ++ value ++ "' for '" ++ name ++ "'")
+        err.name(app, at, name))
+    case NoValue{+at, +name}:
+      err.wrap(app, at, "error: a value is required for '" ++ err.name(app, at, name) ++ "' but none was supplied")
+    case BadValue{+at, +name, value}:
+      err.wrap(app, at, "error: invalid value '" ++ value ++ "' for '" ++ err.name(app, at, name) ++ "'" ++
+        err.values(err.find(app, at, name)))
     case NeedHelp{_path}:
       ""
     case Unexpected{+at, arg}:
       err.wrap(app, at, "error: unexpected argument '" ++ arg ++ "' found")
-    case Repeated{+at, name}:
-      err.wrap(app, at, "error: the argument '" ++ name ++ "' cannot be used multiple times")
+    case Repeated{+at, +name}:
+      err.wrap(app, at, "error: the argument '" ++ err.name(app, at, name) ++ "' cannot be used multiple times")
