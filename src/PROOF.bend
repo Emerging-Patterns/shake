@@ -441,8 +441,12 @@ def Laws.unknown_short_step(
   %e1 : {S.parse.step.end(_, "-" ++ SCon{cc, rest}, args, up, subs, path, bs, pos,
       seen) == S.St{S.Dead{S.UnknownFlag{path, "-" ++ SCon{cc,
           rest}}}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
+  e4 = Equal.sym(Cmp, String.order.go(SCon{cc, rest}, "elp", LT{}), LT{}, Eq.string_order_lt(SCon{cc, rest}, "elp"))
+  %e4 : {S.parse.step.help(Bool.and(Cmp.is_eq(_), Bool.not(seen)), "-" ++ SCon{cc, rest}, args, up, subs, path, bs,
+      pos, seen) == S.St{S.Dead{S.UnknownFlag{path, "-" ++ SCon{cc,
+          rest}}}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   e3 = Equal.sym(Bool, Char.is_eq(cc, '-'), False{}, h_dash)
-  %e3 : {S.parse.step.kind.go(String.starts_with.if(rest, "", _), True{}, "-" ++ SCon{cc, rest}, args, up,
+  %e3 : {S.parse.step.kind.go(String.starts_with.go.if("", rest, _), True{}, "-" ++ SCon{cc, rest}, args, up,
       subs, path, bs, pos,
       seen) == S.St{S.Dead{S.UnknownFlag{path, "-" ++ SCon{cc,
           rest}}}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
@@ -4297,8 +4301,11 @@ def Laws.short_step(cc, rest, args, up, subs, path, bs, pos, seen, h_dd, h_dash)
   e1 = Equal.sym(Bool, String.eq(tok, "--"), False{}, h_dd)
   %e1 : {S.parse.step.end(_, tok, args, up, subs, path, bs, pos, seen) == S.cluster(SCon{cc, rest}, tok, st,
       False{}) : S.St}
+  e4 = Equal.sym(Cmp, String.order.go(SCon{cc, rest}, "elp", LT{}), LT{}, Eq.string_order_lt(SCon{cc, rest}, "elp"))
+  %e4 : {S.parse.step.help(Bool.and(Cmp.is_eq(_), Bool.not(seen)), tok, args, up, subs, path, bs, pos, seen)
+    == S.cluster(SCon{cc, rest}, tok, st, False{}) : S.St}
   e3 = Equal.sym(Bool, Char.is_eq(cc, '-'), False{}, h_dash)
-  %e3 : {S.parse.step.kind.go(String.starts_with.if(rest, "", _), True{}, tok, args, up, subs, path, bs, pos, seen)
+  %e3 : {S.parse.step.kind.go(String.starts_with.go.if("", rest, _), True{}, tok, args, up, subs, path, bs, pos, seen)
     == S.cluster(SCon{cc, rest}, tok, st, False{}) : S.St}
   {==}
 
@@ -5139,7 +5146,7 @@ def sc.ok.at(
   +r1: Bool,
   +r2: Bool,
   ee: {r1 == r2 : Bool}
-) -> {S.allowed.ok.at(bb, r1) == Bool.or(bb, r2) : Bool}:
+) -> {S.allowed.ok.at(bb, r1) == List.any.if(_u => r2, bb) : Bool}:
   match bb:
     case True{}:
       {==}
@@ -10488,7 +10495,7 @@ def ct.starts(ss: String, +post: String) -> {String.starts_with(ss ++ post, ss) 
       Laws.prefix_empty(post)
     case SCon{+hh, tt}:
       e1 = Equal.sym(Bool, Char.is_eq(hh, hh), True{}, Eq.char_eq_self(hh))
-      %e1 : {String.starts_with.if(tt ++ post, tt, _) == True{} : Bool}
+      %e1 : {String.starts_with.go.if(tt, tt ++ post, _) == True{} : Bool}
       ct.starts(tt, post)
 
 # every string contains the empty one

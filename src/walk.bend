@@ -143,8 +143,8 @@ def wk.none_of(mm, h):
 law wk.dash.if:
   for b: Bool
   for xt: String
-  for h: {String.starts_with.if(xt, "", b) == False{} : Bool}
-  {String.starts_with.if(xt, "-", b) == False{} : Bool}
+  for h: {String.starts_with.go.if("", xt, b) == False{} : Bool}
+  {String.starts_with.go.if("-", xt, b) == False{} : Bool}
 
 def wk.dash.if(b, xt, h):
   match b:
@@ -153,9 +153,9 @@ def wk.dash.if(b, xt, h):
     case True{}:
       match xt:
         case SNil{}:
-          Empty.absurd({String.starts_with.if(SNil{}, "-", True{}) == False{} : Bool}, wk.true_false(h))
+          Empty.absurd({String.starts_with.go.if("-", SNil{}, True{}) == False{} : Bool}, wk.true_false(h))
         case SCon{x, t}:
-          Empty.absurd({String.starts_with.if(SCon{x, t}, "-", True{}) == False{} : Bool}, wk.true_false(h))
+          Empty.absurd({String.starts_with.go.if("-", SCon{x, t}, True{}) == False{} : Bool}, wk.true_false(h))
 
 # a word that does not start with `-` does not start with `--`
 law wk.dash:

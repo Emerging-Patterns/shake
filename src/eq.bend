@@ -101,9 +101,79 @@ law string_eq_self:
   for +ss: String
   {String.eq(ss, ss) == True{} : Bool}
 
-# equality is the comparison's verdict read as a bit, so the comparison's
-# law answers
+# LAW: a string orders equal to itself
+law string_order_self:
+  for +ss: String
+  {String.order.go(ss, ss, EQ{}) == EQ{} : Cmp}
+
+# by induction on the string: the head's code point compares equal to itself,
+# so the walk goes on to the tail still equal
+def string_order_self(ss):  # noqa: L001 a proof of this file's law
+  match ss:
+    case SNil{}:
+      {==}
+    case SCon{+hh, +tt}:
+      match hh:
+        case Chr{+xx}:
+          Equal.trans(Cmp, String.order.go(tt, tt, U32.cmp(xx, xx)),
+            String.order.go(tt, tt, EQ{}), EQ{},
+            Equal.cong(Cmp, Cmp, cc => String.order.go(tt, tt, cc),
+              U32.cmp(xx, xx), EQ{}, u32_cmp_self(xx)),
+            string_order_self(tt))
+
+# equality is the order's verdict read as a bit, so the order's law answers
 def string_eq_self(ss):  # noqa: L001 a proof of this file's law
-  Equal.cong((String & String) & Cmp, Bool,
-    rr => Cmp.is_eq(Pair.snd(String & String, Cmp, rr)),
-    String.cmp(ss, ss), ((ss, ss), EQ{}), string_cmp_self(ss))
+  Equal.cong(Cmp, Bool, cc => Cmp.is_eq(cc),
+    String.order.go(ss, ss, EQ{}), EQ{}, string_order_self(ss))
+
+# LAW: an order already decided below stays below, whatever is left
+law string_order_lt:
+  for +aa: String
+  for +bb: String
+  {String.order.go(aa, bb, LT{}) == LT{} : Cmp}
+
+# the walk only goes on while the order is equal
+def string_order_lt(aa, bb):  # noqa: L001 a proof of this file's law
+  match aa:
+    case SNil{}:
+      match bb:
+        case SNil{}:
+          {==}
+        case SCon{+_kk, +_ut}:
+          {==}
+    case SCon{+hh, +_tt}:
+      match hh:
+        case Chr{+_xx}:
+          match bb:
+            case SNil{}:
+              {==}
+            case SCon{+kk, +_ut}:
+              match kk:
+                case Chr{+_yy}:
+                  {==}
+
+# LAW: an order already decided above stays above, whatever is left
+law string_order_gt:
+  for +aa: String
+  for +bb: String
+  {String.order.go(aa, bb, GT{}) == GT{} : Cmp}
+
+# the walk only goes on while the order is equal
+def string_order_gt(aa, bb):  # noqa: L001 a proof of this file's law
+  match aa:
+    case SNil{}:
+      match bb:
+        case SNil{}:
+          {==}
+        case SCon{+_kk, +_ut}:
+          {==}
+    case SCon{+hh, +_tt}:
+      match hh:
+        case Chr{+_xx}:
+          match bb:
+            case SNil{}:
+              {==}
+            case SCon{+kk, +_ut}:
+              match kk:
+                case Chr{+_yy}:
+                  {==}

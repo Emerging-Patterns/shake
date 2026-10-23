@@ -17,7 +17,7 @@ import shake@0.4.0.0/main.bend as Shake
 `shake@0.4.0.0` resolves to `0xcab8a7a189cec2b51e8db0484f69c593`;
 `import 0xcab8a7a189cec2b51e8db0484f69c593/main.bend` pins it by content.
 shake needs bend 2.0.32 or later (see below), and is built and checked on
-bend 2.0.34.
+bend 2.0.38.
 
 Or with [ez](https://github.com/Emerging-Patterns/ez), which records the
 package in `ez.toml` (`ez init` makes one):
@@ -119,18 +119,21 @@ def main() -> IO(Unit):
 ```
 
 A compiled Bend program's runtime reads the command line before shake does
-(bend 2.0.34):
+(bend 2.0.38), but only its own words:
 
-- `--bend-help` prints the runtime's own usage and exits, and `--gpu-build`
-  builds the GPU image and exits; neither runs `main`. `--help` reaches
-  the program, and shake reads it as a request for help.
-- `--threads N` and `--gpu X` are taken, with their value, and a bad value
-  stops the program.
-- The first `--` is taken too, and every word after it is passed on
-  unexamined.
+- Runtime options go between `+RTS` and `-RTS`, as in
+  `tool +RTS --threads 4 -RTS add 1 2` (a trailing `-RTS` may be left off,
+  and the env var `BENDRTS` holds them too). `+RTS --help -RTS` prints the
+  runtime's own usage and exits, and `+RTS --gpu-build -RTS` builds the GPU
+  image and exits; neither runs `main`.
+- `--RTS` is taken, and every word after it is passed on unexamined.
+- Every other word reaches shake: `--help` is a request for help, and
+  `--threads`, `--gpu` and `--gpu-build` outside the bracket are the
+  program's own words, an unknown argument unless the spec declares them.
 
-So a `--` ends shake's option parsing (every later word is a positional)
-only when it is the second one: `tool add -- -- -5 3` binds `-5` and `3`.
+So a `--` ends shake's option parsing (every later word is a positional):
+`tool add -- -5 3` binds `-5` and `3`. On bend 2.0.37 and earlier the
+runtime took the first `--` and users typed it twice.
 
 ```
 git clone https://github.com/Emerging-Patterns/shake

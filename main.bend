@@ -245,8 +245,8 @@ def env_vars(spec: S.Cli) -> IO(List<&2, S.Var>):  # noqa: L001 IO: reads env va
 
 # the process's arguments, each word reusable, without the program name
 # that `IO.args` starts with (bend 2.0.32 and later). A compiled program's
-# runtime has already acted on `--bend-help`, `--gpu-build`, `--threads N`
-# and `--gpu X` and taken the first `--`, passing every word after it here
-# unexamined; so the `--` that `parse` sees is the user's second one
+# runtime has already taken its own words, those between `+RTS` and `-RTS`
+# and a `--RTS` (passing every word after that here unexamined); on bend
+# 2.0.38 every other word, `--` included, reaches `parse` as typed
 def argv() -> IO(List<&2, String>):  # noqa: L001 IO: reads argv
   Args.argv()
