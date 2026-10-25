@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/Emerging-Patterns/shake/compare/v0.7.0...v0.8.0) (2026-10-25)
+
+
+### Features
+
+* **nix:** build and check on x86_64-linux, aarch64-linux and aarch64-darwin ([#69](https://github.com/Emerging-Patterns/shake/issues/69)) ([3222a84](https://github.com/Emerging-Patterns/shake/commit/3222a8415f1a4cd717e94301c2da9141f9cf7e4f))
+
 ## [0.7.0](https://github.com/Emerging-Patterns/shake/compare/v0.6.0...v0.7.0) (2026-10-23)
 
 
