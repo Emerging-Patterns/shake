@@ -8,7 +8,8 @@
 # Every guarantee is about the interface in main.bend: its types, builders,
 # `parse`, `parse_env`, `check`, `check_reads`, the readers, `help`,
 # `err_text`, `help_path`, `err_path`, `version_of`, `suggestion`, `argv` and
-# `env_vars`. Every module under src/ is internal and carries no promise.
+# `env_vars`. Every module under src/ is internal: a law about one holds it in
+# place without making it interface.
 #
 # A spec is well-formed when `check` reports nothing for it
 # (laws/CheckReportsSpecErrors.bend). The parse guarantees hold for
