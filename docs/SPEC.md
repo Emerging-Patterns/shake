@@ -10,7 +10,7 @@ The words `parse` receives are what the program passes it. In a compiled program
 
 An argument's **env var** is the name `env` gives it; an argument built without `env` has none. `parse_env` also receives **vars**, a list of name and value pairs, which in a compiled program come from `env_vars` (SHAKE-TRUST-5). An argument's **env value** is the value of the first pair in vars named by its env var, when that value is not empty; an env var no pair names, or whose first pair's value is empty, gives no env value.
 
-The reasoning behind each requirement, the verdict of each against the code at `b93357a`, and the decisions that shaped them are in [docs/rfc/shake-spec.md](docs/rfc/shake-spec.md). The RFC also records the audit behind them and the rollout that proved every row. The env and suggestion rows (SHAKE-PARSE-11, PARSE-12, HELP-3, ERR-3, ERR-4, ARGS-2, TRUST-5) are designed in [docs/rfc/shake-env-and-suggestions.md](docs/rfc/shake-env-and-suggestions.md).
+The reasoning behind each requirement, the verdict of each against the code at `b93357a`, and the decisions that shaped them are in [docs/rfc/shake-spec.md](rfc/shake-spec.md). The RFC also records the audit behind them and the rollout that proved every row. The env and suggestion rows (SHAKE-PARSE-11, PARSE-12, HELP-3, ERR-3, ERR-4, ARGS-2, TRUST-5) are designed in [docs/rfc/shake-env-and-suggestions.md](rfc/shake-env-and-suggestions.md).
 
 ## Format
 
@@ -111,7 +111,7 @@ A tag may name a proved or a pending requirement, never a Trusted one or an ID n
 
 ## Left to prove
 
-No row is pending. The RFCs' Rollouts and [docs/rfc/shake-walker-proofs.md](docs/rfc/shake-walker-proofs.md) say in which phase each row's laws landed. Every walker law holds wherever the words before the word it is about leave the walker in the state its premise names.
+No row is pending. The RFCs' Rollouts and [docs/rfc/shake-walker-proofs.md](rfc/shake-walker-proofs.md) say in which phase each row's laws landed. Every walker law holds wherever the words before the word it is about leave the walker in the state its premise names.
 
 ## Trust boundary
 

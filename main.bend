@@ -132,7 +132,7 @@ def env(arg: S.Arg, +var: String) -> S.Arg:
 # last, a repeated argument name or spelling, a repeated subcommand name, a
 # subcommand named `help`, a default outside its choices, a required
 # positional after an optional one. Empty for a well-formed spec, which is
-# what SPEC.md's parse guarantees are about; `parse` does not call it
+# what the parse guarantees are about (LAWS.bend); `parse` does not call it
 def check(spec: S.Cli) -> List<&2, K.SpecErr>:
   K.check(spec)
 

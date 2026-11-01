@@ -73,7 +73,9 @@ does it for you. shake needs bend 2.0.32 or later for that reason.
 `suggestion`, `argv` and `env_vars`.
 Everything under `src/` is
 internal and may change in any release; import only `main.bend`.
-[SPEC.md](SPEC.md) lists what shake guarantees, and which of it is proved.
+[LAWS.bend](LAWS.bend) lists what shake guarantees: one file under
+[laws/](laws/) each, proved by the file of the same name under
+[proofs/](proofs/).
 
 `check(spec)` lists every way a spec contradicts itself (a rest positional
 that is not the last, a repeated name or spelling, a subcommand named
@@ -174,8 +176,9 @@ bin/demo.bin add 2 3 --times 2
 ## Layout
 
 - `main.bend`: the interface.
-- `src/`: the implementation, with `src/LAWS.bend` stating the parser's laws
-  and `src/PROOF.bend` proving them. `nix flake check` runs the proof gate.
+- `src/`: the implementation.
+- `laws/` and `proofs/`: one file per guarantee and its proof, imported by
+  `LAWS.bend` and `PROOF.bend`. `nix flake check` runs the proof gate.
 - `examples/demo/`: a small program that uses only `main.bend`.
 - `ez.toml` and `ez.lock.toml`: the ledger and lock; bolt, the linter, is
   pinned there as `[tools.bolt]`, and `nix flake check` runs it.

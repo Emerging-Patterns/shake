@@ -10,7 +10,7 @@ law bool_cmp_self:
   {Bool.cmp(bb, bb) == EQ{} : Cmp}
 
 # the two bits, each compared with itself
-def bool_cmp_self(bb):  # noqa: L001 a proof of this file's law
+def bool_cmp_self(bb):
   match bb:
     case False{}:
       {==}
@@ -24,7 +24,7 @@ law word_cmp_self:
   {Word.cmp(nn, ww, ww) == EQ{} : Cmp}
 
 # by induction on the width: a word of no bits and a bit carried over one
-def word_cmp_self(nn, ww):  # noqa: L001 a proof of this file's law
+def word_cmp_self(nn, ww):
   match nn:
     case 0n:
       match ww:
@@ -45,7 +45,7 @@ law u32_cmp_self:
   {U32.cmp(uu, uu) == EQ{} : Cmp}
 
 # a number is a word of thirty-two bits, so the word's law answers for it
-def u32_cmp_self(uu):  # noqa: L001 a proof of this file's law
+def u32_cmp_self(uu):
   match uu:
     case U32{+ww}:
       word_cmp_self(32n, ww)
@@ -56,7 +56,7 @@ law char_cmp_self:
   {Char.cmp(cc, cc) == ((cc, cc), EQ{}) : (Char & Char) & Cmp}
 
 # a char is a code point, and the pair it is compared inside rides along
-def char_cmp_self(cc):  # noqa: L001 a proof of this file's law
+def char_cmp_self(cc):
   match cc:
     case Chr{+xx}:
       Equal.cong(Cmp, (Char & Char) & Cmp, rr => ((Chr{xx}, Chr{xx}), rr),
@@ -68,7 +68,7 @@ law char_eq_self:
   {Char.is_eq(cc, cc) == True{} : Bool}
 
 # a char is a code point, and equality is the comparison's verdict
-def char_eq_self(cc):  # noqa: L001 a proof of this file's law
+def char_eq_self(cc):
   match cc:
     case Chr{+xx}:
       Equal.cong(Cmp, Bool, rr => Cmp.is_eq(rr), U32.cmp(xx, xx), EQ{}, u32_cmp_self(xx))
@@ -80,7 +80,7 @@ law string_cmp_self:
 
 # by induction on the string: the head's law and the tail's, composed the
 # way String.cmp composes them
-def string_cmp_self(ss):  # noqa: L001 a proof of this file's law
+def string_cmp_self(ss):
   match ss:
     case SNil{}:
       {==}
@@ -108,7 +108,7 @@ law string_order_self:
 
 # by induction on the string: the head's code point compares equal to itself,
 # so the walk goes on to the tail still equal
-def string_order_self(ss):  # noqa: L001 a proof of this file's law
+def string_order_self(ss):
   match ss:
     case SNil{}:
       {==}
@@ -122,7 +122,7 @@ def string_order_self(ss):  # noqa: L001 a proof of this file's law
             string_order_self(tt))
 
 # equality is the order's verdict read as a bit, so the order's law answers
-def string_eq_self(ss):  # noqa: L001 a proof of this file's law
+def string_eq_self(ss):
   Equal.cong(Cmp, Bool, cc => Cmp.is_eq(cc),
     String.order.go(ss, ss, EQ{}), EQ{}, string_order_self(ss))
 
@@ -133,7 +133,7 @@ law string_order_lt:
   {String.order.go(aa, bb, LT{}) == LT{} : Cmp}
 
 # the walk only goes on while the order is equal
-def string_order_lt(aa, bb):  # noqa: L001 a proof of this file's law
+def string_order_lt(aa, bb):
   match aa:
     case SNil{}:
       match bb:
@@ -159,7 +159,7 @@ law string_order_gt:
   {String.order.go(aa, bb, GT{}) == GT{} : Cmp}
 
 # the walk only goes on while the order is equal
-def string_order_gt(aa, bb):  # noqa: L001 a proof of this file's law
+def string_order_gt(aa, bb):
   match aa:
     case SNil{}:
       match bb:
@@ -245,7 +245,7 @@ law cmp_is_eq:
   {c == EQ{} : Cmp}
 
 # the two other answers read as False
-def cmp_is_eq(c, e):  # noqa: L001 a proof of this file's law
+def cmp_is_eq(c, e):
   match c:
     case LT{}:
       bit.absurd(&2, {LT{} == EQ{} : Cmp}, e)
@@ -262,7 +262,7 @@ law bool_eq:
   {a == b : Bool}
 
 # the two bits that differ compare LT or GT
-def bool_eq(a, b, e):  # noqa: L001 a proof of this file's law
+def bool_eq(a, b, e):
   match a b:
     case False{} False{}:
       {==}
@@ -282,7 +282,7 @@ law fin_tail:
   {t == EQ{} : Cmp}
 
 # an answer of LT or GT from the tails is the answer, never EQ
-def fin_tail(_ab, _bb, t, e):  # noqa: L001 a proof of this file's law
+def fin_tail(_ab, _bb, t, e):
   match t:
     case LT{}:
       bit.gone(&2, {LT{} == EQ{} : Cmp}, cmp.lt(e))
@@ -300,7 +300,7 @@ law fin_head:
   {Bool.cmp(ab, bb) == EQ{} : Cmp}
 
 # and an EQ from the tails leaves the heads to answer
-def fin_head(ab, bb, t, e):  # noqa: L001 a proof of this file's law
+def fin_head(ab, bb, t, e):
   match t:
     case LT{}:
       bit.gone(&2, {Bool.cmp(ab, bb) == EQ{} : Cmp}, cmp.lt(e))
@@ -318,7 +318,7 @@ law word_eq:
   {a == b : Word(n)}
 
 # by induction on the width: the heads by the bit law, then the tails
-def word_eq(n, a, b, e):  # noqa: L001 a proof of this file's law
+def word_eq(n, a, b, e):
   match n:
     case 0n:
       match a b:
@@ -341,7 +341,7 @@ law u32_eq:
   {Chr{x} == Chr{y} : Char}
 
 # a code point is a word of thirty-two bits
-def u32_eq(x, y, e):  # noqa: L001 a proof of this file's law
+def u32_eq(x, y, e):
   match x y:
     case U32{+wx} U32{+wy}:
       Equal.cong(Word(32n), Char, w => Chr{U32{w}}, wx, wy,
@@ -355,7 +355,7 @@ law char_eq_true:
   {a == b : Char}
 
 # a char is a code point
-def char_eq_true(a, b, e):  # noqa: L001 a proof of this file's law
+def char_eq_true(a, b, e):
   match a b:
     case Chr{x} Chr{y}:
       u32_eq(x, y, e)
@@ -370,7 +370,7 @@ law eq_fin_rec:
     == Cmp.is_eq(Pair.snd(String & String, Cmp, r)) : Bool}
 
 # the comparison, taken apart and put back together
-def eq_fin_rec(_h1, _h2, r):  # noqa: L001 a proof of this file's law
+def eq_fin_rec(_h1, _h2, r):
   match r:
     case (ts, c):
       match ts:
@@ -440,7 +440,7 @@ def cmp_tail.cmp(x, y, t1, t2, c, _ec, e):
       bit.absurd(&2, {Cmp.is_eq(Pair.snd(String & String, Cmp, String.cmp(t1, t2))) == True{} : Bool}, e)
 
 # by induction on both strings, as string_eq_true goes over String.eq
-def cmp_true(a, b, e):  # noqa: L001 a proof of this file's law
+def cmp_true(a, b, e):
   match a b:
     case SNil{} SNil{}:
       {==}
@@ -484,7 +484,7 @@ law order_start:
   {c == EQ{} : Cmp}
 
 # every arm the walk takes on a start other than EQ answers that start
-def order_start(a, b, c, e):  # noqa: L001 a proof of this file's law
+def order_start(a, b, c, e):
   match a b:
     case SNil{} SNil{}:
       cmp_is_eq(c, e)
@@ -525,7 +525,7 @@ law eq_head:
 
 # the walk goes on to the tails from the heads' comparison, which must have
 # been EQ for the walk to end equal
-def eq_head(h1, h2, t1, t2, e):  # noqa: L001 a proof of this file's law
+def eq_head(h1, h2, t1, t2, e):
   match h1 h2:
     case Chr{+x} Chr{+y}:
       u32_eq(x, y, Equal.cong(Cmp, Bool, k => Cmp.is_eq(k), U32.cmp(x, y), EQ{},
@@ -541,7 +541,7 @@ law eq_tail:
   {String.eq(t1, t2) == True{} : Bool}
 
 # and the walk over the tails started from that EQ
-def eq_tail(h1, h2, t1, t2, e):  # noqa: L001 a proof of this file's law
+def eq_tail(h1, h2, t1, t2, e):
   match h1 h2:
     case Chr{+x} Chr{+y}:
       Equal.trans(Bool, String.eq(t1, t2),
@@ -559,7 +559,7 @@ law string_eq_true:
 
 # by induction on both strings: two of different lengths never read as
 # equal, and two with a first char each have one head and equal tails
-def string_eq_true(a, b, e):  # noqa: L001 a proof of this file's law
+def string_eq_true(a, b, e):
   match a b:
     case SNil{} SNil{}:
       {==}
