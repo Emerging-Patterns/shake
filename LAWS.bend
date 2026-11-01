@@ -40,8 +40,8 @@
 # names, or whose first pair's value is empty, gives no env value.
 #
 # The reasoning behind each guarantee is in docs/rfc/shake-spec.md and
-# docs/rfc/shake-env-and-suggestions.md, which name them by the requirement
-# IDs they had before laws/.
+# docs/rfc/shake-env-and-suggestions.md. Those name the guarantees by the
+# requirement IDs of docs/SPEC.md, the table these files replaced.
 import Base
 import ./laws/AllowedAny.bend as AllowedAny
 import ./laws/ArgLineMark.bend as ArgLineMark
