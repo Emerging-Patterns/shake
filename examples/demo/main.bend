@@ -3,7 +3,7 @@ import Base
 import ../../main.bend as Shake
 
 # the program spec
-def spec() -> Shake.Cli:  # noqa: L001 the example program, not the library
+def spec() -> Shake.Cli:
   Shake.app("demo", "A tiny command-line program.", Some{"0.1.0"},
     [Shake.flag("verbose", Some{"v"}, Some{"verbose"}, "More output")],
     [
@@ -44,12 +44,12 @@ def greet.tags(tags: List<&2, String>) -> IO(Unit):
       IO.print("tags: " ++ String.join(hh <> tt, " "))
 
 # the value bound to `name`, or "" when nothing bound it
-def text(+mm: Shake.Matched, +name: String) -> String:  # noqa: L001 the example program, not the library
+def text(+mm: Shake.Matched, +name: String) -> String:
   Maybe.default(&2, String, Shake.get(mm, name), "")
 
 # a successful greet: `who` when given, else `--name`, which has a default;
 # verbose when the root's `-v` or greet's own is set
-def greet(+root: Shake.Matched, +mm: Shake.Matched) -> IO(Unit):  # noqa: L001 IO
+def greet(+root: Shake.Matched, +mm: Shake.Matched) -> IO(Unit):
   do IO<Unit>:
     +who : String <- IO.pure(String,
       Maybe.default(&2, String, Shake.get(mm, "who"), text(mm, "name")))
@@ -58,7 +58,7 @@ def greet(+root: Shake.Matched, +mm: Shake.Matched) -> IO(Unit):  # noqa: L001 I
     greet.v(Bool.or(Shake.on(root, "verbose"), Shake.on(mm, "verbose")))
 
 # a successful add
-def add(+mm: Shake.Matched) -> IO(Unit):  # noqa: L001 IO
+def add(+mm: Shake.Matched) -> IO(Unit):
   IO.print(text(mm, "a") ++ " + " ++ text(mm, "b") ++ " x" ++ text(mm, "times") ++ " base " ++
     text(mm, "base"))
 
@@ -92,7 +92,7 @@ def run.sub(+root: Shake.Matched, sel: Maybe<&2, String>) -> IO(Unit):
         run.add(Shake.sub_of(root, "add")))
 
 # the root's Matched: dispatch on its subcommand
-def run(+mm: Shake.Matched) -> IO(Unit):  # noqa: L001 IO
+def run(+mm: Shake.Matched) -> IO(Unit):
   run.sub(mm, Shake.sub_name(mm))
 
 # a hard error
@@ -118,11 +118,11 @@ def fail.at(+app: Shake.Cli, ask: Maybe<&2, List<&2, String>>, +ee: Shake.ParseE
       fail.ver(app, Shake.version_of(app, ee), ee)
 
 # a failed parse: help text, the version, or an error
-def fail(+app: Shake.Cli, +ee: Shake.ParseErr) -> IO(Unit):  # noqa: L001 IO
+def fail(+app: Shake.Cli, +ee: Shake.ParseErr) -> IO(Unit):
   fail.at(app, Shake.help_path(ee), ee)
 
 # the parse result
-def go(  # noqa: L001 IO
+def go(
   +app: Shake.Cli,
   rr: Result<&2, &2, Shake.ParseErr, Shake.Matched>
 ) -> IO(Unit):
@@ -132,7 +132,7 @@ def go(  # noqa: L001 IO
     case Done{m}:
       run(m)
 
-def main() -> IO(Unit):  # noqa: L001 IO
+def main() -> IO(Unit):
   do IO<Unit>:
     +app : Shake.Cli <- IO.pure(Shake.Cli, spec())
     av : List<&2, String> <- Shake.argv()

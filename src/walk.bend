@@ -17,7 +17,7 @@ def all_plain(ws: List<&2, String>) -> Bool:
     case Nil{}:
       True{}
     case Con{+ww, rest}:
-      Bool.and(plain_word(ww), all_plain(rest))  # noqa: U002 a law premise, never run; the proofs read Bool.and
+      Bool.and(plain_word(ww), all_plain(rest))
 
 # Unit for False, Empty for True: a motive that tells them apart
 def wk.false_ty(bb: Bool) -> Type:
@@ -228,7 +228,7 @@ def wk.unfound(+subs: List<&2, Shake.Sub>, ws: List<&2, String>) -> Bool:
       True{}
     case Con{+ww, rest}:
       Bool.and(Maybe.is_none(&2, Shake.Sub, Shake.find_sub(subs, ww)),
-        wk.unfound(subs, rest))  # noqa: U002 a law premise, never run
+        wk.unfound(subs, rest))
 
 # a word that is not `--`, not `help`, not a flag and no subcommand here
 # reaches the positional it binds
