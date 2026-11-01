@@ -1,6 +1,6 @@
 # shake/check: the ways a Cli can contradict itself, internal (main.bend
 # exports `check`). `parse` does not call it: a program checks its spec once,
-# and every guarantee of SPEC.md's parse rows holds for a spec `check` passes.
+# and every parse guarantee (LAWS.bend) holds for a spec `check` passes.
 import Base
 import ./cli.bend as C
 
