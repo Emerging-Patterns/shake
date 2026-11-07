@@ -25,6 +25,6 @@ def laws() -> String:
 def closed() -> String:
   "error"
 
-# an @unsafe def a law file reaches
-def unsafe() -> String:
+# a def no quantified law reaches (L001); off since bolt 1.26 unless named
+def coverage() -> String:
   "error"
