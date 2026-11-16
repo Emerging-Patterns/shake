@@ -23,8 +23,8 @@ def lv.ty(
   +seen: Bool,
   +nn: String
 ) -> Type:
-  {S.cluster(rest, orig, S.parse.take_arg.kind(kk, nn, S.cluster.val.kind(kk, rest), orig, args, up, subs, path,
-      bs, pos, raw, seen),
+  {S.cluster(rest, orig,
+    S.parse.take_arg.kind(kk, nn, S.cluster.val.kind(kk, rest), orig, S.Here{args, up, subs, path, bs, pos, raw, seen}),
     S.cluster.ends.kind(kk, rest)) == S.St{S.Free{}, args, up, subs, path, S.Bind{nn,
         rest} <> bs, pos, raw, seen} : S.St}
 
@@ -52,33 +52,36 @@ def lv(
     case S.Opt{}:
       +T = {S.St{S.Free{}, args, up, subs, path, S.Bind{nn, rest} <> bs, pos, raw, seen} : S.St}
       e1 = Equal.sym(Bool, String.starts_with(rest, "="), False{}, h_noeq)
-      %e1 : {S.cluster(rest, orig, S.parse.take_arg.kind(S.Opt{}, nn, S.short_of.val(_, rest), orig, args, up,
-          subs, path, bs, pos, raw, seen), True{})
+      %e1 : {S.cluster(rest, orig,
+        S.parse.take_arg.kind(S.Opt{}, nn, S.short_of.val(_, rest), orig,
+          S.Here{args, up, subs, path, bs, pos, raw, seen}), True{})
         == T : S.St}
       e2 = Equal.sym(Bool, String.is_empty(rest), False{}, h_some)
       %e2 : {S.cluster(rest, orig, S.parse.take_arg.kind(S.Opt{}, nn,
           Bool.pick(Maybe<&2, String>, _, None{},
-              Some{rest}), orig, args, up, subs, path, bs, pos, raw, seen), True{}) == T : S.St}
+              Some{rest}), orig, S.Here{args, up, subs, path, bs, pos, raw, seen}), True{}) == T : S.St}
       e3 = Equal.sym(Bool, S.bound(bs, nn), False{}, Walk.wk.not_true(S.bound(bs, nn), h_kind))
-      %e3 : {S.cluster(rest, orig, S.parse.once(_, S.parse.take_opt(Some{rest}, nn, args, up, subs, path, bs,
-          pos, raw, seen), nn, path), True{}) == T
+      %e3 : {S.cluster(rest, orig,
+        S.parse.once(_, S.parse.take_opt(Some{rest}, nn, S.Here{args, up, subs, path, bs, pos, raw, seen}), nn,
+          path), True{}) == T
         : S.St}
       e4 = Equal.sym(Bool, S.allowed(S.parse.choices(S.by_name(args, nn)), rest), True{}, h_ok)
-      %e4 : {S.cluster(rest, orig, S.parse.take_choice(_, nn, rest, args, up, subs, path, bs, pos, raw, seen),
+      %e4 : {S.cluster(rest, orig, S.parse.take_choice(_, nn, rest, S.Here{args, up, subs, path, bs, pos, raw, seen}),
           True{}) == T : S.St}
       L1.cluster_done(rest, orig, T)
     case S.Many{}:
       +T = {S.St{S.Free{}, args, up, subs, path, S.Bind{nn, rest} <> bs, pos, raw, seen} : S.St}
       e1 = Equal.sym(Bool, String.starts_with(rest, "="), False{}, h_noeq)
-      %e1 : {S.cluster(rest, orig, S.parse.take_arg.kind(S.Many{}, nn, S.short_of.val(_, rest), orig, args, up,
-          subs, path, bs, pos, raw, seen), True{})
+      %e1 : {S.cluster(rest, orig,
+        S.parse.take_arg.kind(S.Many{}, nn, S.short_of.val(_, rest), orig,
+          S.Here{args, up, subs, path, bs, pos, raw, seen}), True{})
         == T : S.St}
       e2 = Equal.sym(Bool, String.is_empty(rest), False{}, h_some)
       %e2 : {S.cluster(rest, orig, S.parse.take_arg.kind(S.Many{}, nn,
           Bool.pick(Maybe<&2, String>, _, None{},
-              Some{rest}), orig, args, up, subs, path, bs, pos, raw, seen), True{}) == T : S.St}
+              Some{rest}), orig, S.Here{args, up, subs, path, bs, pos, raw, seen}), True{}) == T : S.St}
       e4 = Equal.sym(Bool, S.allowed(S.parse.choices(S.by_name(args, nn)), rest), True{}, h_ok)
-      %e4 : {S.cluster(rest, orig, S.parse.take_choice(_, nn, rest, args, up, subs, path, bs, pos, raw, seen),
+      %e4 : {S.cluster(rest, orig, S.parse.take_choice(_, nn, rest, S.Here{args, up, subs, path, bs, pos, raw, seen}),
           True{}) == T : S.St}
       L1.cluster_done(rest, orig, T)
     case S.Flag{}:

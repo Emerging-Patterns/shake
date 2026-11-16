@@ -35,10 +35,10 @@ def Laws.letter_flag_again(
   e0 = M1.cl.back(cc, rest, orig, args, up, subs, path, bs, pos, raw, seen, aa, h_found)
   %e0 : {D1.dead_of(_) == Some{S.Repeated{path, nn}} : Maybe<&2, S.ParseErr>}
   e2 = Equal.sym(Bool, S.bound(bs, nn), True{}, h_again)
-  %e2 : {D1.dead_of(S.cluster(rest, orig, S.parse.once(_, S.parse.take_flag(vv, nn, orig, args, up, subs,
-      path, bs, pos,
-      raw, seen), nn, path), String.starts_with(rest, "="))) == Some{S.Repeated{path, nn}} : Maybe<&2, S.ParseErr>}
-  M2.cl.dead(rest, orig, S.parse.once(True{}, S.parse.take_flag(vv, nn, orig, args, up, subs, path, bs, pos, raw,
-      seen), nn,
+  %e2 : {D1.dead_of(S.cluster(rest, orig,
+    S.parse.once(_, S.parse.take_flag(vv, nn, orig, S.Here{args, up, subs, path, bs, pos, raw, seen}), nn,
+      path), String.starts_with(rest, "="))) == Some{S.Repeated{path, nn}} : Maybe<&2, S.ParseErr>}
+  M2.cl.dead(rest, orig,
+    S.parse.once(True{}, S.parse.take_flag(vv, nn, orig, S.Here{args, up, subs, path, bs, pos, raw, seen}), nn,
       path), String.starts_with(rest, "="), S.Repeated{path, nn},
-    L1.once_dead(S.parse.take_flag(vv, nn, orig, args, up, subs, path, bs, pos, raw, seen), nn, path))
+    L1.once_dead(S.parse.take_flag(vv, nn, orig, S.Here{args, up, subs, path, bs, pos, raw, seen}), nn, path))

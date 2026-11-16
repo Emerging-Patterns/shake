@@ -23,10 +23,10 @@ def value_refused.step(
 ) -> {D1.dead_of(S.parse.step(tok, S.St{S.Need{name}, args, up, subs, path, bs, pos, raw, seen}))
     == Some{S.BadValue{path, name, tok}} : Maybe<&2, S.ParseErr>}:
   e1 = Equal.sym(Bool, S.looks_flag(tok), False{}, h_flag)
-  %e1 : {D1.dead_of(S.parse.step.need(_, name, tok, args, up, subs, path, bs, pos, raw, seen))
+  %e1 : {D1.dead_of(S.parse.step.need(_, name, tok, S.Here{args, up, subs, path, bs, pos, raw, seen}))
     == Some{S.BadValue{path, name, tok}} : Maybe<&2, S.ParseErr>}
   e2 = Equal.sym(Bool, S.allowed(S.parse.choices(S.by_name(args, name)), tok), False{}, h_bad)
-  %e2 : {D1.dead_of(S.parse.take_choice(_, name, tok, args, up, subs, path, bs, pos, raw, seen))
+  %e2 : {D1.dead_of(S.parse.take_choice(_, name, tok, S.Here{args, up, subs, path, bs, pos, raw, seen}))
     == Some{S.BadValue{path, name, tok}} : Maybe<&2, S.ParseErr>}
   {==}
 

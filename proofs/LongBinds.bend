@@ -24,7 +24,7 @@ def long.kind.ty(
   +pos: List<&2, S.Arg>,
   +seen: Bool
 ) -> Type:
-  {S.parse.take_arg.kind(kk, nn, Some{vv}, orig, args, up, subs, path, bs, pos, False{}, seen)
+  {S.parse.take_arg.kind(kk, nn, Some{vv}, orig, S.Here{args, up, subs, path, bs, pos, False{}, seen})
     == S.St{S.Free{}, args, up, subs, path, S.Bind{nn, vv} <> bs, pos, False{}, seen} : S.St}
 
 # an option that takes a value now binds an allowed one
@@ -46,15 +46,16 @@ def long.kind(
   match kk:
     case S.Opt{}:
       e1 = Equal.sym(Bool, S.bound(bs, nn), False{}, Walk.wk.not_true(S.bound(bs, nn), h_kind))
-      %e1 : {S.parse.once(_, S.parse.take_opt(Some{vv}, nn, args, up, subs, path, bs, pos, False{}, seen), nn, path)
+      %e1 : {S.parse.once(_, S.parse.take_opt(Some{vv}, nn, S.Here{args, up, subs, path, bs, pos, False{}, seen}), nn,
+        path)
         == S.St{S.Free{}, args, up, subs, path, S.Bind{nn, vv} <> bs, pos, False{}, seen} : S.St}
       e2 = Equal.sym(Bool, S.allowed(S.parse.choices(S.by_name(args, nn)), vv), True{}, h_ok)
-      %e2 : {S.parse.take_choice(_, nn, vv, args, up, subs, path, bs, pos, False{}, seen)
+      %e2 : {S.parse.take_choice(_, nn, vv, S.Here{args, up, subs, path, bs, pos, False{}, seen})
         == S.St{S.Free{}, args, up, subs, path, S.Bind{nn, vv} <> bs, pos, False{}, seen} : S.St}
       {==}
     case S.Many{}:
       e2 = Equal.sym(Bool, S.allowed(S.parse.choices(S.by_name(args, nn)), vv), True{}, h_ok)
-      %e2 : {S.parse.take_choice(_, nn, vv, args, up, subs, path, bs, pos, False{}, seen)
+      %e2 : {S.parse.take_choice(_, nn, vv, S.Here{args, up, subs, path, bs, pos, False{}, seen})
         == S.St{S.Free{}, args, up, subs, path, S.Bind{nn, vv} <> bs, pos, False{}, seen} : S.St}
       {==}
     case S.Flag{}:
@@ -96,12 +97,12 @@ def long.step(
 ) -> {S.parse.step("--" ++ body, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen})
     == S.St{S.Free{}, args, up, subs, path, S.Bind{nn, vv} <> bs, pos, False{}, seen} : S.St}:
   e1 = Equal.sym(S.St, S.parse.step("--" ++ body, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen}),
-    S.parse.take_long.found(S.by_long(args, name), name, Some{vv}, "--" ++ body, args, up, subs, path, bs, pos, False{},
-      seen),
+    S.parse.take_long.found(S.by_long(args, name), name, Some{vv}, "--" ++ body,
+      S.Here{args, up, subs, path, bs, pos, False{}, seen}),
     L2.long_arg_step(body, name, Some{vv}, args, up, subs, path, bs, pos, seen, h_dd, h_cut, h_name))
   %e1 : {_ == S.St{S.Free{}, args, up, subs, path, S.Bind{nn, vv} <> bs, pos, False{}, seen} : S.St}
   e2 = Equal.sym(Maybe<&2, S.Arg>, S.by_long(args, name), Some{S.Arg{nn, sh, lo, kind, hp, req, dflt, cs}}, h_found)
-  %e2 : {S.parse.take_long.found(_, name, Some{vv}, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen)
+  %e2 : {S.parse.take_long.found(_, name, Some{vv}, "--" ++ body, S.Here{args, up, subs, path, bs, pos, False{}, seen})
     == S.St{S.Free{}, args, up, subs, path, S.Bind{nn, vv} <> bs, pos, False{}, seen} : S.St}
   long.kind(kind, nn, vv, "--" ++ body, args, up, subs, path, bs, pos, seen, h_kind, h_ok)
 

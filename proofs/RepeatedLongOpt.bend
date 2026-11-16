@@ -37,17 +37,18 @@ def repeated_long_opt.step(
 ) -> {D1.dead_of(S.parse.step("--" ++ body, S.St{S.Free{}, args, up, subs, path, bs, pos, False{},
     seen})) == Some{S.Repeated{path, nn}} : Maybe<&2, S.ParseErr>}:
   e1 = Equal.sym(S.St, S.parse.step("--" ++ body, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen}),
-    S.parse.take_long.found(S.by_long(args, name), name, val, "--" ++ body, args, up, subs, path, bs, pos, False{},
-      seen),
+    S.parse.take_long.found(S.by_long(args, name), name, val, "--" ++ body,
+      S.Here{args, up, subs, path, bs, pos, False{}, seen}),
     L1.long_arg_step(body, name, val, args, up, subs, path, bs, pos, seen, h_dd, h_cut, h_name))
   %e1 : {D1.dead_of(_) == Some{S.Repeated{path, nn}} : Maybe<&2, S.ParseErr>}
   e2 = Equal.sym(Maybe<&2, S.Arg>, S.by_long(args, name), Some{S.Arg{nn, sh, lo, S.Opt{}, hp, req, dflt, cs}}, h_found)
-  %e2 : {D1.dead_of(S.parse.take_long.found(_, name, val, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen))
+  %e2 : {D1.dead_of(S.parse.take_long.found(_, name, val, "--" ++ body,
+    S.Here{args, up, subs, path, bs, pos, False{}, seen}))
     == Some{S.Repeated{path, nn}} : Maybe<&2, S.ParseErr>}
   e3 = Equal.sym(Bool, S.bound(bs, nn), True{}, h_again)
-  %e3 : {D1.dead_of(S.parse.once(_, S.parse.take_opt(val, nn, args, up, subs, path, bs, pos, False{},
-      seen), nn, path)) == Some{S.Repeated{path, nn}} : Maybe<&2, S.ParseErr>}
-  L2.once_dead(S.parse.take_opt(val, nn, args, up, subs, path, bs, pos, False{}, seen), nn, path)
+  %e3 : {D1.dead_of(S.parse.once(_, S.parse.take_opt(val, nn, S.Here{args, up, subs, path, bs, pos, False{}, seen}),
+    nn, path)) == Some{S.Repeated{path, nn}} : Maybe<&2, S.ParseErr>}
+  L2.once_dead(S.parse.take_opt(val, nn, S.Here{args, up, subs, path, bs, pos, False{}, seen}), nn, path)
 
 def Laws.repeated_long_opt(
   spec,

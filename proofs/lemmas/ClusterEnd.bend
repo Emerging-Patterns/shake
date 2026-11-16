@@ -32,25 +32,25 @@ def L2.unknown_short_step(
   h_help
 ):
   e1 = Equal.sym(Bool, String.eq("-" ++ SCon{cc, rest}, "--"), False{}, h_dd)
-  %e1 : {S.parse.step.end(_, "-" ++ SCon{cc, rest}, args, up, subs, path, bs, pos,
-      seen) == S.St{S.Dead{S.UnknownFlag{path, "-" ++ SCon{cc,
+  %e1 : {S.parse.step.end(_, "-" ++ SCon{cc, rest}, S.Here{args, up, subs, path, bs, pos, False{}, seen})
+    == S.St{S.Dead{S.UnknownFlag{path, "-" ++ SCon{cc,
           rest}}}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   e4 = Equal.sym(Cmp, String.order.go(SCon{cc, rest}, "elp", LT{}), LT{}, Eq.string_order_lt(SCon{cc, rest}, "elp"))
-  %e4 : {S.parse.step.help(Bool.and(Cmp.is_eq(_), Bool.not(seen)), "-" ++ SCon{cc, rest}, args, up, subs, path, bs,
-      pos, seen) == S.St{S.Dead{S.UnknownFlag{path, "-" ++ SCon{cc,
+  %e4 : {S.parse.step.help(Bool.and(Cmp.is_eq(_), Bool.not(seen)), "-" ++ SCon{cc, rest},
+    S.Here{args, up, subs, path, bs, pos, False{}, seen}) == S.St{S.Dead{S.UnknownFlag{path, "-" ++ SCon{cc,
           rest}}}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   e3 = Equal.sym(Bool, Char.is_eq(cc, '-'), False{}, h_dash)
-  %e3 : {S.parse.step.kind.go(String.starts_with.go.if("", rest, _), True{}, "-" ++ SCon{cc, rest}, args, up,
-      subs, path, bs, pos,
-      seen) == S.St{S.Dead{S.UnknownFlag{path, "-" ++ SCon{cc,
+  %e3 : {S.parse.step.kind.go(String.starts_with.go.if("", rest, _), True{}, "-" ++ SCon{cc, rest},
+    S.Here{args, up, subs, path, bs, pos, False{}, seen}) == S.St{S.Dead{S.UnknownFlag{path, "-" ++ SCon{cc,
           rest}}}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   e5 = Equal.sym(Bool, S.short_help(SCon{cc, rest}, args, seen), False{}, h_help)
-  %e5 : {S.parse.take_short.go(_, SCon{cc, rest}, "-" ++ SCon{cc, rest}, args, up, subs, path, bs, pos, False{}, seen)
+  %e5 : {S.parse.take_short.go(_, SCon{cc, rest}, "-" ++ SCon{cc, rest},
+    S.Here{args, up, subs, path, bs, pos, False{}, seen})
     == S.St{S.Dead{S.UnknownFlag{path, "-" ++ SCon{cc, rest}}}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   e2 = Equal.sym(Maybe<&2, S.Arg>, S.by_short(args, SCon{cc, SNil{}}), None{}, h_none)
   %e2 : {S.cluster(rest, "-" ++ SCon{cc, rest},
-      S.parse.take_arg(_, S.cluster.val(_, rest), "-" ++ SCon{cc, rest}, args, up, subs, path, bs, pos,
-          False{}, seen),
+      S.parse.take_arg(_, S.cluster.val(_, rest), "-" ++ SCon{cc, rest},
+        S.Here{args, up, subs, path, bs, pos, False{}, seen}),
       S.cluster.ends(_, rest))
     == S.St{S.Dead{S.UnknownFlag{path, "-" ++ SCon{cc, rest}}}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   L1.cluster_done(rest, "-" ++ SCon{cc, rest}, S.St{S.Dead{S.UnknownFlag{path, "-" ++ SCon{cc, rest}}}, args,
@@ -91,8 +91,8 @@ def lb.ty(
   +seen: Bool,
   +nn: String
 ) -> Type:
-  {S.cluster(rest, orig, S.parse.take_arg.kind(kk, nn, S.cluster.val.kind(kk, rest), orig, args, up, subs, path,
-      bs, pos, raw, seen),
+  {S.cluster(rest, orig,
+    S.parse.take_arg.kind(kk, nn, S.cluster.val.kind(kk, rest), orig, S.Here{args, up, subs, path, bs, pos, raw, seen}),
     S.cluster.ends.kind(kk, rest)) == S.St{S.Dead{S.BadValue{path, nn,
         rest}}, args, up, subs, path, bs, pos, raw, seen} : S.St}
 
@@ -119,33 +119,36 @@ def lb(
     case S.Opt{}:
       +T = {S.St{S.Dead{S.BadValue{path, nn, rest}}, args, up, subs, path, bs, pos, raw, seen} : S.St}
       e1 = Equal.sym(Bool, String.starts_with(rest, "="), False{}, h_noeq)
-      %e1 : {S.cluster(rest, orig, S.parse.take_arg.kind(S.Opt{}, nn, S.short_of.val(_, rest), orig, args, up,
-          subs, path, bs, pos, raw, seen), True{})
+      %e1 : {S.cluster(rest, orig,
+        S.parse.take_arg.kind(S.Opt{}, nn, S.short_of.val(_, rest), orig,
+          S.Here{args, up, subs, path, bs, pos, raw, seen}), True{})
         == T : S.St}
       e2 = Equal.sym(Bool, String.is_empty(rest), False{}, h_some)
       %e2 : {S.cluster(rest, orig, S.parse.take_arg.kind(S.Opt{}, nn,
           Bool.pick(Maybe<&2, String>, _, None{},
-              Some{rest}), orig, args, up, subs, path, bs, pos, raw, seen), True{}) == T : S.St}
+              Some{rest}), orig, S.Here{args, up, subs, path, bs, pos, raw, seen}), True{}) == T : S.St}
       e3 = Equal.sym(Bool, S.bound(bs, nn), False{}, Walk.wk.not_true(S.bound(bs, nn), h_kind))
-      %e3 : {S.cluster(rest, orig, S.parse.once(_, S.parse.take_opt(Some{rest}, nn, args, up, subs, path, bs,
-          pos, raw, seen), nn, path), True{}) == T
+      %e3 : {S.cluster(rest, orig,
+        S.parse.once(_, S.parse.take_opt(Some{rest}, nn, S.Here{args, up, subs, path, bs, pos, raw, seen}), nn,
+          path), True{}) == T
         : S.St}
       e4 = Equal.sym(Bool, S.allowed(S.parse.choices(S.by_name(args, nn)), rest), False{}, h_ok)
-      %e4 : {S.cluster(rest, orig, S.parse.take_choice(_, nn, rest, args, up, subs, path, bs, pos, raw, seen),
+      %e4 : {S.cluster(rest, orig, S.parse.take_choice(_, nn, rest, S.Here{args, up, subs, path, bs, pos, raw, seen}),
           True{}) == T : S.St}
       L1.cluster_done(rest, orig, T)
     case S.Many{}:
       +T = {S.St{S.Dead{S.BadValue{path, nn, rest}}, args, up, subs, path, bs, pos, raw, seen} : S.St}
       e1 = Equal.sym(Bool, String.starts_with(rest, "="), False{}, h_noeq)
-      %e1 : {S.cluster(rest, orig, S.parse.take_arg.kind(S.Many{}, nn, S.short_of.val(_, rest), orig, args, up,
-          subs, path, bs, pos, raw, seen), True{})
+      %e1 : {S.cluster(rest, orig,
+        S.parse.take_arg.kind(S.Many{}, nn, S.short_of.val(_, rest), orig,
+          S.Here{args, up, subs, path, bs, pos, raw, seen}), True{})
         == T : S.St}
       e2 = Equal.sym(Bool, String.is_empty(rest), False{}, h_some)
       %e2 : {S.cluster(rest, orig, S.parse.take_arg.kind(S.Many{}, nn,
           Bool.pick(Maybe<&2, String>, _, None{},
-              Some{rest}), orig, args, up, subs, path, bs, pos, raw, seen), True{}) == T : S.St}
+              Some{rest}), orig, S.Here{args, up, subs, path, bs, pos, raw, seen}), True{}) == T : S.St}
       e4 = Equal.sym(Bool, S.allowed(S.parse.choices(S.by_name(args, nn)), rest), False{}, h_ok)
-      %e4 : {S.cluster(rest, orig, S.parse.take_choice(_, nn, rest, args, up, subs, path, bs, pos, raw, seen),
+      %e4 : {S.cluster(rest, orig, S.parse.take_choice(_, nn, rest, S.Here{args, up, subs, path, bs, pos, raw, seen}),
           True{}) == T : S.St}
       L1.cluster_done(rest, orig, T)
     case S.Flag{}:

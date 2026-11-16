@@ -22,7 +22,7 @@ def value_flag_shaped.step(
 ) -> {D1.dead_of(S.parse.step(tok, S.St{S.Need{name}, args, up, subs, path, bs, pos, raw, seen}))
     == Some{S.NoValue{path, name}} : Maybe<&2, S.ParseErr>}:
   ee = Equal.sym(Bool, S.looks_flag(tok), True{}, h_flag)
-  %ee : {D1.dead_of(S.parse.step.need(_, name, tok, args, up, subs, path, bs, pos, raw, seen))
+  %ee : {D1.dead_of(S.parse.step.need(_, name, tok, S.Here{args, up, subs, path, bs, pos, raw, seen}))
     == Some{S.NoValue{path, name}} : Maybe<&2, S.ParseErr>}
   {==}
 

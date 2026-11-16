@@ -59,7 +59,7 @@ def hw.step(
 ) -> {S.parse.step("help", S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, True{}})
     == S.parse.take_pos("help", args, up, subs, path, bs, pos, False{}) : S.St}:
   ee = Equal.sym(Maybe<&2, S.Sub>, S.find_sub(subs, "help"), None{}, h_sub)
-  %ee : {S.parse.word.go(_, "help", args, up, subs, path, bs, pos, False{}, True{})
+  %ee : {S.parse.word.go(_, "help", S.Here{args, up, subs, path, bs, pos, False{}, True{}})
     == S.parse.take_pos("help", args, up, subs, path, bs, pos, False{}) : S.St}
   {==}
 

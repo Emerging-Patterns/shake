@@ -205,7 +205,8 @@ law gw.choice:
   for +pos: List<&2, Shake.Arg>
   for +raw: Bool
   for +seen: Bool
-  gw.Stay(Shake.parse.take_choice(ok, name, val, args, up, subs, path, binds, pos, raw, seen), View{args, up,
+  gw.Stay(Shake.parse.take_choice(ok, name, val, Shake.Here{args, up, subs, path, binds, pos, raw, seen}),
+    View{args, up,
       path, binds})
 
 def gw.choice(ok, name, val, _args, _up, _subs, _path, _binds, _pos, _raw, _seen):
@@ -227,7 +228,8 @@ law gw.opt_val:
   for +pos: List<&2, Shake.Arg>
   for +raw: Bool
   for +seen: Bool
-  gw.Stay(Shake.parse.take_opt_val(name, val, args, up, subs, path, binds, pos, raw, seen), View{args, up, path, binds})
+  gw.Stay(Shake.parse.take_opt_val(name, val, Shake.Here{args, up, subs, path, binds, pos, raw, seen}),
+    View{args, up, path, binds})
 
 def gw.opt_val(name, val, args, up, subs, path, binds, pos, raw, seen):
   gw.choice(Shake.allowed(Shake.parse.choices(Shake.by_name(args, name)), val), name, val, args, up, subs,
@@ -246,7 +248,8 @@ law gw.flag:
   for +pos: List<&2, Shake.Arg>
   for +raw: Bool
   for +seen: Bool
-  gw.Stay(Shake.parse.take_flag(val, name, orig, args, up, subs, path, binds, pos, raw, seen), View{args, up,
+  gw.Stay(Shake.parse.take_flag(val, name, orig, Shake.Here{args, up, subs, path, binds, pos, raw, seen}),
+    View{args, up,
       path, binds})
 
 def gw.flag(val, name, _orig, _args, _up, _subs, _path, _binds, _pos, _raw, _seen):
@@ -268,7 +271,8 @@ law gw.opt:
   for +pos: List<&2, Shake.Arg>
   for +raw: Bool
   for +seen: Bool
-  gw.Stay(Shake.parse.take_opt(val, name, args, up, subs, path, binds, pos, raw, seen), View{args, up, path, binds})
+  gw.Stay(Shake.parse.take_opt(val, name, Shake.Here{args, up, subs, path, binds, pos, raw, seen}),
+    View{args, up, path, binds})
 
 def gw.opt(val, name, args, up, subs, path, binds, pos, raw, seen):
   match val:
@@ -310,18 +314,20 @@ law gw.kind:
   for +pos: List<&2, Shake.Arg>
   for +raw: Bool
   for +seen: Bool
-  gw.Stay(Shake.parse.take_arg.kind(kk, name, val, orig, args, up, subs, path, binds, pos, raw, seen),
+  gw.Stay(Shake.parse.take_arg.kind(kk, name, val, orig, Shake.Here{args, up, subs, path, binds, pos, raw, seen}),
       View{args, up, path, binds})
 
 def gw.kind(kk, name, val, orig, args, up, subs, path, binds, pos, raw, seen):
   match kk:
     case Shake.Flag{}:
-      gw.once(Shake.bound(binds, name), Shake.parse.take_flag(val, name, orig, args, up, subs, path, binds,
-          pos, raw, seen), name, path, View{args, up, path, binds}, {==})(
+      gw.once(Shake.bound(binds, name),
+        Shake.parse.take_flag(val, name, orig,
+          Shake.Here{args, up, subs, path, binds, pos, raw, seen}), name, path, View{args, up, path, binds}, {==})(
         gw.flag(val, name, orig, args, up, subs, path, binds, pos, raw, seen))
     case Shake.Opt{}:
-      gw.once(Shake.bound(binds, name), Shake.parse.take_opt(val, name, args, up, subs, path, binds, pos,
-          raw, seen), name, path, View{args, up, path, binds}, {==})(
+      gw.once(Shake.bound(binds, name),
+        Shake.parse.take_opt(val, name,
+          Shake.Here{args, up, subs, path, binds, pos, raw, seen}), name, path, View{args, up, path, binds}, {==})(
         gw.opt(val, name, args, up, subs, path, binds, pos, raw, seen))
     case Shake.Many{}:
       gw.opt(val, name, args, up, subs, path, binds, pos, raw, seen)
@@ -343,7 +349,8 @@ law gw.arg:
   for +pos: List<&2, Shake.Arg>
   for +raw: Bool
   for +seen: Bool
-  gw.Stay(Shake.parse.take_arg(found, val, orig, args, up, subs, path, binds, pos, raw, seen), View{args, up,
+  gw.Stay(Shake.parse.take_arg(found, val, orig, Shake.Here{args, up, subs, path, binds, pos, raw, seen}),
+    View{args, up,
       path, binds})
 
 def gw.arg(found, val, orig, args, up, subs, path, binds, pos, raw, seen):
@@ -367,7 +374,7 @@ law gw.lhelp:
   for +pos: List<&2, Shake.Arg>
   for +raw: Bool
   for +seen: Bool
-  gw.Stay(Shake.parse.take_long.help(hit, orig, args, up, subs, path, binds, pos, raw, seen), View{args, up,
+  gw.Stay(Shake.parse.take_long.help(hit, orig, Shake.Here{args, up, subs, path, binds, pos, raw, seen}), View{args, up,
       path, binds})
 
 def gw.lhelp(hit, _orig, _args, _up, _subs, _path, _binds, _pos, _raw, _seen):
@@ -391,7 +398,7 @@ law gw.found:
   for +pos: List<&2, Shake.Arg>
   for +raw: Bool
   for +seen: Bool
-  gw.Stay(Shake.parse.take_long.found(found, name, val, orig, args, up, subs, path, binds, pos, raw, seen),
+  gw.Stay(Shake.parse.take_long.found(found, name, val, orig, Shake.Here{args, up, subs, path, binds, pos, raw, seen}),
     View{args, up, path, binds})
 
 def gw.found(found, name, val, orig, args, up, subs, path, binds, pos, raw, seen):
@@ -415,8 +422,8 @@ law gw.named:
   for +pos: List<&2, Shake.Arg>
   for +raw: Bool
   for +seen: Bool
-  gw.Stay(Shake.parse.take_long.named(empty, name, val, orig, args, up, subs, path, binds, pos, raw,
-    seen), View{args, up, path, binds})
+  gw.Stay(Shake.parse.take_long.named(empty, name, val, orig, Shake.Here{args, up, subs, path, binds, pos, raw, seen}),
+    View{args, up, path, binds})
 
 def gw.named(empty, name, val, orig, args, up, subs, path, binds, pos, raw, seen):
   match empty:
@@ -437,7 +444,8 @@ law gw.cut:
   for +pos: List<&2, Shake.Arg>
   for +raw: Bool
   for +seen: Bool
-  gw.Stay(Shake.parse.take_long.cut(nv, orig, args, up, subs, path, binds, pos, raw, seen), View{args, up, path, binds})
+  gw.Stay(Shake.parse.take_long.cut(nv, orig, Shake.Here{args, up, subs, path, binds, pos, raw, seen}),
+    View{args, up, path, binds})
 
 def gw.cut(nv, orig, args, up, subs, path, binds, pos, raw, seen):
   match nv:
@@ -456,7 +464,8 @@ law gw.long:
   for +pos: List<&2, Shake.Arg>
   for +raw: Bool
   for +seen: Bool
-  gw.Stay(Shake.parse.take_long(body, orig, args, up, subs, path, binds, pos, raw, seen), View{args, up, path, binds})
+  gw.Stay(Shake.parse.take_long(body, orig, Shake.Here{args, up, subs, path, binds, pos, raw, seen}),
+    View{args, up, path, binds})
 
 def gw.long(body, orig, args, up, subs, path, binds, pos, raw, seen):
   gw.cut(Shake.cut_eq(body), orig, args, up, subs, path, binds, pos, raw, seen)
@@ -475,7 +484,7 @@ law gw.apply_mode:
   for +pos: List<&2, Shake.Arg>
   for +raw: Bool
   for +seen: Bool
-  gw.Stay(Shake.cluster.apply.mode(mode, cc, rest, orig, args, up, subs, path, binds, pos, raw, seen),
+  gw.Stay(Shake.cluster.apply.mode(mode, cc, rest, orig, Shake.Here{args, up, subs, path, binds, pos, raw, seen}),
     View{args, up, path, binds})
 
 def gw.apply_mode(mode, cc, rest, orig, args, up, subs, path, binds, pos, raw, seen):
@@ -552,7 +561,7 @@ law gw.sgo:
   for +pos: List<&2, Shake.Arg>
   for +raw: Bool
   for +seen: Bool
-  gw.Stay(Shake.parse.take_short.go(hit, body, orig, args, up, subs, path, binds, pos, raw, seen),
+  gw.Stay(Shake.parse.take_short.go(hit, body, orig, Shake.Here{args, up, subs, path, binds, pos, raw, seen}),
     View{args, up, path, binds})
 
 def gw.sgo(hit, body, orig, args, up, subs, path, binds, pos, raw, seen):
@@ -574,7 +583,8 @@ law gw.short:
   for +pos: List<&2, Shake.Arg>
   for +raw: Bool
   for +seen: Bool
-  gw.Stay(Shake.parse.take_short(body, orig, args, up, subs, path, binds, pos, raw, seen), View{args, up, path, binds})
+  gw.Stay(Shake.parse.take_short(body, orig, Shake.Here{args, up, subs, path, binds, pos, raw, seen}),
+    View{args, up, path, binds})
 
 def gw.short(body, orig, args, up, subs, path, binds, pos, raw, seen):
   gw.sgo(Shake.short_help(body, args, seen), body, orig, args, up, subs, path, binds, pos, raw, seen)
@@ -670,7 +680,8 @@ law gw.enter_or:
   for +pos: List<&2, Shake.Arg>
   for +raw: Bool
   for +seen: Bool
-  gw.Step(Shake.parse.enter_or(miss, ss, args, up, subs, path, binds, pos, raw, seen), View{args, up, path, binds})
+  gw.Step(Shake.parse.enter_or(miss, ss, Shake.Here{args, up, subs, path, binds, pos, raw, seen}),
+    View{args, up, path, binds})
 
 def gw.enter_or(miss, ss, args, up, _subs, path, binds, _pos, _raw, _seen):
   match miss:
@@ -691,7 +702,8 @@ law gw.word_go:
   for +pos: List<&2, Shake.Arg>
   for +raw: Bool
   for +seen: Bool
-  gw.Step(Shake.parse.word.go(found, tok, args, up, subs, path, binds, pos, raw, seen), View{args, up, path, binds})
+  gw.Step(Shake.parse.word.go(found, tok, Shake.Here{args, up, subs, path, binds, pos, raw, seen}),
+    View{args, up, path, binds})
 
 def gw.word_go(found, tok, args, up, subs, path, binds, pos, raw, seen):
   match found:
@@ -711,7 +723,7 @@ law gw.word:
   for +pos: List<&2, Shake.Arg>
   for +raw: Bool
   for +seen: Bool
-  gw.Step(Shake.parse.word(tok, args, up, subs, path, binds, pos, raw, seen), View{args, up, path, binds})
+  gw.Step(Shake.parse.word(tok, Shake.Here{args, up, subs, path, binds, pos, raw, seen}), View{args, up, path, binds})
 
 def gw.word(tok, args, up, subs, path, binds, pos, raw, seen):
   gw.word_go(Shake.find_sub(subs, tok), tok, args, up, subs, path, binds, pos, raw, seen)
@@ -727,7 +739,8 @@ law gw.short_go:
   for +binds: List<&2, Shake.Bind>
   for +pos: List<&2, Shake.Arg>
   for +seen: Bool
-  gw.Step(Shake.parse.step.short.go(alone, tok, args, up, subs, path, binds, pos, seen), View{args, up, path, binds})
+  gw.Step(Shake.parse.step.short.go(alone, tok, Shake.Here{args, up, subs, path, binds, pos, False{}, seen}),
+    View{args, up, path, binds})
 
 def gw.short_go(alone, tok, args, up, subs, path, binds, pos, seen):
   match alone:
@@ -747,7 +760,8 @@ law gw.step_short:
   for +binds: List<&2, Shake.Bind>
   for +pos: List<&2, Shake.Arg>
   for +seen: Bool
-  gw.Step(Shake.parse.step.short(dash, tok, args, up, subs, path, binds, pos, seen), View{args, up, path, binds})
+  gw.Step(Shake.parse.step.short(dash, tok, Shake.Here{args, up, subs, path, binds, pos, False{}, seen}),
+    View{args, up, path, binds})
 
 def gw.step_short(dash, tok, args, up, subs, path, binds, pos, seen):
   match dash:
@@ -768,7 +782,7 @@ law gw.kind_go:
   for +binds: List<&2, Shake.Bind>
   for +pos: List<&2, Shake.Arg>
   for +seen: Bool
-  gw.Step(Shake.parse.step.kind.go(long, dash, tok, args, up, subs, path, binds, pos, seen),
+  gw.Step(Shake.parse.step.kind.go(long, dash, tok, Shake.Here{args, up, subs, path, binds, pos, False{}, seen}),
     View{args, up, path, binds})
 
 def gw.kind_go(long, dash, tok, args, up, subs, path, binds, pos, seen):
@@ -789,7 +803,8 @@ law gw.help:
   for +binds: List<&2, Shake.Bind>
   for +pos: List<&2, Shake.Arg>
   for +seen: Bool
-  gw.Step(Shake.parse.step.help(hit, tok, args, up, subs, path, binds, pos, seen), View{args, up, path, binds})
+  gw.Step(Shake.parse.step.help(hit, tok, Shake.Here{args, up, subs, path, binds, pos, False{}, seen}),
+    View{args, up, path, binds})
 
 def gw.help(hit, tok, args, up, subs, path, binds, pos, seen):
   match hit:
@@ -810,7 +825,8 @@ law gw.end:
   for +binds: List<&2, Shake.Bind>
   for +pos: List<&2, Shake.Arg>
   for +seen: Bool
-  gw.Step(Shake.parse.step.end(end, tok, args, up, subs, path, binds, pos, seen), View{args, up, path, binds})
+  gw.Step(Shake.parse.step.end(end, tok, Shake.Here{args, up, subs, path, binds, pos, False{}, seen}),
+    View{args, up, path, binds})
 
 def gw.end(end, tok, args, up, subs, path, binds, pos, seen):
   match end:
@@ -830,7 +846,8 @@ law gw.raw:
   for +binds: List<&2, Shake.Bind>
   for +pos: List<&2, Shake.Arg>
   for +seen: Bool
-  gw.Step(Shake.parse.step.raw(raw, tok, args, up, subs, path, binds, pos, seen), View{args, up, path, binds})
+  gw.Step(Shake.parse.step.raw(tok, Shake.Here{args, up, subs, path, binds, pos, raw, seen}),
+    View{args, up, path, binds})
 
 def gw.raw(raw, tok, args, up, subs, path, binds, pos, seen):
   match raw:
@@ -852,7 +869,7 @@ law gw.need:
   for +pos: List<&2, Shake.Arg>
   for +raw: Bool
   for +seen: Bool
-  gw.Stay(Shake.parse.step.need(flag, name, tok, args, up, subs, path, binds, pos, raw, seen),
+  gw.Stay(Shake.parse.step.need(flag, name, tok, Shake.Here{args, up, subs, path, binds, pos, raw, seen}),
     View{args, up, path, binds})
 
 def gw.need(flag, name, tok, args, up, subs, path, binds, pos, raw, seen):
@@ -874,7 +891,7 @@ law gw.help_path:
   for +pos: List<&2, Shake.Arg>
   for +raw: Bool
   for +seen: Bool
-  gw.Stuck(Shake.parse.step.help_path(found, tok, args, up, subs, path, binds, pos, raw, seen))
+  gw.Stuck(Shake.parse.step.help_path(found, tok, Shake.Here{args, up, subs, path, binds, pos, raw, seen}))
 
 def gw.help_path(found, _tok, _args, _up, _subs, _path, _binds, _pos, _raw, _seen):
   match found:
@@ -897,7 +914,7 @@ law gw.mode:
   for +pos: List<&2, Shake.Arg>
   for +raw: Bool
   for +seen: Bool
-  gw.Step(Shake.parse.step.mode(mode, tok, args, up, subs, path, binds, pos, raw, seen),
+  gw.Step(Shake.parse.step.mode(mode, tok, Shake.Here{args, up, subs, path, binds, pos, raw, seen}),
     View{args, up, path, binds})
 
 def gw.mode(mode, tok, args, up, subs, path, binds, pos, raw, seen):
@@ -1171,7 +1188,7 @@ def gw.stuck_mode.ty(
   +raw: Bool,
   +seen: Bool
 ) -> Type:
-  gw.Stuck(Shake.parse.step.mode(mode, tok, args, up, subs, path, binds, pos, raw, seen))
+  gw.Stuck(Shake.parse.step.mode(mode, tok, Shake.Here{args, up, subs, path, binds, pos, raw, seen}))
 
 # a mode that cannot finish as a success stays so
 law gw.stuck_mode:

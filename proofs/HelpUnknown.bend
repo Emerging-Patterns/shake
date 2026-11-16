@@ -22,7 +22,7 @@ def help_unknown.step(
 ) -> {D1.dead_of(S.parse.step(tok, S.St{S.Help{}, args, up, subs, path, bs, pos, raw, seen}))
     == Some{S.Unexpected{path, tok}} : Maybe<&2, S.ParseErr>}:
   ee = Equal.sym(Maybe<&2, S.Sub>, S.find_sub(subs, tok), None{}, h_sub)
-  %ee : {D1.dead_of(S.parse.step.help_path(_, tok, args, up, subs, path, bs, pos, raw, seen))
+  %ee : {D1.dead_of(S.parse.step.help_path(_, tok, S.Here{args, up, subs, path, bs, pos, raw, seen}))
     == Some{S.Unexpected{path, tok}} : Maybe<&2, S.ParseErr>}
   {==}
 

@@ -66,9 +66,10 @@ def hp.cons(
   +k3 = {k2 : List<&2, S.Sub>}
   +mid = {S.St{S.Help{}, args, up, kids, List.append(&2, String, path, [nn]), bs, pos, raw, seen} : S.St}
   +fin_st = {S.St{S.Help{}, args, up, k3, List.append(&2, String, path, nn <> tt), bs, pos, raw, seen} : S.St}
-  es = Equal.cong(Maybe<&2, S.Sub>, S.St, mm => S.parse.walk(tt, S.parse.step.help_path(mm, nn, args, up, subs,
-      path, bs,
-      pos, raw, seen)), S.find_sub(subs, nn), Some{S.Sub{sn, sa, sg, kids}}, e_fm)
+  es = Equal.cong(Maybe<&2, S.Sub>, S.St,
+    mm => S.parse.walk(tt,
+      S.parse.step.help_path(mm, nn,
+        S.Here{args, up, subs, path, bs, pos, raw, seen})), S.find_sub(subs, nn), Some{S.Sub{sn, sa, sg, kids}}, e_fm)
   (k3, Equal.trans(S.St, S.parse.walk(nn <> tt, S.St{S.Help{}, args, up, subs, path, bs, pos, raw, seen}),
     S.parse.walk(tt, mid), fin_st, es,
     Equal.trans(S.St, S.parse.walk(tt, mid),

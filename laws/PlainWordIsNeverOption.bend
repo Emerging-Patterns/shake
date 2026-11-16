@@ -21,7 +21,7 @@ law plain_word_step:
   for +h_dash: {String.starts_with(tok, "-") == False{} : Bool}
   for h_help: {Bool.and(String.eq(tok, "help"), Bool.not(seen)) == False{} : Bool}
   {S.parse.step(tok, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen})
-    == S.parse.word.go(S.find_sub(subs, tok), tok, args, up, subs, path, bs, pos, False{}, seen) : S.St}
+    == S.parse.word.go(S.find_sub(subs, tok), tok, S.Here{args, up, subs, path, bs, pos, False{}, seen}) : S.St}
 
 # LAW: in a free walker before `--`, the word `-` is read as a subcommand or a
 # positional, never as an option
@@ -34,4 +34,4 @@ law dash_word_step:
   for +pos: List<&2, S.Arg>
   for +seen: Bool
   {S.parse.step("-", S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen})
-    == S.parse.word.go(S.find_sub(subs, "-"), "-", args, up, subs, path, bs, pos, False{}, seen) : S.St}
+    == S.parse.word.go(S.find_sub(subs, "-"), "-", S.Here{args, up, subs, path, bs, pos, False{}, seen}) : S.St}
