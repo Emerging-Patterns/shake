@@ -9,6 +9,6 @@ def Laws.letter_unknown(cc, rest, orig, args, up, subs, path, bs, pos, raw, seen
   +dd = {S.St{S.Dead{S.UnknownFlag{path, orig}}, args, up, subs, path, bs, pos, raw, seen} : S.St}
   e2 = Equal.sym(Maybe<&2, S.Arg>, S.by_short(args, SCon{cc, SNil{}}), None{}, h_none)
   %e2 : {S.cluster(rest, orig,
-      S.parse.take_arg(_, S.cluster.val(_, rest), orig, args, up, subs, path, bs, pos, raw, seen),
+      S.parse.take_arg(_, S.cluster.val(_, rest), orig, S.Here{args, up, subs, path, bs, pos, raw, seen}),
       S.cluster.ends(_, rest)) == dd : S.St}
   L1.cluster_done(rest, orig, dd)

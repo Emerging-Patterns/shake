@@ -51,25 +51,25 @@ def L5.unknown_long_step(
   h_lh
 ):
   e1 = Equal.sym(Bool, String.eq("--" ++ body, "--"), False{}, h_dd)
-  %e1 : {S.parse.step.end(_, "--" ++ body, args, up, subs, path, bs, pos, seen)
+  %e1 : {S.parse.step.end(_, "--" ++ body, S.Here{args, up, subs, path, bs, pos, False{}, seen})
     == S.St{S.Dead{S.UnknownFlag{path, "--" ++ body}}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   e0 = Equal.sym(Bool, String.starts_with(body, ""), True{}, L3.prefix_empty(body))
-  %e0 : {S.parse.step.kind.go(_, True{}, "--" ++ body, args, up, subs, path, bs, pos, seen)
+  %e0 : {S.parse.step.kind.go(_, True{}, "--" ++ body, S.Here{args, up, subs, path, bs, pos, False{}, seen})
     == S.St{S.Dead{S.UnknownFlag{path, "--" ++ body}}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   ed = Equal.sym(String, String.drop(body, 0n), body, L1.drop_zero(body))
-  %ed : {S.parse.take_long(_, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen)
+  %ed : {S.parse.take_long(_, "--" ++ body, S.Here{args, up, subs, path, bs, pos, False{}, seen})
     == S.St{S.Dead{S.UnknownFlag{path, "--" ++ body}}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   e2 = Equal.sym(String & Maybe<&2, String>, S.cut_eq(body), (name, val), h_cut)
-  %e2 : {S.parse.take_long.cut(_, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen)
+  %e2 : {S.parse.take_long.cut(_, "--" ++ body, S.Here{args, up, subs, path, bs, pos, False{}, seen})
     == S.St{S.Dead{S.UnknownFlag{path, "--" ++ body}}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   e3 = Equal.sym(Bool, String.is_empty(name), False{}, h_name)
-  %e3 : {S.parse.take_long.named(_, name, val, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen)
+  %e3 : {S.parse.take_long.named(_, name, val, "--" ++ body, S.Here{args, up, subs, path, bs, pos, False{}, seen})
     == S.St{S.Dead{S.UnknownFlag{path, "--" ++ body}}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   e4 = Equal.sym(Maybe<&2, S.Arg>, S.by_long(args, name), None{}, h_none)
-  %e4 : {S.parse.take_long.found(_, name, val, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen)
+  %e4 : {S.parse.take_long.found(_, name, val, "--" ++ body, S.Here{args, up, subs, path, bs, pos, False{}, seen})
     == S.St{S.Dead{S.UnknownFlag{path, "--" ++ body}}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   e5 = Equal.sym(Bool, S.long_help(name, val, seen), False{}, h_lh)
-  %e5 : {S.parse.take_long.help(_, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen)
+  %e5 : {S.parse.take_long.help(_, "--" ++ body, S.Here{args, up, subs, path, bs, pos, False{}, seen})
     == S.St{S.Dead{S.UnknownFlag{path, "--" ++ body}}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   {==}
 
@@ -127,25 +127,25 @@ def L2.long_arg_step(
   h_name
 ):
   e1 = Equal.sym(Bool, String.eq("--" ++ body, "--"), False{}, h_dd)
-  %e1 : {S.parse.step.end(_, "--" ++ body, args, up, subs, path, bs, pos, seen)
-    == S.parse.take_long.found(S.by_long(args, name), name, val, "--" ++ body, args, up, subs, path, bs, pos, False{},
-        seen) : S.St}
+  %e1 : {S.parse.step.end(_, "--" ++ body, S.Here{args, up, subs, path, bs, pos, False{}, seen})
+    == S.parse.take_long.found(S.by_long(args, name), name, val, "--" ++ body,
+      S.Here{args, up, subs, path, bs, pos, False{}, seen}) : S.St}
   e0 = Equal.sym(Bool, String.starts_with(body, ""), True{}, L3.prefix_empty(body))
-  %e0 : {S.parse.step.kind.go(_, True{}, "--" ++ body, args, up, subs, path, bs, pos, seen)
-    == S.parse.take_long.found(S.by_long(args, name), name, val, "--" ++ body, args, up, subs, path, bs, pos, False{},
-        seen) : S.St}
+  %e0 : {S.parse.step.kind.go(_, True{}, "--" ++ body, S.Here{args, up, subs, path, bs, pos, False{}, seen})
+    == S.parse.take_long.found(S.by_long(args, name), name, val, "--" ++ body,
+      S.Here{args, up, subs, path, bs, pos, False{}, seen}) : S.St}
   ed = Equal.sym(String, String.drop(body, 0n), body, L1.drop_zero(body))
-  %ed : {S.parse.take_long(_, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen)
-    == S.parse.take_long.found(S.by_long(args, name), name, val, "--" ++ body, args, up, subs, path, bs, pos, False{},
-        seen) : S.St}
+  %ed : {S.parse.take_long(_, "--" ++ body, S.Here{args, up, subs, path, bs, pos, False{}, seen})
+    == S.parse.take_long.found(S.by_long(args, name), name, val, "--" ++ body,
+      S.Here{args, up, subs, path, bs, pos, False{}, seen}) : S.St}
   e2 = Equal.sym(String & Maybe<&2, String>, S.cut_eq(body), (name, val), h_cut)
-  %e2 : {S.parse.take_long.cut(_, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen)
-    == S.parse.take_long.found(S.by_long(args, name), name, val, "--" ++ body, args, up, subs, path, bs, pos, False{},
-        seen) : S.St}
+  %e2 : {S.parse.take_long.cut(_, "--" ++ body, S.Here{args, up, subs, path, bs, pos, False{}, seen})
+    == S.parse.take_long.found(S.by_long(args, name), name, val, "--" ++ body,
+      S.Here{args, up, subs, path, bs, pos, False{}, seen}) : S.St}
   e3 = Equal.sym(Bool, String.is_empty(name), False{}, h_name)
-  %e3 : {S.parse.take_long.named(_, name, val, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen)
-    == S.parse.take_long.found(S.by_long(args, name), name, val, "--" ++ body, args, up, subs, path, bs, pos, False{},
-        seen) : S.St}
+  %e3 : {S.parse.take_long.named(_, name, val, "--" ++ body, S.Here{args, up, subs, path, bs, pos, False{}, seen})
+    == S.parse.take_long.found(S.by_long(args, name), name, val, "--" ++ body,
+      S.Here{args, up, subs, path, bs, pos, False{}, seen}) : S.St}
   {==}
 
 # the walk through `tok` is one step from where the words before it stood
@@ -185,9 +185,9 @@ def pos.take(
       S.parse.take_pos.keep(S.rest.is(S.Arg{name, sh, lo, kind, hp, req, dflt, cs}),
         S.Arg{name, sh, lo, kind, hp, req, dflt, cs}, rest), raw, True{}} : S.St}:
   e2 = Equal.sym(Bool, S.allowed(cs, tok), True{}, h_ok)
-  %e2 : {S.parse.take_choice(_, name, tok, args, up, subs, path, bs,
-      S.parse.take_pos.keep(S.rest.is(S.Arg{name, sh, lo, kind, hp, req, dflt, cs}),
-        S.Arg{name, sh, lo, kind, hp, req, dflt, cs}, rest), raw, True{})
+  %e2 : {S.parse.take_choice(_, name, tok,
+    S.Here{args, up, subs, path, bs, S.parse.take_pos.keep(S.rest.is(S.Arg{name, sh, lo, kind, hp, req, dflt, cs}),
+        S.Arg{name, sh, lo, kind, hp, req, dflt, cs}, rest), raw, True{}})
     == S.St{S.Free{}, args, up, subs, path, S.Bind{name, tok} <> bs,
       S.parse.take_pos.keep(S.rest.is(S.Arg{name, sh, lo, kind, hp, req, dflt, cs}),
         S.Arg{name, sh, lo, kind, hp, req, dflt, cs}, rest), raw, True{}} : S.St}
@@ -259,16 +259,18 @@ def enter.word(
   h_help: {String.eq(tok, "help") == False{} : Bool},
   +h_dash: {String.starts_with(tok, "-") == False{} : Bool}
 ) -> {S.parse.step(tok, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen})
-    == S.parse.word.go(S.find_sub(subs, tok), tok, args, up, subs, path, bs, pos, False{}, seen) : S.St}:
-  +rhs = S.parse.word.go(S.find_sub(subs, tok), tok, args, up, subs, path, bs, pos, False{}, seen)
+    == S.parse.word.go(S.find_sub(subs, tok), tok, S.Here{args, up, subs, path, bs, pos, False{}, seen}) : S.St}:
+  +rhs = S.parse.word.go(S.find_sub(subs, tok), tok, S.Here{args, up, subs, path, bs, pos, False{}, seen})
   e1 = Equal.sym(Bool, String.eq(tok, "--"), False{}, h_dd)
-  %e1 : {S.parse.step.end(_, tok, args, up, subs, path, bs, pos, seen) == rhs : S.St}
+  %e1 : {S.parse.step.end(_, tok, S.Here{args, up, subs, path, bs, pos, False{}, seen}) == rhs : S.St}
   e2 = Equal.sym(Bool, String.eq(tok, "help"), False{}, h_help)
-  %e2 : {S.parse.step.help(Bool.and(_, Bool.not(seen)), tok, args, up, subs, path, bs, pos, seen) == rhs : S.St}
+  %e2 : {S.parse.step.help(Bool.and(_, Bool.not(seen)), tok, S.Here{args, up, subs, path, bs, pos, False{}, seen})
+    == rhs : S.St}
   e3 = Equal.sym(Bool, String.starts_with(tok, "--"), False{}, Walk.wk.dash(tok, h_dash))
-  %e3 : {S.parse.step.kind.go(_, String.starts_with(tok, "-"), tok, args, up, subs, path, bs, pos, seen) == rhs : S.St}
+  %e3 : {S.parse.step.kind.go(_, String.starts_with(tok, "-"), tok,
+    S.Here{args, up, subs, path, bs, pos, False{}, seen}) == rhs : S.St}
   e4 = Equal.sym(Bool, String.starts_with(tok, "-"), False{}, h_dash)
-  %e4 : {S.parse.step.kind.go(False{}, _, tok, args, up, subs, path, bs, pos, seen) == rhs : S.St}
+  %e4 : {S.parse.step.kind.go(False{}, _, tok, S.Here{args, up, subs, path, bs, pos, False{}, seen}) == rhs : S.St}
   {==}
 
 # a found subcommand, entered or refused, as the first blocking positional says
@@ -283,9 +285,9 @@ def enter.go(
   +seen: Bool,
   +sub: S.Sub,
   h_sub: {S.find_sub(subs, tok) == Some{sub} : Maybe<&2, S.Sub>}
-) -> {S.parse.word.go(S.find_sub(subs, tok), tok, args, up, subs, path, bs, pos, False{}, seen)
-    == S.parse.enter_or(S.parse.first_req(pos), sub, args, up, subs, path, bs, pos, False{}, seen) : S.St}:
+) -> {S.parse.word.go(S.find_sub(subs, tok), tok, S.Here{args, up, subs, path, bs, pos, False{}, seen})
+    == S.parse.enter_or(S.parse.first_req(pos), sub, S.Here{args, up, subs, path, bs, pos, False{}, seen}) : S.St}:
   ee = Equal.sym(Maybe<&2, S.Sub>, S.find_sub(subs, tok), Some{sub}, h_sub)
-  %ee : {S.parse.word.go(_, tok, args, up, subs, path, bs, pos, False{}, seen)
-    == S.parse.enter_or(S.parse.first_req(pos), sub, args, up, subs, path, bs, pos, False{}, seen) : S.St}
+  %ee : {S.parse.word.go(_, tok, S.Here{args, up, subs, path, bs, pos, False{}, seen})
+    == S.parse.enter_or(S.parse.first_req(pos), sub, S.Here{args, up, subs, path, bs, pos, False{}, seen}) : S.St}
   {==}

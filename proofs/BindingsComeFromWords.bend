@@ -301,7 +301,7 @@ def gv.put(
   +hv: {gv.ok(ws, val) == True{} : Bool},
   hb: gv.B(binds, ws),
   hu: gv.U(up, ws)
-) -> gv.G(S.parse.put(name, val, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gv.G(S.parse.put(name, val, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   gv.and_tt(Bool.and(gv.ok(ws, val), gv.all(binds, ws)), gv.ups(up, ws),
     gv.and_tt(gv.ok(ws, val), gv.all(binds, ws), hv, hb), hu)
 
@@ -322,7 +322,7 @@ def gv.choice(
   +hv: {gv.ok(ws, val) == True{} : Bool},
   hb: gv.B(binds, ws),
   hu: gv.U(up, ws)
-) -> gv.G(S.parse.take_choice(ok, name, val, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gv.G(S.parse.take_choice(ok, name, val, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match ok:
     case True{}:
       gv.put(name, val, args, up, subs, path, binds, pos, raw, seen, ws, hv, hb, hu)
@@ -345,7 +345,7 @@ def gv.opt_val(
   +hv: {gv.ok(ws, val) == True{} : Bool},
   hb: gv.B(binds, ws),
   hu: gv.U(up, ws)
-) -> gv.G(S.parse.take_opt_val(name, val, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gv.G(S.parse.take_opt_val(name, val, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   gv.choice(S.allowed(S.parse.choices(S.by_name(args, name)), val), name, val, args, up, subs, path, binds, pos,
     raw, seen, ws, hv, hb, hu)
 
@@ -365,7 +365,7 @@ def gv.flag(
   +ws: List<&2, String>,
   hb: gv.B(binds, ws),
   hu: gv.U(up, ws)
-) -> gv.G(S.parse.take_flag(val, name, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gv.G(S.parse.take_flag(val, name, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match val:
     case None{}:
       gv.put(name, "true", args, up, subs, path, binds, pos, raw, seen, ws, {==}, hb, hu)
@@ -388,7 +388,7 @@ def gv.opt(
   +hm: {gv.mok(val, ws) == True{} : Bool},
   hb: gv.B(binds, ws),
   hu: gv.U(up, ws)
-) -> gv.G(S.parse.take_opt(val, name, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gv.G(S.parse.take_opt(val, name, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match val:
     case None{}:
       gv.keep(binds, up, ws, hb, hu)
@@ -430,13 +430,14 @@ def gv.akind(
   +hm: {gv.mok(val, ws) == True{} : Bool},
   hb: gv.B(binds, ws),
   hu: gv.U(up, ws)
-) -> gv.G(S.parse.take_arg.kind(kk, name, val, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gv.G(S.parse.take_arg.kind(kk, name, val, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match kk:
     case S.Flag{}:
-      gv.once(S.bound(binds, name), S.parse.take_flag(val, name, orig, args, up, subs, path, binds, pos, raw, seen),
+      gv.once(S.bound(binds, name),
+        S.parse.take_flag(val, name, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}),
         name, path, ws, gv.flag(val, name, orig, args, up, subs, path, binds, pos, raw, seen, ws, hb, hu))
     case S.Opt{}:
-      gv.once(S.bound(binds, name), S.parse.take_opt(val, name, args, up, subs, path, binds, pos, raw, seen),
+      gv.once(S.bound(binds, name), S.parse.take_opt(val, name, S.Here{args, up, subs, path, binds, pos, raw, seen}),
         name, path, ws, gv.opt(val, name, args, up, subs, path, binds, pos, raw, seen, ws, hm, hb, hu))
     case S.Many{}:
       gv.opt(val, name, args, up, subs, path, binds, pos, raw, seen, ws, hm, hb, hu)
@@ -462,7 +463,7 @@ def gv.arg(
   +hm: {gv.mok(val, ws) == True{} : Bool},
   hb: gv.B(binds, ws),
   hu: gv.U(up, ws)
-) -> gv.G(S.parse.take_arg(found, val, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gv.G(S.parse.take_arg(found, val, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match found:
     case None{}:
       gv.keep(binds, up, ws, hb, hu)
@@ -486,7 +487,7 @@ def gv.lhelp(
   +ws: List<&2, String>,
   hb: gv.B(binds, ws),
   hu: gv.U(up, ws)
-) -> gv.G(S.parse.take_long.help(hit, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gv.G(S.parse.take_long.help(hit, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match hit:
     case True{}:
       gv.keep(binds, up, ws, hb, hu)
@@ -511,7 +512,7 @@ def gv.found(
   +hm: {gv.mok(val, ws) == True{} : Bool},
   hb: gv.B(binds, ws),
   hu: gv.U(up, ws)
-) -> gv.G(S.parse.take_long.found(found, name, val, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gv.G(S.parse.take_long.found(found, name, val, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match found:
     case None{}:
       gv.lhelp(S.long_help(name, val, seen), orig, args, up, subs, path, binds, pos, raw, seen, ws, hb, hu)
@@ -536,7 +537,7 @@ def gv.named(
   +hm: {gv.mok(val, ws) == True{} : Bool},
   hb: gv.B(binds, ws),
   hu: gv.U(up, ws)
-) -> gv.G(S.parse.take_long.named(empty, name, val, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gv.G(S.parse.take_long.named(empty, name, val, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match empty:
     case True{}:
       gv.keep(binds, up, ws, hb, hu)
@@ -559,7 +560,7 @@ def gv.cut(
   +hp: {gv.pok(nv, ws) == True{} : Bool},
   hb: gv.B(binds, ws),
   hu: gv.U(up, ws)
-) -> gv.G(S.parse.take_long.cut(nv, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gv.G(S.parse.take_long.cut(nv, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match nv:
     case (+name, +val):
       gv.named(String.is_empty(name), name, val, orig, args, up, subs, path, binds, pos, raw, seen, ws, hp, hb, hu)
@@ -619,7 +620,7 @@ def gv.long(
   hh: gv.In(body, ws),
   hb: gv.B(binds, ws),
   hu: gv.U(up, ws)
-) -> gv.G(S.parse.take_long(body, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gv.G(S.parse.take_long(body, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   ee = Equal.sym(String, String.from_list(String.to_list(body)), body, gv.round(body))
   hr = {%ee : gv.In(_, ws)
     hh : gv.In(String.from_list(String.to_list(body)), ws)}
@@ -707,7 +708,7 @@ def gv.capply_mode(
   +hh: {gv.sufs(rest, ws) == True{} : Bool},
   hb: gv.B(binds, ws),
   hu: gv.U(up, ws)
-) -> gv.G(S.cluster.apply.mode(mode, cc, rest, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gv.G(S.cluster.apply.mode(mode, cc, rest, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match mode:
     case S.Dead{_e}:
       gv.keep(binds, up, ws, hb, hu)
@@ -788,7 +789,7 @@ def gv.sgo(
   +hh: {gv.sufs(body, ws) == True{} : Bool},
   +hb: {gv.all(binds, ws) == True{} : Bool},
   +hu: {gv.ups(up, ws) == True{} : Bool}
-) -> gv.G(S.parse.take_short.go(hit, body, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gv.G(S.parse.take_short.go(hit, body, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match hit:
     case True{}:
       gv.keep(binds, up, ws, hb, hu)
@@ -812,7 +813,7 @@ def gv.short(
   +hh: {gv.sufs(body, ws) == True{} : Bool},
   hb: gv.B(binds, ws),
   hu: gv.U(up, ws)
-) -> gv.G(S.parse.take_short(body, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gv.G(S.parse.take_short(body, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   gv.sgo(S.short_help(body, args, seen), body, orig, args, up, subs, path, binds, pos, raw, seen, ws, hh, hb, hu)
 
 # a positional binds the word
@@ -870,7 +871,7 @@ def gv.enter_or(
   +ws: List<&2, String>,
   hb: gv.B(binds, ws),
   hu: gv.U(up, ws)
-) -> gv.G(S.parse.enter_or(miss, ss, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gv.G(S.parse.enter_or(miss, ss, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match miss:
     case None{}:
       gv.enter(ss, args, up, path, binds, ws, hb, hu)
@@ -893,7 +894,7 @@ def gv.word_go(
   +hh: {gv.sufs(tok, ws) == True{} : Bool},
   hb: gv.B(binds, ws),
   hu: gv.U(up, ws)
-) -> gv.G(S.parse.word.go(found, tok, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gv.G(S.parse.word.go(found, tok, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match found:
     case None{}:
       gv.take_pos(tok, args, up, subs, path, binds, pos, raw, ws, hh, hb, hu)
@@ -915,7 +916,7 @@ def gv.word(
   +hh: {gv.sufs(tok, ws) == True{} : Bool},
   hb: gv.B(binds, ws),
   hu: gv.U(up, ws)
-) -> gv.G(S.parse.word(tok, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gv.G(S.parse.word(tok, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   gv.word_go(S.find_sub(subs, tok), tok, args, up, subs, path, binds, pos, raw, seen, ws, hh, hb, hu)
 
 # `-` alone is a word; otherwise a cluster
@@ -933,7 +934,7 @@ def gv.short_go(
   +hh: {gv.sufs(tok, ws) == True{} : Bool},
   hb: gv.B(binds, ws),
   hu: gv.U(up, ws)
-) -> gv.G(S.parse.step.short.go(alone, tok, args, up, subs, path, binds, pos, seen), ws):
+) -> gv.G(S.parse.step.short.go(alone, tok, S.Here{args, up, subs, path, binds, pos, False{}, seen}), ws):
   match alone:
     case True{}:
       gv.word(tok, args, up, subs, path, binds, pos, False{}, seen, ws, hh, hb, hu)
@@ -956,7 +957,7 @@ def gv.step_short(
   +hh: {gv.sufs(tok, ws) == True{} : Bool},
   hb: gv.B(binds, ws),
   hu: gv.U(up, ws)
-) -> gv.G(S.parse.step.short(dash, tok, args, up, subs, path, binds, pos, seen), ws):
+) -> gv.G(S.parse.step.short(dash, tok, S.Here{args, up, subs, path, binds, pos, False{}, seen}), ws):
   match dash:
     case True{}:
       gv.short_go(String.is_empty(String.drop(tok, 1n)), tok, args, up, subs, path, binds, pos, seen, ws, hh, hb, hu)
@@ -979,7 +980,7 @@ def gv.kind_go(
   +hh: {gv.sufs(tok, ws) == True{} : Bool},
   hb: gv.B(binds, ws),
   hu: gv.U(up, ws)
-) -> gv.G(S.parse.step.kind.go(long, dash, tok, args, up, subs, path, binds, pos, seen), ws):
+) -> gv.G(S.parse.step.kind.go(long, dash, tok, S.Here{args, up, subs, path, binds, pos, False{}, seen}), ws):
   match long:
     case True{}:
       gv.long(String.drop(tok, 2n), tok, args, up, subs, path, binds, pos, False{}, seen, ws,
@@ -1001,7 +1002,7 @@ def gv.skind(
   +hh: {gv.sufs(tok, ws) == True{} : Bool},
   hb: gv.B(binds, ws),
   hu: gv.U(up, ws)
-) -> gv.G(S.parse.step.kind(tok, args, up, subs, path, binds, pos, seen), ws):
+) -> gv.G(S.parse.step.kind(tok, S.Here{args, up, subs, path, binds, pos, False{}, seen}), ws):
   gv.kind_go(String.starts_with(tok, "--"), String.starts_with(tok, "-"), tok, args, up, subs, path, binds, pos, seen,
     ws,
     hh, hb, hu)
@@ -1021,7 +1022,7 @@ def gv.help(
   +hh: {gv.sufs(tok, ws) == True{} : Bool},
   hb: gv.B(binds, ws),
   hu: gv.U(up, ws)
-) -> gv.G(S.parse.step.help(hit, tok, args, up, subs, path, binds, pos, seen), ws):
+) -> gv.G(S.parse.step.help(hit, tok, S.Here{args, up, subs, path, binds, pos, False{}, seen}), ws):
   match hit:
     case True{}:
       gv.keep(binds, up, ws, hb, hu)
@@ -1043,7 +1044,7 @@ def gv.end(
   +hh: {gv.sufs(tok, ws) == True{} : Bool},
   hb: gv.B(binds, ws),
   hu: gv.U(up, ws)
-) -> gv.G(S.parse.step.end(end, tok, args, up, subs, path, binds, pos, seen), ws):
+) -> gv.G(S.parse.step.end(end, tok, S.Here{args, up, subs, path, binds, pos, False{}, seen}), ws):
   match end:
     case True{}:
       gv.keep(binds, up, ws, hb, hu)
@@ -1066,7 +1067,7 @@ def gv.raw(
   +hh: {gv.sufs(tok, ws) == True{} : Bool},
   hb: gv.B(binds, ws),
   hu: gv.U(up, ws)
-) -> gv.G(S.parse.step.raw(raw, tok, args, up, subs, path, binds, pos, seen), ws):
+) -> gv.G(S.parse.step.raw(tok, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match raw:
     case True{}:
       gv.take_pos(tok, args, up, subs, path, binds, pos, True{}, ws, hh, hb, hu)
@@ -1090,7 +1091,7 @@ def gv.need(
   +hh: {gv.sufs(tok, ws) == True{} : Bool},
   hb: gv.B(binds, ws),
   hu: gv.U(up, ws)
-) -> gv.G(S.parse.step.need(flag, name, tok, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gv.G(S.parse.step.need(flag, name, tok, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match flag:
     case True{}:
       gv.keep(binds, up, ws, hb, hu)
@@ -1113,7 +1114,7 @@ def gv.help_path(
   _hh: {gv.sufs(tok, ws) == True{} : Bool},
   hb: gv.B(binds, ws),
   hu: gv.U(up, ws)
-) -> gv.G(S.parse.step.help_path(found, tok, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gv.G(S.parse.step.help_path(found, tok, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match found:
     case None{}:
       gv.keep(binds, up, ws, hb, hu)
@@ -1138,7 +1139,7 @@ def gv.mode(
   +hh: {gv.sufs(tok, ws) == True{} : Bool},
   hb: gv.B(binds, ws),
   hu: gv.U(up, ws)
-) -> gv.G(S.parse.step.mode(mode, tok, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gv.G(S.parse.step.mode(mode, tok, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match mode:
     case S.Dead{_e}:
       gv.keep(binds, up, ws, hb, hu)
@@ -1642,7 +1643,7 @@ def gn.put(
   +hv: {gv.ok(ws, val) == True{} : Bool},
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
-) -> gn.G(S.parse.put(name, val, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gn.G(S.parse.put(name, val, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   gv.and_tt(gn.pin(pos, args), Bool.and(gn.nok(args, ws, S.Bind{name, val}), gn.all(binds, args, ws)), hp,
     gv.and_tt(gn.nok(args, ws, S.Bind{name, val}), gn.all(binds, args, ws),
       gv.and_tt(Laws.has_arg(args, name), gv.ok(ws, val), hn, hv), hb))
@@ -1665,7 +1666,7 @@ def gn.choice(
   +hv: {gv.ok(ws, val) == True{} : Bool},
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
-) -> gn.G(S.parse.take_choice(ok, name, val, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gn.G(S.parse.take_choice(ok, name, val, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match ok:
     case True{}:
       gn.put(name, val, args, up, subs, path, binds, pos, raw, seen, ws, hn, hv, hb, hp)
@@ -1689,7 +1690,7 @@ def gn.opt_val(
   +hv: {gv.ok(ws, val) == True{} : Bool},
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
-) -> gn.G(S.parse.take_opt_val(name, val, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gn.G(S.parse.take_opt_val(name, val, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   gn.choice(S.allowed(S.parse.choices(S.by_name(args, name)), val), name, val, args, up, subs, path, binds, pos,
     raw, seen, ws, hn, hv, hb, hp)
 
@@ -1710,7 +1711,7 @@ def gn.flag(
   +hn: {Laws.has_arg(args, name) == True{} : Bool},
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
-) -> gn.G(S.parse.take_flag(val, name, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gn.G(S.parse.take_flag(val, name, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match val:
     case None{}:
       gn.put(name, "true", args, up, subs, path, binds, pos, raw, seen, ws, hn, {==}, hb, hp)
@@ -1734,7 +1735,7 @@ def gn.opt(
   +hm: {gv.mok(val, ws) == True{} : Bool},
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
-) -> gn.G(S.parse.take_opt(val, name, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gn.G(S.parse.take_opt(val, name, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match val:
     case None{}:
       gv.and_tt(Bool.and(Laws.has_arg(args, name), gn.pin(pos, args)), gn.all(binds, args, ws),
@@ -1781,13 +1782,14 @@ def gn.akind(
   +hm: {gv.mok(val, ws) == True{} : Bool},
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
-) -> gn.G(S.parse.take_arg.kind(kk, name, val, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gn.G(S.parse.take_arg.kind(kk, name, val, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match kk:
     case S.Flag{}:
-      gn.once(S.bound(binds, name), S.parse.take_flag(val, name, orig, args, up, subs, path, binds, pos, raw, seen),
+      gn.once(S.bound(binds, name),
+        S.parse.take_flag(val, name, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}),
         name, path, ws, gn.flag(val, name, orig, args, up, subs, path, binds, pos, raw, seen, ws, hn, hb, hp))
     case S.Opt{}:
-      gn.once(S.bound(binds, name), S.parse.take_opt(val, name, args, up, subs, path, binds, pos, raw, seen),
+      gn.once(S.bound(binds, name), S.parse.take_opt(val, name, S.Here{args, up, subs, path, binds, pos, raw, seen}),
         name, path, ws, gn.opt(val, name, args, up, subs, path, binds, pos, raw, seen, ws, hn, hm, hb, hp))
     case S.Many{}:
       gn.opt(val, name, args, up, subs, path, binds, pos, raw, seen, ws, hn, hm, hb, hp)
@@ -1814,7 +1816,7 @@ def gn.arg(
   +hm: {gv.mok(val, ws) == True{} : Bool},
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
-) -> gn.G(S.parse.take_arg(found, val, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gn.G(S.parse.take_arg(found, val, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match found:
     case None{}:
     gn.keep(args, binds, pos, ws, hb, hp)
@@ -1838,7 +1840,7 @@ def gn.lhelp(
   +ws: List<&2, String>,
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
-) -> gn.G(S.parse.take_long.help(hit, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gn.G(S.parse.take_long.help(hit, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match hit:
     case True{}:
       gn.keep(args, binds, pos, ws, hb, hp)
@@ -1864,7 +1866,7 @@ def gn.found(
   +hm: {gv.mok(val, ws) == True{} : Bool},
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
-) -> gn.G(S.parse.take_long.found(found, name, val, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gn.G(S.parse.take_long.found(found, name, val, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match found:
     case None{}:
       gn.lhelp(S.long_help(name, val, seen), orig, args, up, subs, path, binds, pos, raw, seen, ws, hb, hp)
@@ -1889,7 +1891,7 @@ def gn.named(
   +hm: {gv.mok(val, ws) == True{} : Bool},
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
-) -> gn.G(S.parse.take_long.named(empty, name, val, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gn.G(S.parse.take_long.named(empty, name, val, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match empty:
     case True{}:
     gn.keep(args, binds, pos, ws, hb, hp)
@@ -1913,7 +1915,7 @@ def gn.cut(
   +hq: {gv.pok(nv, ws) == True{} : Bool},
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
-) -> gn.G(S.parse.take_long.cut(nv, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gn.G(S.parse.take_long.cut(nv, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match nv:
     case (+name, +val):
       gn.named(String.is_empty(name), name, val, orig, args, up, subs, path, binds, pos, raw, seen, ws, hq, hb, hp)
@@ -1934,7 +1936,7 @@ def gn.long(
   +hh: {gv.sufs(body, ws) == True{} : Bool},
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
-) -> gn.G(S.parse.take_long(body, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gn.G(S.parse.take_long(body, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   ee = Equal.sym(String, String.from_list(String.to_list(body)), body, gv.round(body))
   hr = {%ee : gv.In(_, ws)
     hh : gv.In(String.from_list(String.to_list(body)), ws)}
@@ -1959,7 +1961,7 @@ def gn.capply_mode(
   +hh: {gv.sufs(rest, ws) == True{} : Bool},
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
-) -> gn.G(S.cluster.apply.mode(mode, cc, rest, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gn.G(S.cluster.apply.mode(mode, cc, rest, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match mode:
     case S.Dead{_e}:
     gn.keep(args, binds, pos, ws, hb, hp)
@@ -2045,7 +2047,7 @@ def gn.sgo(
   +hh: {gv.sufs(body, ws) == True{} : Bool},
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
-) -> gn.G(S.parse.take_short.go(hit, body, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gn.G(S.parse.take_short.go(hit, body, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match hit:
     case True{}:
       gn.keep(args, binds, pos, ws, hb, hp)
@@ -2069,7 +2071,7 @@ def gn.short(
   +hh: {gv.sufs(body, ws) == True{} : Bool},
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
-) -> gn.G(S.parse.take_short(body, orig, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gn.G(S.parse.take_short(body, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   gn.sgo(S.short_help(body, args, seen), body, orig, args, up, subs, path, binds, pos, raw, seen, ws, hh, hb, hp)
 
 # a positional consumed, or kept when it is a rest
@@ -2144,7 +2146,7 @@ def gn.enter_or(
   +ws: List<&2, String>,
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
-) -> gn.G(S.parse.enter_or(miss, ss, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gn.G(S.parse.enter_or(miss, ss, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match miss:
     case None{}:
       gn.enter(ss, args, up, path, binds, ws)
@@ -2167,7 +2169,7 @@ def gn.word_go(
   +hh: {gv.sufs(tok, ws) == True{} : Bool},
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
-) -> gn.G(S.parse.word.go(found, tok, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gn.G(S.parse.word.go(found, tok, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match found:
     case None{}:
       gn.take_pos(tok, args, up, subs, path, binds, pos, raw, ws, hh, hb, hp)
@@ -2189,7 +2191,7 @@ def gn.word(
   +hh: {gv.sufs(tok, ws) == True{} : Bool},
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
-) -> gn.G(S.parse.word(tok, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gn.G(S.parse.word(tok, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   gn.word_go(S.find_sub(subs, tok), tok, args, up, subs, path, binds, pos, raw, seen, ws, hh, hb, hp)
 
 # `-` alone is a word; otherwise a cluster
@@ -2207,7 +2209,7 @@ def gn.short_go(
   +hh: {gv.sufs(tok, ws) == True{} : Bool},
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
-) -> gn.G(S.parse.step.short.go(alone, tok, args, up, subs, path, binds, pos, seen), ws):
+) -> gn.G(S.parse.step.short.go(alone, tok, S.Here{args, up, subs, path, binds, pos, False{}, seen}), ws):
   match alone:
     case True{}:
       gn.word(tok, args, up, subs, path, binds, pos, False{}, seen, ws, hh, hb, hp)
@@ -2230,7 +2232,7 @@ def gn.step_short(
   +hh: {gv.sufs(tok, ws) == True{} : Bool},
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
-) -> gn.G(S.parse.step.short(dash, tok, args, up, subs, path, binds, pos, seen), ws):
+) -> gn.G(S.parse.step.short(dash, tok, S.Here{args, up, subs, path, binds, pos, False{}, seen}), ws):
   match dash:
     case True{}:
       gn.short_go(String.is_empty(String.drop(tok, 1n)), tok, args, up, subs, path, binds, pos, seen, ws, hh, hb, hp)
@@ -2253,7 +2255,7 @@ def gn.kind_go(
   +hh: {gv.sufs(tok, ws) == True{} : Bool},
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
-) -> gn.G(S.parse.step.kind.go(long, dash, tok, args, up, subs, path, binds, pos, seen), ws):
+) -> gn.G(S.parse.step.kind.go(long, dash, tok, S.Here{args, up, subs, path, binds, pos, False{}, seen}), ws):
   match long:
     case True{}:
       gn.long(String.drop(tok, 2n), tok, args, up, subs, path, binds, pos, False{}, seen, ws,
@@ -2275,7 +2277,7 @@ def gn.skind(
   +hh: {gv.sufs(tok, ws) == True{} : Bool},
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
-) -> gn.G(S.parse.step.kind(tok, args, up, subs, path, binds, pos, seen), ws):
+) -> gn.G(S.parse.step.kind(tok, S.Here{args, up, subs, path, binds, pos, False{}, seen}), ws):
   gn.kind_go(String.starts_with(tok, "--"), String.starts_with(tok, "-"), tok, args, up, subs, path, binds, pos, seen,
     ws,
     hh, hb, hp)
@@ -2295,7 +2297,7 @@ def gn.help(
   +hh: {gv.sufs(tok, ws) == True{} : Bool},
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
-) -> gn.G(S.parse.step.help(hit, tok, args, up, subs, path, binds, pos, seen), ws):
+) -> gn.G(S.parse.step.help(hit, tok, S.Here{args, up, subs, path, binds, pos, False{}, seen}), ws):
   match hit:
     case True{}:
     gn.keep(args, binds, pos, ws, hb, hp)
@@ -2317,7 +2319,7 @@ def gn.end(
   +hh: {gv.sufs(tok, ws) == True{} : Bool},
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
-) -> gn.G(S.parse.step.end(end, tok, args, up, subs, path, binds, pos, seen), ws):
+) -> gn.G(S.parse.step.end(end, tok, S.Here{args, up, subs, path, binds, pos, False{}, seen}), ws):
   match end:
     case True{}:
     gn.keep(args, binds, pos, ws, hb, hp)
@@ -2340,7 +2342,7 @@ def gn.raw(
   +hh: {gv.sufs(tok, ws) == True{} : Bool},
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
-) -> gn.G(S.parse.step.raw(raw, tok, args, up, subs, path, binds, pos, seen), ws):
+) -> gn.G(S.parse.step.raw(tok, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match raw:
     case True{}:
       gn.take_pos(tok, args, up, subs, path, binds, pos, True{}, ws, hh, hb, hp)
@@ -2365,7 +2367,7 @@ def gn.need(
   +hn: {Laws.has_arg(args, name) == True{} : Bool},
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
-) -> gn.G(S.parse.step.need(flag, name, tok, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gn.G(S.parse.step.need(flag, name, tok, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match flag:
     case True{}:
     gn.keep(args, binds, pos, ws, hb, hp)
@@ -2387,7 +2389,7 @@ def gn.help_path(
   +ws: List<&2, String>,
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
-) -> gn.G(S.parse.step.help_path(found, tok, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gn.G(S.parse.step.help_path(found, tok, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match found:
     case None{}:
     gn.keep(args, binds, pos, ws, hb, hp)
@@ -2413,7 +2415,7 @@ def gn.mode(
   +hm: {gn.min(mode, args) == True{} : Bool},
   +hb: {gn.all(binds, args, ws) == True{} : Bool},
   +hp: {gn.pin(pos, args) == True{} : Bool}
-) -> gn.G(S.parse.step.mode(mode, tok, args, up, subs, path, binds, pos, raw, seen), ws):
+) -> gn.G(S.parse.step.mode(mode, tok, S.Here{args, up, subs, path, binds, pos, raw, seen}), ws):
   match mode:
     case S.Dead{_e}:
     gn.keep(args, binds, pos, ws, hb, hp)
@@ -2871,7 +2873,7 @@ def nd.put(
   +pos: List<&2, S.Arg>,
   +raw: Bool,
   +seen: Bool
-) -> nd.T(S.parse.put(name, val, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+) -> nd.T(S.parse.put(name, val, S.Here{args, up, subs, path, binds, pos, raw, seen}), 1n+Laws.valued(binds)):
   nd.put_le(String.eq(val, "true"), Laws.valued(binds))
 
 # a value bound when allowed
@@ -2887,7 +2889,8 @@ def nd.choice(
   +pos: List<&2, S.Arg>,
   +raw: Bool,
   +seen: Bool
-) -> nd.T(S.parse.take_choice(ok, name, val, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+) -> nd.T(S.parse.take_choice(ok, name, val,
+  S.Here{args, up, subs, path, binds, pos, raw, seen}), 1n+Laws.valued(binds)):
   match ok:
     case True{}:
       nd.put(name, val, args, up, subs, path, binds, pos, raw, seen)
@@ -2906,7 +2909,7 @@ def nd.opt_val(
   +pos: List<&2, S.Arg>,
   +raw: Bool,
   +seen: Bool
-) -> nd.T(S.parse.take_opt_val(name, val, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+) -> nd.T(S.parse.take_opt_val(name, val, S.Here{args, up, subs, path, binds, pos, raw, seen}), 1n+Laws.valued(binds)):
   nd.choice(S.allowed(S.parse.choices(S.by_name(args, name)), val), name, val, args, up, subs, path, binds, pos, raw,
     seen)
 
@@ -2923,7 +2926,8 @@ def nd.flag(
   +pos: List<&2, S.Arg>,
   +raw: Bool,
   +seen: Bool
-) -> nd.T(S.parse.take_flag(val, name, orig, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+) -> nd.T(S.parse.take_flag(val, name, orig,
+  S.Here{args, up, subs, path, binds, pos, raw, seen}), 1n+Laws.valued(binds)):
   match val:
     case None{}:
       nd.put(name, "true", args, up, subs, path, binds, pos, raw, seen)
@@ -2942,7 +2946,7 @@ def nd.opt(
   +pos: List<&2, S.Arg>,
   +raw: Bool,
   +seen: Bool
-) -> nd.T(S.parse.take_opt(val, name, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+) -> nd.T(S.parse.take_opt(val, name, S.Here{args, up, subs, path, binds, pos, raw, seen}), 1n+Laws.valued(binds)):
   match val:
     case None{}:
     nd.le_s(Laws.valued(binds))
@@ -2963,14 +2967,15 @@ def nd.akind(
   +pos: List<&2, S.Arg>,
   +raw: Bool,
   +seen: Bool
-) -> nd.T(S.parse.take_arg.kind(kk, name, val, orig, args, up, subs, path, binds, pos, raw,
-  seen), 1n+Laws.valued(binds)):
+) -> nd.T(S.parse.take_arg.kind(kk, name, val, orig,
+  S.Here{args, up, subs, path, binds, pos, raw, seen}), 1n+Laws.valued(binds)):
   match kk:
     case S.Flag{}:
-      nd.once(S.bound(binds, name), S.parse.take_flag(val, name, orig, args, up, subs, path, binds, pos, raw, seen),
+      nd.once(S.bound(binds, name),
+        S.parse.take_flag(val, name, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}),
         name, path, 1n+Laws.valued(binds), nd.flag(val, name, orig, args, up, subs, path, binds, pos, raw, seen))
     case S.Opt{}:
-      nd.once(S.bound(binds, name), S.parse.take_opt(val, name, args, up, subs, path, binds, pos, raw, seen),
+      nd.once(S.bound(binds, name), S.parse.take_opt(val, name, S.Here{args, up, subs, path, binds, pos, raw, seen}),
         name, path, 1n+Laws.valued(binds), nd.opt(val, name, args, up, subs, path, binds, pos, raw, seen))
     case S.Many{}:
       nd.opt(val, name, args, up, subs, path, binds, pos, raw, seen)
@@ -2992,7 +2997,8 @@ def nd.arg(
   +pos: List<&2, S.Arg>,
   +raw: Bool,
   +seen: Bool
-) -> nd.T(S.parse.take_arg(found, val, orig, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+) -> nd.T(S.parse.take_arg(found, val, orig,
+  S.Here{args, up, subs, path, binds, pos, raw, seen}), 1n+Laws.valued(binds)):
   match found:
     case None{}:
     nd.le_s(Laws.valued(binds))
@@ -3013,7 +3019,8 @@ def nd.lhelp(
   +pos: List<&2, S.Arg>,
   +raw: Bool,
   +seen: Bool
-) -> nd.T(S.parse.take_long.help(hit, orig, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+) -> nd.T(S.parse.take_long.help(hit, orig,
+  S.Here{args, up, subs, path, binds, pos, raw, seen}), 1n+Laws.valued(binds)):
   match hit:
     case True{}:
       nd.le_s(Laws.valued(binds))
@@ -3034,7 +3041,7 @@ def nd.found(
   +pos: List<&2, S.Arg>,
   +raw: Bool,
   +seen: Bool
-) -> nd.T(S.parse.take_long.found(found, name, val, orig, args, up, subs, path, binds, pos, raw, seen),
+) -> nd.T(S.parse.take_long.found(found, name, val, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}),
   1n+Laws.valued(binds)):
   match found:
     case None{}:
@@ -3056,8 +3063,8 @@ def nd.named(
   +pos: List<&2, S.Arg>,
   +raw: Bool,
   +seen: Bool
-) -> nd.T(S.parse.take_long.named(empty, name, val, orig, args, up, subs, path, binds, pos, raw,
-  seen), 1n+Laws.valued(binds)):
+) -> nd.T(S.parse.take_long.named(empty, name, val, orig,
+  S.Here{args, up, subs, path, binds, pos, raw, seen}), 1n+Laws.valued(binds)):
   match empty:
     case True{}:
     nd.le_s(Laws.valued(binds))
@@ -3076,7 +3083,7 @@ def nd.cut(
   +pos: List<&2, S.Arg>,
   +raw: Bool,
   +seen: Bool
-) -> nd.T(S.parse.take_long.cut(nv, orig, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+) -> nd.T(S.parse.take_long.cut(nv, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), 1n+Laws.valued(binds)):
   match nv:
     case (+name, +val):
       nd.named(String.is_empty(name), name, val, orig, args, up, subs, path, binds, pos, raw, seen)
@@ -3093,7 +3100,7 @@ def nd.long(
   +pos: List<&2, S.Arg>,
   +raw: Bool,
   +seen: Bool
-) -> nd.T(S.parse.take_long(body, orig, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+) -> nd.T(S.parse.take_long(body, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), 1n+Laws.valued(binds)):
   nd.cut(S.cut_eq(body), orig, args, up, subs, path, binds, pos, raw, seen)
 
 # the bound on a cluster so far: the count it started with while no letter
@@ -3144,17 +3151,18 @@ def nd.lflag(
   +seen: Bool,
   +n0: Nat,
   +hh: {Laws.nat_le(Laws.valued(binds), n0) == True{} : Bool}
-) -> {nd.inv(S.parse.once(S.bound(binds, name), S.parse.take_flag(S.cluster.val.flag(eq, rest), name, orig, args, up,
-    subs, path, binds, pos, raw, seen), name, path), n0, eq) == True{} : Bool}:
+) -> {nd.inv(S.parse.once(S.bound(binds, name),
+  S.parse.take_flag(S.cluster.val.flag(eq, rest), name, orig,
+    S.Here{args, up, subs, path, binds, pos, raw, seen}), name, path), n0, eq) == True{} : Bool}:
   match eq:
     case True{}:
-      +st = S.parse.take_flag(Some{rest}, name, orig, args, up, subs, path, binds, pos, raw, seen)
+      +st = S.parse.take_flag(Some{rest}, name, orig, S.Here{args, up, subs, path, binds, pos, raw, seen})
       ee = Equal.sym(List<&2, S.Bind>, Laws.binds_of(S.parse.once(S.bound(binds, name), st, name, path)),
         Laws.binds_of(st), nd.once_keep(S.bound(binds, name), st, name, path))
       %ee : {Laws.nat_le(Laws.valued(_), 1n+n0) == True{} : Bool}
       nd.le_trans(Laws.valued(binds), n0, 1n+n0, hh, nd.le_s(n0))
     case False{}:
-      +st = S.parse.take_flag(None{}, name, orig, args, up, subs, path, binds, pos, raw, seen)
+      +st = S.parse.take_flag(None{}, name, orig, S.Here{args, up, subs, path, binds, pos, raw, seen})
       ee = Equal.sym(List<&2, S.Bind>, Laws.binds_of(S.parse.once(S.bound(binds, name), st, name, path)),
         Laws.binds_of(st), nd.once_keep(S.bound(binds, name), st, name, path))
       %ee : {Laws.nat_le(Laws.valued(_), n0) == True{} : Bool}
@@ -3175,7 +3183,8 @@ def nd.lpair(
   +seen: Bool,
   +n0: Nat,
   +hh: {Laws.nat_le(Laws.valued(binds), n0) == True{} : Bool}
-) -> {nd.inv(S.parse.take_arg(found, S.cluster.val(found, rest), orig, args, up, subs, path, binds, pos, raw, seen), n0,
+) -> {nd.inv(S.parse.take_arg(found, S.cluster.val(found, rest), orig,
+  S.Here{args, up, subs, path, binds, pos, raw, seen}), n0,
     S.cluster.ends(found, rest)) == True{} : Bool}:
   match found:
     case None{}:
@@ -3189,14 +3198,14 @@ def nd.lpair(
                 hh)
             case S.Opt{}:
               +vv = S.short_of.val(String.starts_with(rest, "="), rest)
-              nd.lift(S.parse.once(S.bound(binds, name), S.parse.take_opt(vv, name, args, up, subs, path, binds, pos,
-                raw,
-                seen), name, path), binds, n0,
-                nd.once(S.bound(binds, name), S.parse.take_opt(vv, name, args, up, subs, path, binds, pos, raw, seen),
+              nd.lift(S.parse.once(S.bound(binds, name),
+                S.parse.take_opt(vv, name, S.Here{args, up, subs, path, binds, pos, raw, seen}), name, path), binds, n0,
+                nd.once(S.bound(binds, name),
+                  S.parse.take_opt(vv, name, S.Here{args, up, subs, path, binds, pos, raw, seen}),
                   name, path, 1n+Laws.valued(binds), nd.opt(vv, name, args, up, subs, path, binds, pos, raw, seen)), hh)
             case S.Many{}:
               +vv = S.short_of.val(String.starts_with(rest, "="), rest)
-              nd.lift(S.parse.take_opt(vv, name, args, up, subs, path, binds, pos, raw, seen), binds, n0,
+              nd.lift(S.parse.take_opt(vv, name, S.Here{args, up, subs, path, binds, pos, raw, seen}), binds, n0,
                 nd.opt(vv, name, args, up, subs, path, binds, pos, raw, seen), hh)
             case S.Pos{}:
               nd.le_trans(Laws.valued(binds), n0, 1n+n0, hh, nd.le_s(n0))
@@ -3232,7 +3241,7 @@ def nd.cmode(
   +seen: Bool,
   +n0: Nat,
   +hh: {Laws.nat_le(Laws.valued(binds), n0) == True{} : Bool}
-) -> {nd.inv(S.cluster.apply.mode(mode, cc, rest, orig, args, up, subs, path, binds, pos, raw, seen), n0,
+) -> {nd.inv(S.cluster.apply.mode(mode, cc, rest, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), n0,
     S.cluster.ends(S.by_short(args, SCon{cc, SNil{}}), rest)) == True{} : Bool}:
   match mode:
     case S.Dead{+ee}:
@@ -3303,7 +3312,8 @@ def nd.sgo(
   +pos: List<&2, S.Arg>,
   +raw: Bool,
   +seen: Bool
-) -> nd.T(S.parse.take_short.go(hit, body, orig, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+) -> nd.T(S.parse.take_short.go(hit, body, orig,
+  S.Here{args, up, subs, path, binds, pos, raw, seen}), 1n+Laws.valued(binds)):
   match hit:
     case True{}:
       nd.le_s(Laws.valued(binds))
@@ -3323,7 +3333,7 @@ def nd.short(
   +pos: List<&2, S.Arg>,
   +raw: Bool,
   +seen: Bool
-) -> nd.T(S.parse.take_short(body, orig, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+) -> nd.T(S.parse.take_short(body, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), 1n+Laws.valued(binds)):
   nd.sgo(S.short_help(body, args, seen), body, orig, args, up, subs, path, binds, pos, raw, seen)
 
 # a positional
@@ -3371,7 +3381,7 @@ def nd.enter_or(
   +pos: List<&2, S.Arg>,
   +raw: Bool,
   +seen: Bool
-) -> nd.T(S.parse.enter_or(miss, ss, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+) -> nd.T(S.parse.enter_or(miss, ss, S.Here{args, up, subs, path, binds, pos, raw, seen}), 1n+Laws.valued(binds)):
   match miss:
     case None{}:
       nd.enter(ss, args, up, path, binds)
@@ -3390,7 +3400,7 @@ def nd.word_go(
   +pos: List<&2, S.Arg>,
   +raw: Bool,
   +seen: Bool
-) -> nd.T(S.parse.word.go(found, tok, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+) -> nd.T(S.parse.word.go(found, tok, S.Here{args, up, subs, path, binds, pos, raw, seen}), 1n+Laws.valued(binds)):
   match found:
     case None{}:
       nd.take_pos(tok, args, up, subs, path, binds, pos, raw)
@@ -3408,7 +3418,7 @@ def nd.word(
   +pos: List<&2, S.Arg>,
   +raw: Bool,
   +seen: Bool
-) -> nd.T(S.parse.word(tok, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+) -> nd.T(S.parse.word(tok, S.Here{args, up, subs, path, binds, pos, raw, seen}), 1n+Laws.valued(binds)):
   nd.word_go(S.find_sub(subs, tok), tok, args, up, subs, path, binds, pos, raw, seen)
 
 # `-` alone, or a cluster
@@ -3422,7 +3432,8 @@ def nd.short_go(
   +binds: List<&2, S.Bind>,
   +pos: List<&2, S.Arg>,
   +seen: Bool
-) -> nd.T(S.parse.step.short.go(alone, tok, args, up, subs, path, binds, pos, seen), 1n+Laws.valued(binds)):
+) -> nd.T(S.parse.step.short.go(alone, tok,
+  S.Here{args, up, subs, path, binds, pos, False{}, seen}), 1n+Laws.valued(binds)):
   match alone:
     case True{}:
       nd.word(tok, args, up, subs, path, binds, pos, False{}, seen)
@@ -3440,7 +3451,8 @@ def nd.step_short(
   +binds: List<&2, S.Bind>,
   +pos: List<&2, S.Arg>,
   +seen: Bool
-) -> nd.T(S.parse.step.short(dash, tok, args, up, subs, path, binds, pos, seen), 1n+Laws.valued(binds)):
+) -> nd.T(S.parse.step.short(dash, tok,
+  S.Here{args, up, subs, path, binds, pos, False{}, seen}), 1n+Laws.valued(binds)):
   match dash:
     case True{}:
       nd.short_go(String.is_empty(String.drop(tok, 1n)), tok, args, up, subs, path, binds, pos, seen)
@@ -3459,7 +3471,8 @@ def nd.kind_go(
   +binds: List<&2, S.Bind>,
   +pos: List<&2, S.Arg>,
   +seen: Bool
-) -> nd.T(S.parse.step.kind.go(long, dash, tok, args, up, subs, path, binds, pos, seen), 1n+Laws.valued(binds)):
+) -> nd.T(S.parse.step.kind.go(long, dash, tok,
+  S.Here{args, up, subs, path, binds, pos, False{}, seen}), 1n+Laws.valued(binds)):
   match long:
     case True{}:
       nd.long(String.drop(tok, 2n), tok, args, up, subs, path, binds, pos, False{}, seen)
@@ -3476,7 +3489,7 @@ def nd.skind(
   +binds: List<&2, S.Bind>,
   +pos: List<&2, S.Arg>,
   +seen: Bool
-) -> nd.T(S.parse.step.kind(tok, args, up, subs, path, binds, pos, seen), 1n+Laws.valued(binds)):
+) -> nd.T(S.parse.step.kind(tok, S.Here{args, up, subs, path, binds, pos, False{}, seen}), 1n+Laws.valued(binds)):
   nd.kind_go(String.starts_with(tok, "--"), String.starts_with(tok, "-"), tok, args, up, subs, path, binds, pos, seen)
 
 # `help`
@@ -3490,7 +3503,7 @@ def nd.help(
   +binds: List<&2, S.Bind>,
   +pos: List<&2, S.Arg>,
   +seen: Bool
-) -> nd.T(S.parse.step.help(hit, tok, args, up, subs, path, binds, pos, seen), 1n+Laws.valued(binds)):
+) -> nd.T(S.parse.step.help(hit, tok, S.Here{args, up, subs, path, binds, pos, False{}, seen}), 1n+Laws.valued(binds)):
   match hit:
     case True{}:
     nd.le_s(Laws.valued(binds))
@@ -3508,7 +3521,7 @@ def nd.end(
   +binds: List<&2, S.Bind>,
   +pos: List<&2, S.Arg>,
   +seen: Bool
-) -> nd.T(S.parse.step.end(end, tok, args, up, subs, path, binds, pos, seen), 1n+Laws.valued(binds)):
+) -> nd.T(S.parse.step.end(end, tok, S.Here{args, up, subs, path, binds, pos, False{}, seen}), 1n+Laws.valued(binds)):
   match end:
     case True{}:
     nd.le_s(Laws.valued(binds))
@@ -3526,7 +3539,7 @@ def nd.raw(
   +binds: List<&2, S.Bind>,
   +pos: List<&2, S.Arg>,
   +seen: Bool
-) -> nd.T(S.parse.step.raw(raw, tok, args, up, subs, path, binds, pos, seen), 1n+Laws.valued(binds)):
+) -> nd.T(S.parse.step.raw(tok, S.Here{args, up, subs, path, binds, pos, raw, seen}), 1n+Laws.valued(binds)):
   match raw:
     case True{}:
       nd.take_pos(tok, args, up, subs, path, binds, pos, True{})
@@ -3546,7 +3559,8 @@ def nd.need(
   +pos: List<&2, S.Arg>,
   +raw: Bool,
   +seen: Bool
-) -> nd.T(S.parse.step.need(flag, name, tok, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+) -> nd.T(S.parse.step.need(flag, name, tok,
+  S.Here{args, up, subs, path, binds, pos, raw, seen}), 1n+Laws.valued(binds)):
   match flag:
     case True{}:
     nd.le_s(Laws.valued(binds))
@@ -3565,7 +3579,8 @@ def nd.help_path(
   +pos: List<&2, S.Arg>,
   +raw: Bool,
   +seen: Bool
-) -> nd.T(S.parse.step.help_path(found, tok, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+) -> nd.T(S.parse.step.help_path(found, tok,
+  S.Here{args, up, subs, path, binds, pos, raw, seen}), 1n+Laws.valued(binds)):
   match found:
     case None{}:
     nd.le_s(Laws.valued(binds))
@@ -3586,7 +3601,7 @@ def nd.mode(
   +pos: List<&2, S.Arg>,
   +raw: Bool,
   +seen: Bool
-) -> nd.T(S.parse.step.mode(mode, tok, args, up, subs, path, binds, pos, raw, seen), 1n+Laws.valued(binds)):
+) -> nd.T(S.parse.step.mode(mode, tok, S.Here{args, up, subs, path, binds, pos, raw, seen}), 1n+Laws.valued(binds)):
   match mode:
     case S.Dead{_e}:
     nd.le_s(Laws.valued(binds))
@@ -3739,9 +3754,11 @@ def nu.put(
   +raw: Bool,
   +seen: Bool,
   +m0: S.Mode
-) -> nu.N(S.parse.put(name, val, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs, path, binds,
+) -> nu.N(S.parse.put(name, val, S.Here{args, up, subs, path, binds, pos, raw, seen}), S.St{m0, args, up, subs, path,
+  binds,
   pos, raw, seen}):
-  nu.more(S.parse.put(name, val, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs, path, binds,
+  nu.more(S.parse.put(name, val, S.Here{args, up, subs, path, binds, pos, raw, seen}),
+    S.St{m0, args, up, subs, path, binds,
     pos, raw, seen},
     List.length(&2, S.Bind, binds), {==}, {==})
 
@@ -3760,13 +3777,15 @@ def nu.choice(
   +seen: Bool,
   +m0: S.Mode,
   +hd: {nu.dead_m(m0) == False{} : Bool}
-) -> nu.N(S.parse.take_choice(ok, name, val, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs,
+) -> nu.N(S.parse.take_choice(ok, name, val, S.Here{args, up, subs, path, binds, pos, raw, seen}), S.St{m0, args, up,
+  subs,
   path, binds, pos, raw, seen}):
   match ok:
     case True{}:
       nu.put(name, val, args, up, subs, path, binds, pos, raw, seen, m0)
     case False{}:
-      nu.apart(S.parse.take_choice(False{}, name, val, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args,
+      nu.apart(S.parse.take_choice(False{}, name, val, S.Here{args, up, subs, path, binds, pos, raw, seen}),
+        S.St{m0, args,
         up, subs, path, binds, pos, raw, seen}, ss => nu.dead(ss), {==}, hd)
 
 # an option's value
@@ -3783,7 +3802,8 @@ def nu.opt_val(
   +seen: Bool,
   +m0: S.Mode,
   +hd: {nu.dead_m(m0) == False{} : Bool}
-) -> nu.N(S.parse.take_opt_val(name, val, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs, path,
+) -> nu.N(S.parse.take_opt_val(name, val, S.Here{args, up, subs, path, binds, pos, raw, seen}), S.St{m0, args, up,
+  subs, path,
   binds, pos, raw, seen}):
   nu.choice(S.allowed(S.parse.choices(S.by_name(args, name)), val), name, val, args, up, subs, path, binds, pos, raw,
     seen,
@@ -3804,13 +3824,15 @@ def nu.flag(
   +seen: Bool,
   +m0: S.Mode,
   +hd: {nu.dead_m(m0) == False{} : Bool}
-) -> nu.N(S.parse.take_flag(val, name, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs,
+) -> nu.N(S.parse.take_flag(val, name, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), S.St{m0, args, up,
+  subs,
   path, binds, pos, raw, seen}):
   match val:
     case None{}:
       nu.put(name, "true", args, up, subs, path, binds, pos, raw, seen, m0)
     case Some{+vv}:
-      nu.apart(S.parse.take_flag(Some{vv}, name, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args,
+      nu.apart(S.parse.take_flag(Some{vv}, name, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}),
+        S.St{m0, args,
         up, subs, path, binds, pos, raw, seen}, ss => nu.dead(ss), {==}, hd)
 
 # an option
@@ -3828,11 +3850,13 @@ def nu.opt(
   +m0: S.Mode,
   +hd: {nu.dead_m(m0) == False{} : Bool},
   +hn: {nu.need_m(m0) == False{} : Bool}
-) -> nu.N(S.parse.take_opt(val, name, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs, path,
+) -> nu.N(S.parse.take_opt(val, name, S.Here{args, up, subs, path, binds, pos, raw, seen}), S.St{m0, args, up, subs,
+  path,
   binds, pos, raw, seen}):
   match val:
     case None{}:
-      nu.apart(S.parse.take_opt(None{}, name, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs,
+      nu.apart(S.parse.take_opt(None{}, name, S.Here{args, up, subs, path, binds, pos, raw, seen}),
+        S.St{m0, args, up, subs,
         path, binds, pos, raw, seen},
         ss => nu.need(ss), {==}, hn)
     case Some{vv}:
@@ -3881,24 +3905,28 @@ def nu.akind(
   +m0: S.Mode,
   +hd: {nu.dead_m(m0) == False{} : Bool},
   +hn: {nu.need_m(m0) == False{} : Bool}
-) -> nu.N(S.parse.take_arg.kind(kk, name, val, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up,
+) -> nu.N(S.parse.take_arg.kind(kk, name, val, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), S.St{m0,
+  args, up,
   subs, path, binds, pos, raw, seen}):
   match kk:
     case S.Flag{}:
-      nu.once(S.bound(binds, name), S.parse.take_flag(val, name, orig, args, up, subs, path, binds, pos, raw, seen),
+      nu.once(S.bound(binds, name),
+        S.parse.take_flag(val, name, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}),
         name, path, S.St{m0, args, up, subs, path, binds, pos, raw, seen}, hd, nu.flag(val, name, orig, args, up,
           subs, path, binds, pos, raw, seen, m0, hd))
     case S.Opt{}:
-      nu.once(S.bound(binds, name), S.parse.take_opt(val, name, args, up, subs, path, binds, pos, raw, seen),
+      nu.once(S.bound(binds, name), S.parse.take_opt(val, name, S.Here{args, up, subs, path, binds, pos, raw, seen}),
         name, path, S.St{m0, args, up, subs, path, binds, pos, raw, seen}, hd, nu.opt(val, name, args, up, subs, path,
           binds, pos, raw, seen, m0, hd, hn))
     case S.Many{}:
       nu.opt(val, name, args, up, subs, path, binds, pos, raw, seen, m0, hd, hn)
     case S.Pos{}:
-      nu.apart(S.parse.take_arg.kind(S.Pos{}, name, val, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0,
+      nu.apart(S.parse.take_arg.kind(S.Pos{}, name, val, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}),
+        S.St{m0,
         args, up, subs, path, binds, pos, raw, seen}, ss => nu.dead(ss), {==}, hd)
     case S.Rest{}:
-      nu.apart(S.parse.take_arg.kind(S.Rest{}, name, val, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0,
+      nu.apart(S.parse.take_arg.kind(S.Rest{}, name, val, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}),
+        S.St{m0,
         args, up, subs, path, binds, pos, raw, seen}, ss => nu.dead(ss), {==}, hd)
 
 # a found argument, or an unknown flag
@@ -3917,11 +3945,13 @@ def nu.arg(
   +m0: S.Mode,
   +hd: {nu.dead_m(m0) == False{} : Bool},
   +hn: {nu.need_m(m0) == False{} : Bool}
-) -> nu.N(S.parse.take_arg(found, val, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs,
+) -> nu.N(S.parse.take_arg(found, val, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), S.St{m0, args, up,
+  subs,
   path, binds, pos, raw, seen}):
   match found:
     case None{}:
-      nu.apart(S.parse.take_arg(None{}, val, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up,
+      nu.apart(S.parse.take_arg(None{}, val, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}),
+        S.St{m0, args, up,
         subs, path, binds, pos, raw, seen}, ss => nu.dead(ss), {==}, hd)
     case Some{aa}:
       match aa:
@@ -3943,14 +3973,17 @@ def nu.lhelp(
   +m0: S.Mode,
   +hd: {nu.dead_m(m0) == False{} : Bool},
   +hl: {nu.help_m(m0) == False{} : Bool}
-) -> nu.N(S.parse.take_long.help(hit, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs,
+) -> nu.N(S.parse.take_long.help(hit, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), S.St{m0, args, up,
+  subs,
   path, binds, pos, raw, seen}):
   match hit:
     case True{}:
-      nu.apart(S.parse.take_long.help(True{}, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up,
+      nu.apart(S.parse.take_long.help(True{}, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}),
+        S.St{m0, args, up,
         subs, path, binds, pos, raw, seen}, ss => nu.help(ss), {==}, hl)
     case False{}:
-      nu.apart(S.parse.take_long.help(False{}, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up,
+      nu.apart(S.parse.take_long.help(False{}, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}),
+        S.St{m0, args, up,
         subs, path, binds, pos, raw, seen}, ss => nu.dead(ss), {==}, hd)
 
 # a long option the current command spells, or an unknown one
@@ -3971,7 +4004,7 @@ def nu.found(
   +hd: {nu.dead_m(m0) == False{} : Bool},
   +hn: {nu.need_m(m0) == False{} : Bool},
   +hl: {nu.help_m(m0) == False{} : Bool}
-) -> nu.N(S.parse.take_long.found(found, name, val, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0,
+) -> nu.N(S.parse.take_long.found(found, name, val, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), S.St{m0,
   args, up, subs, path, binds, pos, raw, seen}):
   match found:
     case None{}:
@@ -3997,11 +4030,13 @@ def nu.named(
   +hd: {nu.dead_m(m0) == False{} : Bool},
   +hn: {nu.need_m(m0) == False{} : Bool},
   +hl: {nu.help_m(m0) == False{} : Bool}
-) -> nu.N(S.parse.take_long.named(empty, name, val, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args,
+) -> nu.N(S.parse.take_long.named(empty, name, val, orig,
+  S.Here{args, up, subs, path, binds, pos, raw, seen}), S.St{m0, args,
   up, subs, path, binds, pos, raw, seen}):
   match empty:
     case True{}:
-      nu.apart(S.parse.take_long.named(True{}, name, val, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0,
+      nu.apart(S.parse.take_long.named(True{}, name, val, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}),
+        S.St{m0,
         args, up, subs, path, binds, pos, raw, seen}, ss => nu.dead(ss), {==}, hd)
     case False{}:
       nu.found(S.by_long(args, name), name, val, orig, args, up, subs, path, binds, pos, raw, seen, m0, hd, hn, hl)
@@ -4022,7 +4057,8 @@ def nu.cut(
   +hd: {nu.dead_m(m0) == False{} : Bool},
   +hn: {nu.need_m(m0) == False{} : Bool},
   +hl: {nu.help_m(m0) == False{} : Bool}
-) -> nu.N(S.parse.take_long.cut(nv, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs, path,
+) -> nu.N(S.parse.take_long.cut(nv, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), S.St{m0, args, up,
+  subs, path,
   binds, pos, raw, seen}):
   match nv:
     case (+name, +val):
@@ -4045,7 +4081,8 @@ def nu.long(
   +hd: {nu.dead_m(m0) == False{} : Bool},
   +hn: {nu.need_m(m0) == False{} : Bool},
   +hl: {nu.help_m(m0) == False{} : Bool}
-) -> nu.N(S.parse.take_long(body, orig, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs, path,
+) -> nu.N(S.parse.take_long(body, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), S.St{m0, args, up, subs,
+  path,
   binds, pos, raw, seen}):
   nu.cut(S.cut_eq(body), orig, args, up, subs, path, binds, pos, raw, seen, m0, hd, hn, hl)
 
@@ -4080,7 +4117,7 @@ def nu.jput(
   +seen: Bool,
   +l0: Nat,
   +hl0: {Laws.nat_le(l0, List.length(&2, S.Bind, binds)) == True{} : Bool}
-) -> {nu.J(S.parse.put(name, val, args, up, subs, path, binds, pos, raw, seen), l0) == True{} : Bool}:
+) -> {nu.J(S.parse.put(name, val, S.Here{args, up, subs, path, binds, pos, raw, seen}), l0) == True{} : Bool}:
   gv.and_tt(Laws.nat_le(l0, 1n+List.length(&2, S.Bind, binds)), Laws.nat_le(l0, List.length(&2, S.Bind, binds)),
     nd.le_trans(l0, List.length(&2, S.Bind, binds), 1n+List.length(&2, S.Bind, binds), hl0,
       nd.le_s(List.length(&2, S.Bind, binds))), hl0)
@@ -4100,12 +4137,14 @@ def nu.jchoice(
   +seen: Bool,
   +l0: Nat,
   +hl0: {Laws.nat_le(l0, List.length(&2, S.Bind, binds)) == True{} : Bool}
-) -> {nu.J(S.parse.take_choice(ok, name, val, args, up, subs, path, binds, pos, raw, seen), l0) == True{} : Bool}:
+) -> {nu.J(S.parse.take_choice(ok, name, val, S.Here{args, up, subs, path, binds, pos, raw, seen}),
+  l0) == True{} : Bool}:
   match ok:
     case True{}:
       nu.jput(name, val, args, up, subs, path, binds, pos, raw, seen, l0, hl0)
     case False{}:
-      nu.j_stop(S.parse.take_choice(False{}, name, val, args, up, subs, path, binds, pos, raw, seen), l0, hl0, {==})
+      nu.j_stop(S.parse.take_choice(False{}, name, val, S.Here{args, up, subs, path, binds, pos, raw, seen}), l0, hl0,
+        {==})
 
 # an option's value
 def nu.jopt_val(
@@ -4121,7 +4160,7 @@ def nu.jopt_val(
   +seen: Bool,
   +l0: Nat,
   +hl0: {Laws.nat_le(l0, List.length(&2, S.Bind, binds)) == True{} : Bool}
-) -> {nu.J(S.parse.take_opt_val(name, val, args, up, subs, path, binds, pos, raw, seen), l0) == True{} : Bool}:
+) -> {nu.J(S.parse.take_opt_val(name, val, S.Here{args, up, subs, path, binds, pos, raw, seen}), l0) == True{} : Bool}:
   nu.jchoice(S.allowed(S.parse.choices(S.by_name(args, name)), val), name, val, args, up, subs, path, binds, pos, raw,
     seen, l0, hl0)
 
@@ -4140,12 +4179,14 @@ def nu.jflag(
   +seen: Bool,
   +l0: Nat,
   +hl0: {Laws.nat_le(l0, List.length(&2, S.Bind, binds)) == True{} : Bool}
-) -> {nu.J(S.parse.take_flag(val, name, orig, args, up, subs, path, binds, pos, raw, seen), l0) == True{} : Bool}:
+) -> {nu.J(S.parse.take_flag(val, name, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}),
+  l0) == True{} : Bool}:
   match val:
     case None{}:
       nu.jput(name, "true", args, up, subs, path, binds, pos, raw, seen, l0, hl0)
     case Some{+vv}:
-      nu.j_stop(S.parse.take_flag(Some{vv}, name, orig, args, up, subs, path, binds, pos, raw, seen), l0, hl0, {==})
+      nu.j_stop(S.parse.take_flag(Some{vv}, name, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), l0, hl0,
+        {==})
 
 # an option
 def nu.jopt(
@@ -4161,10 +4202,10 @@ def nu.jopt(
   +seen: Bool,
   +l0: Nat,
   +hl0: {Laws.nat_le(l0, List.length(&2, S.Bind, binds)) == True{} : Bool}
-) -> {nu.J(S.parse.take_opt(val, name, args, up, subs, path, binds, pos, raw, seen), l0) == True{} : Bool}:
+) -> {nu.J(S.parse.take_opt(val, name, S.Here{args, up, subs, path, binds, pos, raw, seen}), l0) == True{} : Bool}:
   match val:
     case None{}:
-      nu.j_stop(S.parse.take_opt(None{}, name, args, up, subs, path, binds, pos, raw, seen), l0, hl0, {==})
+      nu.j_stop(S.parse.take_opt(None{}, name, S.Here{args, up, subs, path, binds, pos, raw, seen}), l0, hl0, {==})
     case Some{vv}:
       nu.jopt_val(name, vv, args, up, subs, path, binds, pos, raw, seen, l0, hl0)
 
@@ -4204,22 +4245,25 @@ def nu.jakind(
   +seen: Bool,
   +l0: Nat,
   +hl0: {Laws.nat_le(l0, List.length(&2, S.Bind, binds)) == True{} : Bool}
-) -> {nu.J(S.parse.take_arg.kind(kk, name, val, orig, args, up, subs, path, binds, pos, raw, seen),
+) -> {nu.J(S.parse.take_arg.kind(kk, name, val, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}),
   l0) == True{} : Bool}:
   match kk:
     case S.Flag{}:
-      nu.jonce(S.bound(binds, name), S.parse.take_flag(val, name, orig, args, up, subs, path, binds, pos, raw, seen),
+      nu.jonce(S.bound(binds, name),
+        S.parse.take_flag(val, name, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}),
         name, path, l0, nu.jflag(val, name, orig, args, up, subs, path, binds, pos, raw, seen, l0, hl0))
     case S.Opt{}:
-      nu.jonce(S.bound(binds, name), S.parse.take_opt(val, name, args, up, subs, path, binds, pos, raw, seen),
+      nu.jonce(S.bound(binds, name), S.parse.take_opt(val, name, S.Here{args, up, subs, path, binds, pos, raw, seen}),
         name, path, l0, nu.jopt(val, name, args, up, subs, path, binds, pos, raw, seen, l0, hl0))
     case S.Many{}:
       nu.jopt(val, name, args, up, subs, path, binds, pos, raw, seen, l0, hl0)
     case S.Pos{}:
-      nu.j_stop(S.parse.take_arg.kind(S.Pos{}, name, val, orig, args, up, subs, path, binds, pos, raw, seen), l0, hl0,
+      nu.j_stop(S.parse.take_arg.kind(S.Pos{}, name, val, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}),
+        l0, hl0,
         {==})
     case S.Rest{}:
-      nu.j_stop(S.parse.take_arg.kind(S.Rest{}, name, val, orig, args, up, subs, path, binds, pos, raw, seen), l0,
+      nu.j_stop(S.parse.take_arg.kind(S.Rest{}, name, val, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}),
+        l0,
         hl0, {==})
 
 # a found argument, or an unknown flag
@@ -4237,10 +4281,11 @@ def nu.jarg(
   +seen: Bool,
   +l0: Nat,
   +hl0: {Laws.nat_le(l0, List.length(&2, S.Bind, binds)) == True{} : Bool}
-) -> {nu.J(S.parse.take_arg(found, val, orig, args, up, subs, path, binds, pos, raw, seen), l0) == True{} : Bool}:
+) -> {nu.J(S.parse.take_arg(found, val, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}),
+  l0) == True{} : Bool}:
   match found:
     case None{}:
-      nu.j_stop(S.parse.take_arg(None{}, val, orig, args, up, subs, path, binds, pos, raw, seen), l0, hl0, {==})
+      nu.j_stop(S.parse.take_arg(None{}, val, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}), l0, hl0, {==})
     case Some{aa}:
       match aa:
         case S.Arg{+name, _s, _l, kind, _h, _r, _d, _c}:
@@ -4262,7 +4307,7 @@ def nu.jmode(
   +seen: Bool,
   +l0: Nat,
   +hl0: {Laws.nat_le(l0, List.length(&2, S.Bind, binds)) == True{} : Bool}
-) -> {nu.J(S.cluster.apply.mode(mode, cc, rest, orig, args, up, subs, path, binds, pos, raw, seen),
+) -> {nu.J(S.cluster.apply.mode(mode, cc, rest, orig, S.Here{args, up, subs, path, binds, pos, raw, seen}),
   l0) == True{} : Bool}:
   match mode:
     case S.Dead{+ee}:
@@ -4395,11 +4440,12 @@ def nu.sgo(
   +hd: {nu.dead_m(m0) == False{} : Bool},
   +hn: {nu.need_m(m0) == False{} : Bool},
   +hl: {nu.help_m(m0) == False{} : Bool}
-) -> nu.N(S.parse.take_short.go(hit, SCon{cc, rest}, orig, args, up, subs, path, binds, pos, False{}, seen),
+) -> nu.N(S.parse.take_short.go(hit, SCon{cc, rest}, orig, S.Here{args, up, subs, path, binds, pos, False{}, seen}),
     S.St{m0, args, up, subs, path, binds, pos, False{}, seen}):
   match hit:
     case True{}:
-      nu.apart(S.parse.take_short.go(True{}, SCon{cc, rest}, orig, args, up, subs, path, binds, pos, False{}, seen),
+      nu.apart(S.parse.take_short.go(True{}, SCon{cc, rest}, orig,
+        S.Here{args, up, subs, path, binds, pos, False{}, seen}),
         S.St{m0, args, up, subs, path, binds, pos, False{}, seen}, ss => nu.help(ss), {==}, hl)
     case False{}:
       nu.cluster1(cc, rest, orig, args, up, subs, path, binds, pos, seen, m0, hd, hn, hl)
@@ -4420,11 +4466,11 @@ def nu.cl0(
   +hn: {nu.need_m(m0) == False{} : Bool},
   +hl: {nu.help_m(m0) == False{} : Bool},
   +he: {String.is_empty(body) == False{} : Bool}
-) -> nu.N(S.parse.take_short(body, orig, args, up, subs, path, binds, pos, False{}, seen),
+) -> nu.N(S.parse.take_short(body, orig, S.Here{args, up, subs, path, binds, pos, False{}, seen}),
     S.St{m0, args, up, subs, path, binds, pos, False{}, seen}):
   match body:
     case SNil{}:
-      Empty.absurd(nu.N(S.parse.take_short(SNil{}, orig, args, up, subs, path, binds, pos, False{}, seen),
+      Empty.absurd(nu.N(S.parse.take_short(SNil{}, orig, S.Here{args, up, subs, path, binds, pos, False{}, seen}),
         S.St{m0, args, up, subs, path, binds, pos, False{}, seen}), Walk.wk.true_false(he))
     case SCon{+cc, +rest}:
       nu.sgo(S.short_help(SCon{cc, rest}, args, seen), cc, rest, orig, args, up, subs, path, binds, pos, seen, m0, hd,
@@ -4447,13 +4493,14 @@ def nu.choice_any(
   +orig: S.St,
   +hb: {nu.blen(orig) == List.length(&2, S.Bind, binds) : Nat},
   +hd: {nu.dead(orig) == False{} : Bool}
-) -> nu.N(S.parse.take_choice(ok, name, val, args, up, subs, path, binds, pos, raw, seen), orig):
+) -> nu.N(S.parse.take_choice(ok, name, val, S.Here{args, up, subs, path, binds, pos, raw, seen}), orig):
   match ok:
     case True{}:
-      nu.more(S.parse.put(name, val, args, up, subs, path, binds, pos, raw, seen), orig, List.length(&2, S.Bind, binds),
+      nu.more(S.parse.put(name, val, S.Here{args, up, subs, path, binds, pos, raw, seen}), orig,
+        List.length(&2, S.Bind, binds),
         {==}, hb)
     case False{}:
-      nu.apart(S.parse.take_choice(False{}, name, val, args, up, subs, path, binds, pos, raw, seen), orig,
+      nu.apart(S.parse.take_choice(False{}, name, val, S.Here{args, up, subs, path, binds, pos, raw, seen}), orig,
         ss => nu.dead(ss), {==}, hd)
 
 # a positional binds the word, or none is left
@@ -4518,13 +4565,15 @@ def nu.enter_or(
   +seen: Bool,
   +m0: S.Mode,
   +hd: {nu.dead_m(m0) == False{} : Bool}
-) -> nu.N(S.parse.enter_or(miss, ss, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs, path,
+) -> nu.N(S.parse.enter_or(miss, ss, S.Here{args, up, subs, path, binds, pos, raw, seen}), S.St{m0, args, up, subs,
+  path,
   binds, pos, raw, seen}):
   match miss:
     case None{}:
       nu.enter(ss, args, up, subs, path, binds, pos, raw, seen, m0)
     case Some{+nn}:
-      nu.apart(S.parse.enter_or(Some{nn}, ss, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs,
+      nu.apart(S.parse.enter_or(Some{nn}, ss, S.Here{args, up, subs, path, binds, pos, raw, seen}),
+        S.St{m0, args, up, subs,
         path, binds, pos, raw, seen}, ss => nu.dead(ss), {==}, hd)
 
 # a word
@@ -4541,7 +4590,8 @@ def nu.word_go(
   +seen: Bool,
   +m0: S.Mode,
   +hd: {nu.dead_m(m0) == False{} : Bool}
-) -> nu.N(S.parse.word.go(found, tok, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs, path,
+) -> nu.N(S.parse.word.go(found, tok, S.Here{args, up, subs, path, binds, pos, raw, seen}), S.St{m0, args, up, subs,
+  path,
   binds, pos, raw, seen}):
   match found:
     case None{}:
@@ -4562,7 +4612,8 @@ def nu.word(
   +seen: Bool,
   +m0: S.Mode,
   +hd: {nu.dead_m(m0) == False{} : Bool}
-) -> nu.N(S.parse.word(tok, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs, path, binds, pos,
+) -> nu.N(S.parse.word(tok, S.Here{args, up, subs, path, binds, pos, raw, seen}), S.St{m0, args, up, subs, path, binds,
+  pos,
   raw, seen}):
   nu.word_go(S.find_sub(subs, tok), tok, args, up, subs, path, binds, pos, raw, seen, m0, hd)
 
@@ -4582,7 +4633,8 @@ def nu.short_go(
   +hn: {nu.need_m(m0) == False{} : Bool},
   +hl: {nu.help_m(m0) == False{} : Bool},
   +ha: {String.is_empty(String.drop(tok, 1n)) == alone : Bool}
-) -> nu.N(S.parse.step.short.go(alone, tok, args, up, subs, path, binds, pos, seen), S.St{m0, args, up, subs, path,
+) -> nu.N(S.parse.step.short.go(alone, tok, S.Here{args, up, subs, path, binds, pos, False{}, seen}), S.St{m0, args,
+  up, subs, path,
   binds, pos, False{}, seen}):
   match alone:
     case True{}:
@@ -4605,7 +4657,8 @@ def nu.step_short(
   +hd: {nu.dead_m(m0) == False{} : Bool},
   +hn: {nu.need_m(m0) == False{} : Bool},
   +hl: {nu.help_m(m0) == False{} : Bool}
-) -> nu.N(S.parse.step.short(dash, tok, args, up, subs, path, binds, pos, seen), S.St{m0, args, up, subs, path, binds,
+) -> nu.N(S.parse.step.short(dash, tok, S.Here{args, up, subs, path, binds, pos, False{}, seen}), S.St{m0, args, up,
+  subs, path, binds,
   pos, False{}, seen}):
   match dash:
     case True{}:
@@ -4630,7 +4683,8 @@ def nu.kind_go(
   +hd: {nu.dead_m(m0) == False{} : Bool},
   +hn: {nu.need_m(m0) == False{} : Bool},
   +hl: {nu.help_m(m0) == False{} : Bool}
-) -> nu.N(S.parse.step.kind.go(long, dash, tok, args, up, subs, path, binds, pos, seen), S.St{m0, args, up, subs,
+) -> nu.N(S.parse.step.kind.go(long, dash, tok, S.Here{args, up, subs, path, binds, pos, False{}, seen}), S.St{m0,
+  args, up, subs,
   path, binds, pos, False{}, seen}):
   match long:
     case True{}:
@@ -4652,7 +4706,8 @@ def nu.skind(
   +hd: {nu.dead_m(m0) == False{} : Bool},
   +hn: {nu.need_m(m0) == False{} : Bool},
   +hl: {nu.help_m(m0) == False{} : Bool}
-) -> nu.N(S.parse.step.kind(tok, args, up, subs, path, binds, pos, seen), S.St{m0, args, up, subs, path, binds, pos,
+) -> nu.N(S.parse.step.kind(tok, S.Here{args, up, subs, path, binds, pos, False{}, seen}), S.St{m0, args, up, subs,
+  path, binds, pos,
   False{}, seen}):
   nu.kind_go(String.starts_with(tok, "--"), String.starts_with(tok, "-"), tok, args, up, subs, path, binds, pos, seen,
     m0,
@@ -4673,11 +4728,13 @@ def nu.help_w(
   +hd: {nu.dead_m(m0) == False{} : Bool},
   +hn: {nu.need_m(m0) == False{} : Bool},
   +hl: {nu.help_m(m0) == False{} : Bool}
-) -> nu.N(S.parse.step.help(hit, tok, args, up, subs, path, binds, pos, seen), S.St{m0, args, up, subs, path, binds,
+) -> nu.N(S.parse.step.help(hit, tok, S.Here{args, up, subs, path, binds, pos, False{}, seen}), S.St{m0, args, up,
+  subs, path, binds,
   pos, False{}, seen}):
   match hit:
     case True{}:
-      nu.apart(S.parse.step.help(True{}, tok, args, up, subs, path, binds, pos, seen), S.St{m0, args, up, subs, path,
+      nu.apart(S.parse.step.help(True{}, tok, S.Here{args, up, subs, path, binds, pos, False{}, seen}),
+        S.St{m0, args, up, subs, path,
         binds, pos, False{}, seen}, ss => nu.help(ss), {==}, hl)
     case False{}:
       nu.skind(tok, args, up, subs, path, binds, pos, seen, m0, hd, hn, hl)
@@ -4697,11 +4754,13 @@ def nu.end(
   +hd: {nu.dead_m(m0) == False{} : Bool},
   +hn: {nu.need_m(m0) == False{} : Bool},
   +hl: {nu.help_m(m0) == False{} : Bool}
-) -> nu.N(S.parse.step.end(end, tok, args, up, subs, path, binds, pos, seen), S.St{m0, args, up, subs, path, binds,
+) -> nu.N(S.parse.step.end(end, tok, S.Here{args, up, subs, path, binds, pos, False{}, seen}), S.St{m0, args, up, subs,
+  path, binds,
   pos, False{}, seen}):
   match end:
     case True{}:
-      nu.apart(S.parse.step.end(True{}, tok, args, up, subs, path, binds, pos, seen), S.St{m0, args, up, subs, path,
+      nu.apart(S.parse.step.end(True{}, tok, S.Here{args, up, subs, path, binds, pos, False{}, seen}),
+        S.St{m0, args, up, subs, path,
         binds, pos, False{}, seen}, ss => nu.raw(ss), {==}, {==})
     case False{}:
       nu.help_w(Bool.and(String.eq(tok, "help"), Bool.not(seen)), tok, args, up, subs, path, binds, pos, seen, m0, hd,
@@ -4723,7 +4782,8 @@ def nu.rawf(
   +hd: {nu.dead_m(m0) == False{} : Bool},
   +hn: {nu.need_m(m0) == False{} : Bool},
   +hl: {nu.help_m(m0) == False{} : Bool}
-) -> nu.N(S.parse.step.raw(raw, tok, args, up, subs, path, binds, pos, seen), S.St{m0, args, up, subs, path, binds,
+) -> nu.N(S.parse.step.raw(tok, S.Here{args, up, subs, path, binds, pos, raw, seen}), S.St{m0, args, up, subs, path,
+  binds,
   pos, raw, seen}):
   match raw:
     case True{}:
@@ -4746,11 +4806,13 @@ def nu.need_w(
   +seen: Bool,
   +m0: S.Mode,
   +hd: {nu.dead_m(m0) == False{} : Bool}
-) -> nu.N(S.parse.step.need(flag, name, tok, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up, subs,
+) -> nu.N(S.parse.step.need(flag, name, tok, S.Here{args, up, subs, path, binds, pos, raw, seen}), S.St{m0, args, up,
+  subs,
   path, binds, pos, raw, seen}):
   match flag:
     case True{}:
-      nu.apart(S.parse.step.need(True{}, name, tok, args, up, subs, path, binds, pos, raw, seen), S.St{m0, args, up,
+      nu.apart(S.parse.step.need(True{}, name, tok, S.Here{args, up, subs, path, binds, pos, raw, seen}),
+        S.St{m0, args, up,
         subs, path, binds, pos, raw, seen}, ss => nu.dead(ss), {==}, hd)
     case False{}:
       nu.opt_val(name, tok, args, up, subs, path, binds, pos, raw, seen, m0, hd)

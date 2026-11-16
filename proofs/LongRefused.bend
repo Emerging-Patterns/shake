@@ -24,7 +24,7 @@ def long_refused.kind.ty(
   +pos: List<&2, S.Arg>,
   +seen: Bool
 ) -> Type:
-  {D2.dead_of(S.parse.take_arg.kind(kk, nn, Some{vv}, orig, args, up, subs, path, bs, pos, False{}, seen))
+  {D2.dead_of(S.parse.take_arg.kind(kk, nn, Some{vv}, orig, S.Here{args, up, subs, path, bs, pos, False{}, seen}))
     == Some{S.BadValue{path, nn, vv}} : Maybe<&2, S.ParseErr>}
 
 # an option that takes a value now refuses one outside its choices
@@ -46,15 +46,17 @@ def long_refused.kind(
   match kk:
     case S.Opt{}:
       e1 = Equal.sym(Bool, S.bound(bs, nn), False{}, Walk.wk.not_true(S.bound(bs, nn), h_kind))
-      %e1 : {D2.dead_of(S.parse.once(_, S.parse.take_opt(Some{vv}, nn, args, up, subs, path, bs, pos, False{},
-          seen), nn, path)) == Some{S.BadValue{path, nn, vv}} : Maybe<&2, S.ParseErr>}
+      %e1 : {D2.dead_of(S.parse.once(_,
+        S.parse.take_opt(Some{vv}, nn,
+          S.Here{args, up, subs, path, bs, pos, False{},
+            seen}), nn, path)) == Some{S.BadValue{path, nn, vv}} : Maybe<&2, S.ParseErr>}
       e2 = Equal.sym(Bool, S.allowed(S.parse.choices(S.by_name(args, nn)), vv), False{}, h_bad)
-      %e2 : {D2.dead_of(S.parse.take_choice(_, nn, vv, args, up, subs, path, bs, pos, False{}, seen))
+      %e2 : {D2.dead_of(S.parse.take_choice(_, nn, vv, S.Here{args, up, subs, path, bs, pos, False{}, seen}))
         == Some{S.BadValue{path, nn, vv}} : Maybe<&2, S.ParseErr>}
       {==}
     case S.Many{}:
       e2 = Equal.sym(Bool, S.allowed(S.parse.choices(S.by_name(args, nn)), vv), False{}, h_bad)
-      %e2 : {D2.dead_of(S.parse.take_choice(_, nn, vv, args, up, subs, path, bs, pos, False{}, seen))
+      %e2 : {D2.dead_of(S.parse.take_choice(_, nn, vv, S.Here{args, up, subs, path, bs, pos, False{}, seen}))
         == Some{S.BadValue{path, nn, vv}} : Maybe<&2, S.ParseErr>}
       {==}
     case S.Flag{}:
@@ -96,13 +98,13 @@ def long_refused.step(
 ) -> {D2.dead_of(S.parse.step("--" ++ body, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen}))
     == Some{S.BadValue{path, nn, vv}} : Maybe<&2, S.ParseErr>}:
   e1 = Equal.sym(S.St, S.parse.step("--" ++ body, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen}),
-    S.parse.take_long.found(S.by_long(args, name), name, Some{vv}, "--" ++ body, args, up, subs, path, bs, pos, False{},
-      seen),
+    S.parse.take_long.found(S.by_long(args, name), name, Some{vv}, "--" ++ body,
+      S.Here{args, up, subs, path, bs, pos, False{}, seen}),
     L1.long_arg_step(body, name, Some{vv}, args, up, subs, path, bs, pos, seen, h_dd, h_cut, h_name))
   %e1 : {D2.dead_of(_) == Some{S.BadValue{path, nn, vv}} : Maybe<&2, S.ParseErr>}
   e2 = Equal.sym(Maybe<&2, S.Arg>, S.by_long(args, name), Some{S.Arg{nn, sh, lo, kind, hp, req, dflt, cs}}, h_found)
-  %e2 : {D2.dead_of(S.parse.take_long.found(_, name, Some{vv}, "--" ++ body, args, up, subs, path, bs, pos, False{},
-      seen))
+  %e2 : {D2.dead_of(S.parse.take_long.found(_, name, Some{vv}, "--" ++ body,
+    S.Here{args, up, subs, path, bs, pos, False{}, seen}))
     == Some{S.BadValue{path, nn, vv}} : Maybe<&2, S.ParseErr>}
   long_refused.kind(kind, nn, vv, "--" ++ body, args, up, subs, path, bs, pos, seen, h_kind, h_bad)
 

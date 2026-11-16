@@ -250,19 +250,21 @@ law wk.word_step:
 
 def wk.word_step(tok, args, up, subs, path, bs, pos, seen, h_dd, h_help, h_dash, h_sub):
   e1 = Equal.sym(Bool, String.eq(tok, "--"), False{}, h_dd)
-  %e1 : {Shake.parse.step.end(_, tok, args, up, subs, path, bs, pos, seen)
+  %e1 : {Shake.parse.step.end(_, tok, Shake.Here{args, up, subs, path, bs, pos, False{}, seen})
     == Shake.parse.take_pos(tok, args, up, subs, path, bs, pos, False{}) : Shake.St}
   e2 = Equal.sym(Bool, String.eq(tok, "help"), False{}, h_help)
-  %e2 : {Shake.parse.step.help(Bool.and(_, Bool.not(seen)), tok, args, up, subs, path, bs, pos, seen)
+  %e2 : {Shake.parse.step.help(Bool.and(_, Bool.not(seen)), tok,
+    Shake.Here{args, up, subs, path, bs, pos, False{}, seen})
     == Shake.parse.take_pos(tok, args, up, subs, path, bs, pos, False{}) : Shake.St}
   e3 = Equal.sym(Bool, String.starts_with(tok, "--"), False{}, wk.dash(tok, h_dash))
-  %e3 : {Shake.parse.step.kind.go(_, String.starts_with(tok, "-"), tok, args, up, subs, path, bs, pos, seen)
+  %e3 : {Shake.parse.step.kind.go(_, String.starts_with(tok, "-"), tok,
+    Shake.Here{args, up, subs, path, bs, pos, False{}, seen})
     == Shake.parse.take_pos(tok, args, up, subs, path, bs, pos, False{}) : Shake.St}
   e4 = Equal.sym(Bool, String.starts_with(tok, "-"), False{}, h_dash)
-  %e4 : {Shake.parse.step.kind.go(False{}, _, tok, args, up, subs, path, bs, pos, seen)
+  %e4 : {Shake.parse.step.kind.go(False{}, _, tok, Shake.Here{args, up, subs, path, bs, pos, False{}, seen})
     == Shake.parse.take_pos(tok, args, up, subs, path, bs, pos, False{}) : Shake.St}
   e5 = Equal.sym(Maybe<&2, Shake.Sub>, Shake.find_sub(subs, tok), None{}, h_sub)
-  %e5 : {Shake.parse.word.go(_, tok, args, up, subs, path, bs, pos, False{}, seen)
+  %e5 : {Shake.parse.word.go(_, tok, Shake.Here{args, up, subs, path, bs, pos, False{}, seen})
     == Shake.parse.take_pos(tok, args, up, subs, path, bs, pos, False{}) : Shake.St}
   {==}
 

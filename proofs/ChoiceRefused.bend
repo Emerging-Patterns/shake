@@ -42,9 +42,9 @@ def choice_refused.step(
       h_sub))
   %e1 : {D1.dead_of(_) == Some{S.BadValue{path, name, tok}} : Maybe<&2, S.ParseErr>}
   e2 = Equal.sym(Bool, S.allowed(cs, tok), False{}, h_bad)
-  %e2 : {D1.dead_of(S.parse.take_choice(_, name, tok, args, up, subs, path, bs,
-      S.parse.take_pos.keep(S.rest.is(S.Arg{name, sh, lo, kind, hp, req, dflt, cs}),
-        S.Arg{name, sh, lo, kind, hp, req, dflt, cs}, rest), False{}, True{}))
+  %e2 : {D1.dead_of(S.parse.take_choice(_, name, tok,
+    S.Here{args, up, subs, path, bs, S.parse.take_pos.keep(S.rest.is(S.Arg{name, sh, lo, kind, hp, req, dflt, cs}),
+        S.Arg{name, sh, lo, kind, hp, req, dflt, cs}, rest), False{}, True{}}))
     == Some{S.BadValue{path, name, tok}} : Maybe<&2, S.ParseErr>}
   {==}
 

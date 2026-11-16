@@ -19,10 +19,10 @@ def enter.miss(
   +bs: List<&2, S.Bind>,
   +seen: Bool,
   h_req: {S.parse.first_req(pos) == Some{nm} : Maybe<&2, String>}
-) -> {D1.dead_of(S.parse.enter_or(S.parse.first_req(pos), sub, args, up, subs, path, bs, pos, False{}, seen))
+) -> {D1.dead_of(S.parse.enter_or(S.parse.first_req(pos), sub, S.Here{args, up, subs, path, bs, pos, False{}, seen}))
     == Some{S.Missing{path, nm}} : Maybe<&2, S.ParseErr>}:
   er = Equal.sym(Maybe<&2, String>, S.parse.first_req(pos), Some{nm}, h_req)
-  %er : {D1.dead_of(S.parse.enter_or(_, sub, args, up, subs, path, bs, pos, False{}, seen))
+  %er : {D1.dead_of(S.parse.enter_or(_, sub, S.Here{args, up, subs, path, bs, pos, False{}, seen}))
     == Some{S.Missing{path, nm}} : Maybe<&2, S.ParseErr>}
   {==}
 
@@ -61,12 +61,13 @@ def Laws.enter_missing(
 ):
   +st = {S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen} : S.St}
   e1 = Equal.sym(S.St, S.parse.step(tok, st),
-    S.parse.enter_or(S.parse.first_req(pos), sub, args, up, subs, path, bs, pos, False{}, seen),
+    S.parse.enter_or(S.parse.first_req(pos), sub, S.Here{args, up, subs, path, bs, pos, False{}, seen}),
     Equal.trans(S.St, S.parse.step(tok, st),
-      S.parse.word.go(S.find_sub(subs, tok), tok, args, up, subs, path, bs, pos, False{}, seen),
-      S.parse.enter_or(S.parse.first_req(pos), sub, args, up, subs, path, bs, pos, False{}, seen),
+      S.parse.word.go(S.find_sub(subs, tok), tok, S.Here{args, up, subs, path, bs, pos, False{}, seen}),
+      S.parse.enter_or(S.parse.first_req(pos), sub, S.Here{args, up, subs, path, bs, pos, False{}, seen}),
       M2.enter.word(tok, args, up, subs, path, bs, pos, seen, h_dd, h_help, h_dash),
       M2.enter.go(tok, args, up, subs, path, bs, pos, seen, sub, h_sub)))
   L1.refused(spec, pre, more, tok, st, S.Missing{path, nm}, h_at,
-    enter.dead(tok, st, S.parse.enter_or(S.parse.first_req(pos), sub, args, up, subs, path, bs, pos, False{}, seen),
+    enter.dead(tok, st, S.parse.enter_or(S.parse.first_req(pos), sub,
+      S.Here{args, up, subs, path, bs, pos, False{}, seen}),
       S.Missing{path, nm}, e1, enter.miss(pos, sub, nm, args, up, subs, path, bs, seen, h_req)))

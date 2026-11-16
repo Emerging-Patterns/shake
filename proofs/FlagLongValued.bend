@@ -35,13 +35,13 @@ def flag_long_valued.step(
 ) -> {D1.dead_of(S.parse.step("--" ++ body, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen}))
     == Some{S.Unexpected{path, "--" ++ body}} : Maybe<&2, S.ParseErr>}:
   e1 = Equal.sym(S.St, S.parse.step("--" ++ body, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen}),
-    S.parse.take_long.found(S.by_long(args, name), name, Some{vv}, "--" ++ body, args, up, subs, path, bs, pos, False{},
-      seen),
+    S.parse.take_long.found(S.by_long(args, name), name, Some{vv}, "--" ++ body,
+      S.Here{args, up, subs, path, bs, pos, False{}, seen}),
     L1.long_arg_step(body, name, Some{vv}, args, up, subs, path, bs, pos, seen, h_dd, h_cut, h_name))
   %e1 : {D1.dead_of(_) == Some{S.Unexpected{path, "--" ++ body}} : Maybe<&2, S.ParseErr>}
   e2 = Equal.sym(Maybe<&2, S.Arg>, S.by_long(args, name), Some{S.Arg{nn, sh, lo, S.Flag{}, hp, req, dflt, cs}}, h_found)
-  %e2 : {D1.dead_of(S.parse.take_long.found(_, name, Some{vv}, "--" ++ body, args, up, subs, path, bs, pos, False{},
-      seen))
+  %e2 : {D1.dead_of(S.parse.take_long.found(_, name, Some{vv}, "--" ++ body,
+    S.Here{args, up, subs, path, bs, pos, False{}, seen}))
     == Some{S.Unexpected{path, "--" ++ body}} : Maybe<&2, S.ParseErr>}
   e3 = Equal.sym(Bool, S.bound(bs, nn), False{}, h_once)
   %e3 : {D1.dead_of(S.parse.once(_, S.St{S.Dead{S.Unexpected{path, "--" ++ body}}, args, up, subs, path, bs, pos,

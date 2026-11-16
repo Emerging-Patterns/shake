@@ -18,5 +18,5 @@ law long_arg_step:
   for h_cut: {S.cut_eq(body) == (name, val) : String & Maybe<&2, String>}
   for h_name: {String.is_empty(name) == False{} : Bool}
   {S.parse.step("--" ++ body, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen})
-    == S.parse.take_long.found(S.by_long(args, name), name, val, "--" ++ body, args, up, subs, path, bs, pos,
-      False{}, seen) : S.St}
+    == S.parse.take_long.found(S.by_long(args, name), name, val, "--" ++ body,
+      S.Here{args, up, subs, path, bs, pos, False{}, seen}) : S.St}

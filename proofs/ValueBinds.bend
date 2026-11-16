@@ -23,10 +23,10 @@ def value.step(
 ) -> {S.parse.step(tok, S.St{S.Need{name}, args, up, subs, path, bs, pos, raw, seen})
     == S.St{S.Free{}, args, up, subs, path, S.Bind{name, tok} <> bs, pos, raw, seen} : S.St}:
   e1 = Equal.sym(Bool, S.looks_flag(tok), False{}, h_flag)
-  %e1 : {S.parse.step.need(_, name, tok, args, up, subs, path, bs, pos, raw, seen)
+  %e1 : {S.parse.step.need(_, name, tok, S.Here{args, up, subs, path, bs, pos, raw, seen})
     == S.St{S.Free{}, args, up, subs, path, S.Bind{name, tok} <> bs, pos, raw, seen} : S.St}
   e2 = Equal.sym(Bool, S.allowed(S.parse.choices(S.by_name(args, name)), tok), True{}, h_ok)
-  %e2 : {S.parse.take_choice(_, name, tok, args, up, subs, path, bs, pos, raw, seen)
+  %e2 : {S.parse.take_choice(_, name, tok, S.Here{args, up, subs, path, bs, pos, raw, seen})
     == S.St{S.Free{}, args, up, subs, path, S.Bind{name, tok} <> bs, pos, raw, seen} : S.St}
   {==}
 

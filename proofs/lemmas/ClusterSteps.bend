@@ -20,14 +20,16 @@ def cl.step(
   +aa: S.Arg,
   h_found: {S.by_short(args, SCon{cc, SNil{}}) == Some{aa} : Maybe<&2, S.Arg>}
 ) -> {S.cluster(SCon{cc, rest}, orig, S.St{S.Free{}, args, up, subs, path, bs, pos, raw, seen}, False{})
-    == S.cluster(rest, orig, S.parse.take_arg(Some{aa}, S.cluster.val(Some{aa}, rest), orig, args, up, subs,
-        path, bs, pos,
-      raw, seen), S.cluster.ends(Some{aa}, rest)) : S.St}:
+    == S.cluster(rest, orig,
+      S.parse.take_arg(Some{aa}, S.cluster.val(Some{aa}, rest), orig,
+        S.Here{args, up, subs, path, bs, pos, raw, seen}), S.cluster.ends(Some{aa}, rest)) : S.St}:
   ee = Equal.sym(Maybe<&2, S.Arg>, S.by_short(args, SCon{cc, SNil{}}), Some{aa}, h_found)
-  %ee : {S.cluster(rest, orig, S.parse.take_arg(_, S.cluster.val(_, rest), orig, args, up, subs, path, bs, pos, raw,
-      seen), S.cluster.ends(_, rest))
-    == S.cluster(rest, orig, S.parse.take_arg(Some{aa}, S.cluster.val(Some{aa}, rest), orig, args, up, subs, path, bs,
-      pos, raw, seen), S.cluster.ends(Some{aa}, rest)) : S.St}
+  %ee : {S.cluster(rest, orig,
+    S.parse.take_arg(_, S.cluster.val(_, rest), orig,
+      S.Here{args, up, subs, path, bs, pos, raw, seen}), S.cluster.ends(_, rest))
+    == S.cluster(rest, orig,
+      S.parse.take_arg(Some{aa}, S.cluster.val(Some{aa}, rest), orig,
+        S.Here{args, up, subs, path, bs, pos, raw, seen}), S.cluster.ends(Some{aa}, rest)) : S.St}
   {==}
 
 # the same, the other way round, for rewriting a goal about the cluster
@@ -45,11 +47,11 @@ def cl.back(
   +seen: Bool,
   +aa: S.Arg,
   h_found: {S.by_short(args, SCon{cc, SNil{}}) == Some{aa} : Maybe<&2, S.Arg>}
-) -> {S.cluster(rest, orig, S.parse.take_arg(Some{aa}, S.cluster.val(Some{aa}, rest), orig, args, up, subs,
-    path, bs, pos,
-      raw, seen), S.cluster.ends(Some{aa}, rest))
+) -> {S.cluster(rest, orig,
+  S.parse.take_arg(Some{aa}, S.cluster.val(Some{aa}, rest), orig,
+    S.Here{args, up, subs, path, bs, pos, raw, seen}), S.cluster.ends(Some{aa}, rest))
     == S.cluster(SCon{cc, rest}, orig, S.St{S.Free{}, args, up, subs, path, bs, pos, raw, seen}, False{}) : S.St}:
   Equal.sym(S.St, S.cluster(SCon{cc, rest}, orig, S.St{S.Free{}, args, up, subs, path, bs, pos, raw, seen}, False{}),
-    S.cluster(rest, orig, S.parse.take_arg(Some{aa}, S.cluster.val(Some{aa}, rest), orig, args, up, subs, path, bs, pos,
-      raw, seen), S.cluster.ends(Some{aa}, rest)),
+    S.cluster(rest, orig, S.parse.take_arg(Some{aa}, S.cluster.val(Some{aa}, rest), orig,
+      S.Here{args, up, subs, path, bs, pos, raw, seen}), S.cluster.ends(Some{aa}, rest)),
     cl.step(cc, rest, orig, args, up, subs, path, bs, pos, raw, seen, aa, h_found))

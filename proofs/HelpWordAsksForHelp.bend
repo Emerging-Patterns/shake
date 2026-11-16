@@ -57,7 +57,7 @@ def dash_help.step(
 ) -> {S.parse.step("--help", S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, False{}})
     == S.St{S.Help{}, args, up, subs, path, bs, pos, False{}, False{}} : S.St}:
   ee = Equal.sym(Maybe<&2, S.Arg>, S.by_long(args, "help"), None{}, h_none)
-  %ee : {S.parse.take_long.found(_, "help", None{}, "--help", args, up, subs, path, bs, pos, False{}, False{})
+  %ee : {S.parse.take_long.found(_, "help", None{}, "--help", S.Here{args, up, subs, path, bs, pos, False{}, False{}})
     == S.St{S.Help{}, args, up, subs, path, bs, pos, False{}, False{}} : S.St}
   {==}
 
@@ -89,12 +89,12 @@ def short_help.step(
     == S.St{S.Help{}, args, up, subs, path, bs, pos, False{}, False{}} : S.St}:
   e1 = Equal.sym(Maybe<&2, S.Arg>, S.by_short(args, "h"), None{}, h_short)
   %e1 : {S.parse.take_short.go(Bool.and(True{}, Bool.and(True{}, Bool.and(Maybe.is_none(&2, S.Arg, _),
-      Maybe.is_none(&2, S.Arg, S.by_long(args, "help"))))), "h", "-h", args, up, subs, path, bs, pos, False{},
-      False{})
+      Maybe.is_none(&2, S.Arg,
+        S.by_long(args, "help"))))), "h", "-h", S.Here{args, up, subs, path, bs, pos, False{}, False{}})
     == S.St{S.Help{}, args, up, subs, path, bs, pos, False{}, False{}} : S.St}
   e2 = Equal.sym(Maybe<&2, S.Arg>, S.by_long(args, "help"), None{}, h_long)
   %e2 : {S.parse.take_short.go(Bool.and(True{}, Bool.and(True{}, Bool.and(True{}, Maybe.is_none(&2, S.Arg, _)))),
-      "h", "-h", args, up, subs, path, bs, pos, False{}, False{})
+      "h", "-h", S.Here{args, up, subs, path, bs, pos, False{}, False{}})
     == S.St{S.Help{}, args, up, subs, path, bs, pos, False{}, False{}} : S.St}
   {==}
 

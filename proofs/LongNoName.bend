@@ -30,20 +30,20 @@ def long_no_name.step(
 ) -> {D1.dead_of(S.parse.step("--" ++ body, S.St{S.Free{}, args, up, subs, path, bs, pos, False{}, seen}))
     == Some{S.UnknownFlag{path, "--" ++ body}} : Maybe<&2, S.ParseErr>}:
   e1 = Equal.sym(Bool, String.eq("--" ++ body, "--"), False{}, h_dd)
-  %e1 : {D1.dead_of(S.parse.step.end(_, "--" ++ body, args, up, subs, path, bs, pos, seen))
+  %e1 : {D1.dead_of(S.parse.step.end(_, "--" ++ body, S.Here{args, up, subs, path, bs, pos, False{}, seen}))
     == Some{S.UnknownFlag{path, "--" ++ body}} : Maybe<&2, S.ParseErr>}
   e0 = Equal.sym(Bool, String.starts_with(body, ""), True{}, L2.prefix_empty(body))
-  %e0 : {D1.dead_of(S.parse.step.kind.go(_, True{}, "--" ++ body, args, up, subs, path, bs, pos, seen))
+  %e0 : {D1.dead_of(S.parse.step.kind.go(_, True{}, "--" ++ body, S.Here{args, up, subs, path, bs, pos, False{}, seen}))
     == Some{S.UnknownFlag{path, "--" ++ body}} : Maybe<&2, S.ParseErr>}
   ed = Equal.sym(String, String.drop(body, 0n), body, L1.drop_zero(body))
-  %ed : {D1.dead_of(S.parse.take_long(_, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen))
+  %ed : {D1.dead_of(S.parse.take_long(_, "--" ++ body, S.Here{args, up, subs, path, bs, pos, False{}, seen}))
     == Some{S.UnknownFlag{path, "--" ++ body}} : Maybe<&2, S.ParseErr>}
   e2 = Equal.sym(String & Maybe<&2, String>, S.cut_eq(body), (name, val), h_cut)
-  %e2 : {D1.dead_of(S.parse.take_long.cut(_, "--" ++ body, args, up, subs, path, bs, pos, False{}, seen))
+  %e2 : {D1.dead_of(S.parse.take_long.cut(_, "--" ++ body, S.Here{args, up, subs, path, bs, pos, False{}, seen}))
     == Some{S.UnknownFlag{path, "--" ++ body}} : Maybe<&2, S.ParseErr>}
   e3 = Equal.sym(Bool, String.is_empty(name), True{}, h_empty)
-  %e3 : {D1.dead_of(S.parse.take_long.named(_, name, val, "--" ++ body, args, up, subs, path, bs, pos,
-      False{}, seen))
+  %e3 : {D1.dead_of(S.parse.take_long.named(_, name, val, "--" ++ body,
+    S.Here{args, up, subs, path, bs, pos, False{}, seen}))
     == Some{S.UnknownFlag{path, "--" ++ body}} : Maybe<&2, S.ParseErr>}
   {==}
 

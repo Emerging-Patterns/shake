@@ -28,9 +28,9 @@ def raw_refused.step(
 ) -> {D1.dead_of(S.parse.step(tok, S.St{S.Free{}, args, up, subs, path, bs, S.Arg{name, sh, lo, kind, hp,
     req, dflt, cs} <> rest, True{}, seen})) == Some{S.BadValue{path, name, tok}} : Maybe<&2, S.ParseErr>}:
   e2 = Equal.sym(Bool, S.allowed(cs, tok), False{}, h_bad)
-  %e2 : {D1.dead_of(S.parse.take_choice(_, name, tok, args, up, subs, path, bs,
-      S.parse.take_pos.keep(S.rest.is(S.Arg{name, sh, lo, kind, hp, req, dflt, cs}),
-        S.Arg{name, sh, lo, kind, hp, req, dflt, cs}, rest), True{}, True{}))
+  %e2 : {D1.dead_of(S.parse.take_choice(_, name, tok,
+    S.Here{args, up, subs, path, bs, S.parse.take_pos.keep(S.rest.is(S.Arg{name, sh, lo, kind, hp, req, dflt, cs}),
+        S.Arg{name, sh, lo, kind, hp, req, dflt, cs}, rest), True{}, True{}}))
     == Some{S.BadValue{path, name, tok}} : Maybe<&2, S.ParseErr>}
   {==}
 

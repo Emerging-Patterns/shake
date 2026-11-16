@@ -34,9 +34,9 @@ def Laws.letter_flag_eq(
   e0 = M2.cl.back(cc, rest, orig, args, up, subs, path, bs, pos, raw, seen, aa, h_found)
   %e0 : {_ == dd : S.St}
   e1 = Equal.sym(Bool, String.starts_with(rest, "="), True{}, h_eq)
-  %e1 : {S.cluster(rest, orig, S.parse.take_arg.kind(S.Flag{}, nn, S.cluster.val.flag(_, rest), orig, args, up,
-      subs, path,
-      bs, pos, raw, seen), _) == dd : S.St}
+  %e1 : {S.cluster(rest, orig,
+    S.parse.take_arg.kind(S.Flag{}, nn, S.cluster.val.flag(_, rest), orig,
+      S.Here{args, up, subs, path, bs, pos, raw, seen}), _) == dd : S.St}
   e2 = Equal.sym(Bool, S.bound(bs, nn), False{}, h_once)
   %e2 : {S.cluster(rest, orig, S.parse.once(_, dd, nn, path), True{}) == dd : S.St}
   L1.cluster_done(rest, orig, dd)
