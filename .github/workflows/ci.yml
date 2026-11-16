@@ -8,4 +8,4 @@ on:
 
 jobs:
   check:
-    uses: Emerging-Patterns/actions/.github/workflows/nix-flake-check.yml@80e030440d9a189001055cf665de28a14cb97f55
+    uses: Emerging-Patterns/actions/.github/workflows/nix-flake-check.yml@ffc57304fd00fd3b3557a6e39c5e4ca38c8e77a8
